@@ -112,6 +112,18 @@ echo "  ✅ Keychain 讀取完成"
 echo "[2/3] 啟動 docker compose..."
 cd "${PROJECT_DIR}/config-templates"
 
+# Image stale guard · accounting image 若比 backend source 舊就 rebuild
+# (Round 3 regression reviewer 抓到的:改 source 沒 rebuild 會導致 RBAC 等全數未生效)
+ACC_SRC="${PROJECT_DIR}/backend/accounting/main.py"
+if [[ -f "$ACC_SRC" ]] && docker image inspect config-templates-accounting > /dev/null 2>&1; then
+    IMG_TS=$(docker image inspect config-templates-accounting --format '{{.Created}}' 2>/dev/null)
+    SRC_TS=$(stat -f '%Sm' -t '%Y-%m-%dT%H:%M:%SZ' "$ACC_SRC" 2>/dev/null || stat -c '%y' "$ACC_SRC" 2>/dev/null)
+    if [[ "$SRC_TS" > "$IMG_TS" ]]; then
+        echo "  🔨 偵測到 accounting source 比 image 新 · rebuild 中..."
+        docker compose build accounting 2>&1 | tail -3
+    fi
+fi
+
 # 本機開發:override.yml 會被自動 merge(docker compose 預設行為)
 # 正式部署想關掉 override:COMPOSE_FILE=docker-compose.yml ./scripts/start.sh
 docker compose up -d

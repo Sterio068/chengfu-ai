@@ -2296,3 +2296,73 @@ button:focus-visible,
   }
   body.has-banner .main-header { margin-top: 56px; }
 }
+
+/* ============================================================
+   v4.3 · ROI 三儀表(Dashboard 首頁)· 老闆一眼看懂錢 + 接案
+   ============================================================ */
+.roi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.roi-card {
+  background: var(--bg-content);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-1);
+  min-height: 110px;
+}
+.roi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.roi-value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.roi-bar {
+  height: 6px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 10px 0 8px;
+}
+.roi-fill {
+  height: 100%;
+  width: 0;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.5s, background 0.3s;
+}
+.roi-fill.warn { background: var(--orange); }
+.roi-fill.over { background: var(--red); }
+.roi-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  letter-spacing: -0.1px;
+}
+.roi-funnel {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.roi-funnel .f-sep { color: var(--text-tertiary); font-weight: 400; font-size: 13px; }
+.roi-funnel .f-num { font-family: var(--font-mono); }
+.roi-funnel .f-win { color: var(--green); }

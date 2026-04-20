@@ -987,6 +987,145 @@ def cost_summary(days: int = 30, _admin: str = Depends(require_admin)):
 
 
 # ============================================================
+# v4.3 · ROI 儀表(審查紅線:預算控管 + 省時量測)
+# ============================================================
+
+# Anthropic 定價(USD per 1M tokens · 2026-04 · 需定期更新)
+_ANTHROPIC_PRICING_USD = {
+    "claude-opus-4-7":    {"input": 15.0,  "output": 75.0},
+    "claude-sonnet-4-6":  {"input":  3.0,  "output": 15.0},
+    "claude-haiku-4-5":   {"input":  0.25, "output":  1.25},
+}
+_USD_TO_NTD = float(os.getenv("USD_TO_NTD", "32.5"))
+_MONTHLY_BUDGET_NTD = float(os.getenv("MONTHLY_BUDGET_NTD", "12000"))
+# Per-user soft cap 上限(NT$)· hard_stop 超過擋送(v1.1 真裝)
+_USER_SOFT_CAP_DEFAULT = float(os.getenv("USER_SOFT_CAP_NTD", "1200"))
+
+
+def _price_ntd(model: str, tokens_in: int, tokens_out: int) -> float:
+    p = _ANTHROPIC_PRICING_USD.get(model)
+    if not p:
+        # 未知模型 · 用 Sonnet 中位數保守估
+        p = _ANTHROPIC_PRICING_USD["claude-sonnet-4-6"]
+    usd = (tokens_in / 1_000_000) * p["input"] + (tokens_out / 1_000_000) * p["output"]
+    return round(usd * _USD_TO_NTD, 2)
+
+
+@app.get("/admin/budget-status")
+def budget_status(_admin: str = Depends(require_admin)):
+    """本月預算進度 · 給 Launcher 首頁進度條 + email 預警用
+    回傳:
+      - spent_ntd  · 本月累計 NT$
+      - budget_ntd · 月預算上限
+      - pct        · 使用率 0-100(可超過)
+      - alert_level · ok / warn / over
+    """
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    try:
+        pipeline = [
+            {"$match": {"createdAt": {"$gte": month_start}}},
+            {"$group": {
+                "_id": "$model",
+                "tin":  {"$sum": "$rawAmount.prompt"},
+                "tout": {"$sum": "$rawAmount.completion"},
+            }},
+        ]
+        stats = list(db.transactions.aggregate(pipeline))
+        spent = sum(_price_ntd(s["_id"] or "", s.get("tin", 0) or 0, s.get("tout", 0) or 0) for s in stats)
+    except Exception:
+        spent = 0.0
+    pct = (spent / _MONTHLY_BUDGET_NTD * 100) if _MONTHLY_BUDGET_NTD else 0
+    level = "ok" if pct < 80 else "warn" if pct < 100 else "over"
+    return {
+        "spent_ntd": round(spent, 0),
+        "budget_ntd": _MONTHLY_BUDGET_NTD,
+        "pct": round(pct, 1),
+        "alert_level": level,
+        "month": now.strftime("%Y-%m"),
+    }
+
+
+@app.get("/admin/top-users")
+def top_users(days: int = 30, limit: int = 10, _admin: str = Depends(require_admin)):
+    """Top N 用量同仁 · 排行榜給 Admin 看
+    LibreChat transactions 有 user field(ObjectId)· join users 取 email
+    """
+    try:
+        from datetime import timedelta
+        from_dt = datetime.utcnow() - timedelta(days=days)
+        pipeline = [
+            {"$match": {"createdAt": {"$gte": from_dt}}},
+            {"$group": {
+                "_id": {"user": "$user", "model": "$model"},
+                "tin":  {"$sum": "$rawAmount.prompt"},
+                "tout": {"$sum": "$rawAmount.completion"},
+                "count": {"$sum": 1},
+            }},
+        ]
+        raw = list(db.transactions.aggregate(pipeline))
+        # 聚合到 per-user · 算 NT$ 金額
+        agg = {}
+        for r in raw:
+            uid = str(r["_id"].get("user", ""))
+            model = r["_id"].get("model", "")
+            cost = _price_ntd(model, r.get("tin", 0) or 0, r.get("tout", 0) or 0)
+            if uid not in agg:
+                agg[uid] = {"user_id": uid, "cost_ntd": 0, "calls": 0, "by_model": {}}
+            agg[uid]["cost_ntd"] += cost
+            agg[uid]["calls"] += r.get("count", 0)
+            agg[uid]["by_model"][model] = agg[uid]["by_model"].get(model, 0) + cost
+        # join user email
+        for a in agg.values():
+            if a["user_id"]:
+                try:
+                    u = _users_col.find_one({"_id": ObjectId(a["user_id"])}, {"email": 1, "name": 1})
+                    a["email"] = (u or {}).get("email", "unknown")
+                    a["name"]  = (u or {}).get("name",  "")
+                except Exception:
+                    a["email"], a["name"] = "unknown", ""
+            a["cost_ntd"] = round(a["cost_ntd"], 0)
+            a["pct_of_cap"] = round(a["cost_ntd"] / _USER_SOFT_CAP_DEFAULT * 100, 1)
+        ranked = sorted(agg.values(), key=lambda x: -x["cost_ntd"])[:limit]
+        return {"period_days": days, "user_soft_cap_ntd": _USER_SOFT_CAP_DEFAULT, "top": ranked}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/admin/tender-funnel")
+def tender_funnel(_admin: str = Depends(require_admin)):
+    """本月標案漏斗:新發現 → 有興趣 → 已判標 → 提案 → 送件 → 得/落標
+    combine tender_alerts + crm_leads(來源 tender_alert)
+    """
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    try:
+        new_count = db.tender_alerts.count_documents({"discovered_at": {"$gte": month_start}})
+        interested = db.tender_alerts.count_documents({"status": "interested"})
+        skipped    = db.tender_alerts.count_documents({"status": "skipped"})
+        # CRM 階段(只看本月 lead)
+        stages_pipeline = [
+            {"$match": {"created_at": {"$gte": month_start}, "source": "tender_alert"}},
+            {"$group": {"_id": "$stage", "count": {"$sum": 1}}},
+        ]
+        stages = {s["_id"]: s["count"] for s in db.crm_leads.aggregate(stages_pipeline)}
+    except Exception as e:
+        return {"error": str(e)}
+    return {
+        "month": now.strftime("%Y-%m"),
+        "funnel": {
+            "new_discovered": new_count,
+            "interested":      interested,
+            "skipped":         skipped,
+            "proposing":       stages.get("proposing", 0),
+            "submitted":       stages.get("submitted", 0),
+            "won":             stages.get("won", 0),
+            "lost":            stages.get("lost", 0),
+        },
+    }
+
+
+# ============================================================
 # E · 安全 · Level 03 內容分級檢查
 # ============================================================
 LEVEL_3_PATTERNS = [

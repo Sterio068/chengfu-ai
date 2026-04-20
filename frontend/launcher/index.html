@@ -232,6 +232,26 @@
         </div>
       </section>
 
+      <!-- 本月預算進度 + 接案漏斗(老闆 ROI 三儀表)-->
+      <section class="block roi-row" id="roi-row">
+        <div class="roi-card" id="roi-budget-card">
+          <div class="roi-label">本月 AI 費用</div>
+          <div class="roi-value" id="roi-budget-value">—</div>
+          <div class="roi-bar"><div class="roi-fill" id="roi-budget-fill"></div></div>
+          <div class="roi-sub" id="roi-budget-sub">—</div>
+        </div>
+        <div class="roi-card" id="roi-funnel-card">
+          <div class="roi-label">本月標案漏斗</div>
+          <div class="roi-funnel" id="roi-funnel-value">—</div>
+          <div class="roi-sub">新發現 → 有興趣 → 提案 → 送件 → 得標</div>
+        </div>
+        <div class="roi-card" id="roi-tasks-card">
+          <div class="roi-label">本週 AI 幫你做</div>
+          <div class="roi-value" id="roi-tasks-value">—</div>
+          <div class="roi-sub">每則回覆記得按 👍 或 👎</div>
+        </div>
+      </section>
+
       <!-- 5 個工作區(主角)-->
       <section class="block">
         <div class="block-title">
@@ -825,7 +845,7 @@
 <!-- ============== ONBOARDING TOUR ============== -->
 <div class="tour-backdrop" id="tour-backdrop"></div>
 <div class="tour-bubble" id="tour-bubble">
-  <div class="tour-step"><span id="tour-step-n">1</span>/<span id="tour-step-total">4</span></div>
+  <div class="tour-step"><span id="tour-step-n">1</span>/<span id="tour-step-total">3</span></div>
   <h3 class="tour-title" id="tour-title"></h3>
   <p class="tour-body" id="tour-body"></p>
   <div class="tour-actions">

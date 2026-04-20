@@ -11,11 +11,57 @@
 >
 > **若 reviewer 只想看關鍵檔而不 clone,優先讀這幾份:**
 > - `CLAUDE.md` · `SYSTEM-DESIGN.md` · `ARCHITECTURE.md` · `docs/DECISIONS.md`
+> - `docs/ROADMAP-v4.2.md`(最新路線圖 · 已對齊老闆 5 題答案)
+> - `docs/PRE-DELIVERY-CHECKLIST.md`(交付前打勾清單 · **揭露系統完成 / 部署未完成**)
+> - `docs/BASELINE.md`(T0 量測模板)
+> - `docs/QUICKSTART.md`(10 分鐘上手 · 對使用者)
+> - `docs/CASES/01-海廢案端到端.md`(第一個完整案例 · 5 天投標)
+> - `docs/HANDBOOK/*.md`(4 份角色手冊)
+> - `docs/NAS-INTEGRATION-SPEC.md` + `docs/LINE-WORKFLOW-SPEC.md`
+> - `docs/LIBRECHAT-UPGRADE-CHECKLIST.md`
 > - `frontend/launcher/index.html` · `app.js` · `launcher.css` · `modules/*.js`
 > - `frontend/nginx/default.conf`
 > - `backend/accounting/main.py`
-> - `scripts/create-agents.py`
+> - `scripts/create-agents.py` · `scripts/start.sh` · `scripts/backup.sh` · `scripts/smoke-librechat.sh`
 > - `config-templates/librechat.yaml` · `docker-compose.yml` · `.env.example`
+
+---
+
+## 🧭 已做過的 3 輪內部審查結論(reviewer 進來前先讀 · 避免重複指出)
+
+### Round 1(技術正確性)· **已修 8 條紅線**
+- FE · chat.js SSE `pop() ?? ""`、chat.js `.chat-messages` → `#chat-messages`、auth.js 401 auto-refresh retry + Web Locks + SessionExpiredError
+- BE · `import json` 修 NameError、email regex injection 修掉、RequestIDMiddleware 500 也帶 header、刪 assert_not_l3 雙源
+- Ops · backup.sh 加 rclone off-site、start.sh CI 護欄 + accounting image stale guard、smoke-librechat 補 SSE/convos、LibreChat upgrade checklist 加 agent `_id` dump
+
+### Round 2(產品 / UX / 業務 / 教材)· **已修 10 條**
+- Onboarding 從 10 步 → **3 步任務型**(對齊老闆 top 3:設計/投標/廠商)· L3 警語整段刪(老闆:先不考慮 L3)
+- 術語中文化 · Agent → 助手、Workspace → 工作區、Skill → 範本、Preset → 模板
+- 「找不到 Agent」文案友善化 · 技術指令只給 admin
+- 新增:QUICKSTART / CASES/01 / HANDBOOK×4 / NAS-SPEC / LINE-SPEC / README 第一屏改為使用者場景
+
+### Round 3(交付準備度 / 整合 regression / 財務 ROI)· **已修 4 條 · 揭露 3 個部署紅線**
+- **修掉** accounting image 未 rebuild 導致 RBAC 未生效(致命 · 在內網裸奔)
+- **修掉** onboarding tour-step-total 寫死 4 的破綻
+- **加** 3 個 ROI 儀表:`/admin/budget-status` / `/admin/top-users` / `/admin/tender-funnel`
+- **加** Dashboard ROI row(本月 AI 費用進度條 + 標案漏斗 + 本週完成任務)
+- **揭露(非程式碼問題 · 交付前手動落地):**
+  - 🔴 Mac mini 尚未上架 + Cloudflare Tunnel 未設(DoD 20%)
+  - 🔴 `knowledge-base/samples/` 空 · 承富真實建議書 0% 已灌
+  - 🔴 10 帳號 / 密碼 reset SOP / 2 場教育訓練皆 0%
+  - 詳見 `docs/PRE-DELIVERY-CHECKLIST.md` 逐日打勾清單
+
+### 因此 · reviewer 請**不要再審以下項**(已在上述 3 輪處理)
+- SSE pop 邊界、tenders listener 疊加、auth 401 retry、CORS whitelist、admin RBAC
+- onboarding 步數、L3 警語、術語中文化
+- ROI baseline 缺失、per-user quota 缺失、標案漏斗視覺化、accounting image 是否 rebuild
+- 異機備份腳本骨架、LibreChat 升版 checklist
+
+### 建議 reviewer 本輪**新聚焦的問題**(我們還沒問過):
+- 系統有什麼**還沒列入** PRE-DELIVERY-CHECKLIST 的落地盲點?
+- ROI 3 儀表夠嗎 · 6 個月後真能答辯「值 NT$ 88,000」嗎?
+- 教學手冊對**抗拒型資深同仁**夠嗎 · 有沒有更好的「first-win」策略?
+- 以你的專業 · 這個系統**最可能在上線後第 2 週**怎麼死(usage 崩掉 / 同仁放棄 / 老闆不付錢)?
 
 ---
 
@@ -149,41 +195,45 @@ uptime (3001) ──── 服務監控
 
 ---
 
-## 4. 當前狀態(DoD 視角)
+## 4. 當前狀態(DoD 視角 · v4.3 · 2026-04-21)
 
-### ✅ 已完成
-- 容器 6 個全部 healthy
-- 10 Agent 全建立 + 全公司共享
-- Launcher UI 對齊原 mockup(5 Workspace 卡 + 全域工具 + Inspector 三欄)
-- ⌘K / ⌘1-5 快捷鍵
-- 深淺色、毛玻璃
-- Path A 內建 chat pane(SSE 串流 + 👍👎 feedback + 歷史對話)
-- 會計 / 專案 / CRM / Admin / 標案監測 view
-- L3 safety classifier 送出前預檢
-- macOS Keychain 管理機密(JWT / ANTHROPIC_API_KEY / Meili key 等)
-- 一鍵啟動 `./scripts/start.sh`(自動開 Docker Desktop)
+### ✅ 程式碼完成度:**95%**(已通過 3 輪內部審查)
+- 6 容器全 healthy · 10 Agent 全建立 + 共享 `instance` global project
+- 前端 v4.3 · ES Modules · 無 build step · 單檔 CSS · Path A 內建 chat
+- UX:3 步 onboarding(對齊老闆 top 3)· 術語全中文化 · 5 狀態卡 · banner · focus visible
+- 快捷鍵:⌘K / ⌘1-5 工作區 / ⌘6-9 進階助手 / ⌘0 首頁
+- Dashboard ROI 三儀表:本月預算進度條 + 標案漏斗 + 本週完成數
+- 後端:13 個 /admin/* endpoint 全 RBAC / CORS whitelist / Request-ID + JSON log / Mongo 7 indexes
+- 契約測試:`smoke-librechat.sh` 11 pass · `pytest` 18 pass
+- 保護網:`backup.sh` 已接 rclone off-site、`start.sh` 有 CI 護欄 + image stale guard、`LIBRECHAT-UPGRADE-CHECKLIST.md`
 
-### ⏳ 未完成(但確定要做)
-- 10 個同仁帳號建立(`scripts/create-users.py`)
-- 承富過往檔案上傳建 RAG 索引(`scripts/upload-knowledge-base.py`)
-- Cloudflare Tunnel 對外(Access policy + 2FA)
-- 2 場教育訓練(全員 Onboarding + 進階分層)
-- 備份 cron(`scripts/backup.sh` 每日 MongoDB dump)
-- 驗收 DoD 簽收
+### 📚 教材完成度:**85%**
+- `QUICKSTART.md`(10 分鐘 3 任務)· `CASES/01-海廢案端到端.md`(5 天投標完整走一遍)
+- `HANDBOOK/` 4 份角色手冊(老闆 / PM / 設計 / 業務)
+- `NAS-INTEGRATION-SPEC.md` + `LINE-WORKFLOW-SPEC.md` · 等承富答 5 問再動工
+- `PRE-DELIVERY-CHECKLIST.md` · 交付週逐日打勾
+- `BASELINE.md` · T0 量測模板
 
-### ⚠️ 已知問題 / 技術債
-- `chat.js:167` SSE `buffer = events.pop()` 可能吞最後一個 event(需 `?? ""`)
-- `tenders.js:16` filter chip listener 重複綁(切 view 疊加)
-- `auth.js` `_jwt` 過期沒自動 retry refresh
-- 35 處 inline `onclick=` 在 HTML 裡(應改 event delegation)
-- `renderMarkdown` 手刻 regex(不嚴謹,應改 `marked` 或小 DSL)
-- 前端無 E2E 測試
-- 後端無 pytest 完整覆蓋(只有 `test_main.py` 14 項 smoke)
-- 沒有容錯 retry 機制(任何 API 失敗就 toast 就結束)
-- 沒有整合 Google Drive MCP(v1.0 範圍含)
-- 沒有月度 `propose-skill.py` 自動建議新 skill(v1.1 雛形)
-- 沒有 `tender-monitor.py` cron 實際跑起來(需 launchd)
-- 沒有 `dr-drill.sh` 壓測 / 災難演練實際跑過
+### 🔴 部署落地完成度:**35%**(= 老闆感受到的交付價值)
+- [ ] Mac mini 未上架、Cloudflare Tunnel 未接 · 同仁目前只有作者本機能用
+- [ ] `knowledge-base/samples/` 空目錄 · **承富真實建議書 / 結案報告 0 份已灌**
+- [ ] 10 同仁帳號未建 · 密碼 reset SOP 未寫
+- [ ] 2 場教育訓練未辦
+- [ ] 異機備份 rclone 未設 remote
+- [ ] T0 baseline 未填(ROI 無對比基準)
+
+**= 系統已經寫完 · 但沒人能用 · 6 個月後無法證明 ROI。**
+**這是交付經理(Sterio)要在交付前 1 週手動落地的事,不是再改程式碼。**
+
+### ⚠️ 明確延後到 v1.1 的項目
+- Google Drive MCP(老闆實際在 NAS + LINE · 優先級降)
+- Fal.ai Recraft v3 真生圖(設計夥伴目前只產 prompt 給同仁自己去生)
+- 附件 PDF 真實上傳(目前 UI 關閉 · 靠複製貼上)
+- Multi-agent workflow 自動串接(目前是關閉的 empty-state)
+- 跨助手 handoff 結構化交棒
+- Company Memory(跨對話記憶)
+- per-user token hard stop(現在只有儀表,未做閘門)
+- L3 硬擋(老闆:先不考慮)
 
 ---
 

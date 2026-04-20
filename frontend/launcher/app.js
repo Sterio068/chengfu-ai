@@ -83,6 +83,7 @@ export const app = {
       this.loadAgents(),
       this.loadConversations(),
       this.loadUsage(),
+      this.loadROI(),
       Projects.refresh(),
     ]);
 
@@ -283,6 +284,61 @@ export const app = {
       setText("usage-avg", "0");
       const card = document.querySelector(".usage-card");
       if (card) card.classList.add("empty");
+    }
+  },
+
+  async loadROI() {
+    // 3 個 ROI 儀表 · admin 看得到數字,同仁看 fallback
+    const isAdmin = this.user?.role === "ADMIN";
+    // 預算進度
+    const budgetEl = document.getElementById("roi-budget-card");
+    if (budgetEl && isAdmin) {
+      try {
+        const r = await authFetch("/api-accounting/admin/budget-status");
+        if (r.ok) {
+          const d = await r.json();
+          setText("roi-budget-value", `NT$ ${Number(d.spent_ntd).toLocaleString()}`);
+          setText("roi-budget-sub", `預算 NT$ ${Number(d.budget_ntd).toLocaleString()} · ${d.pct}%`);
+          const fill = document.getElementById("roi-budget-fill");
+          if (fill) {
+            fill.style.width = Math.min(100, d.pct) + "%";
+            fill.className = "roi-fill " + (d.alert_level === "over" ? "over" : d.alert_level === "warn" ? "warn" : "");
+          }
+        }
+      } catch {}
+    } else if (budgetEl) {
+      setText("roi-budget-value", "—");
+      setText("roi-budget-sub", "管理員才看得到");
+    }
+    // 標案漏斗(admin 全員皆可見 · 管理面板另有更詳細版)
+    try {
+      const r = await authFetch("/api-accounting/admin/tender-funnel");
+      if (r.ok) {
+        const d = await r.json();
+        const f = d.funnel || {};
+        const el = document.getElementById("roi-funnel-value");
+        if (el) {
+          el.innerHTML = `
+            <span class="f-num">${f.new_discovered || 0}</span>
+            <span class="f-sep">→</span>
+            <span class="f-num">${f.interested || 0}</span>
+            <span class="f-sep">→</span>
+            <span class="f-num">${f.proposing || 0}</span>
+            <span class="f-sep">→</span>
+            <span class="f-num">${f.submitted || 0}</span>
+            <span class="f-sep">→</span>
+            <span class="f-num f-win">${f.won || 0}</span>
+          `;
+        }
+      }
+    } catch {}
+    // 本週 AI 幫你做幾件(loadUsage 已放 stat-this-week-tasks)· 抓相同數值到 ROI 卡
+    const tasks = document.getElementById("stat-this-week-tasks")?.textContent;
+    if (tasks && tasks !== "—") setText("roi-tasks-value", tasks);
+    else {
+      const counts = JSON.parse(localStorage.getItem("chengfu-agent-usage") || "{}");
+      const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
+      setText("roi-tasks-value", String(total));
     }
   },
 
