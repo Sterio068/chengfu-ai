@@ -152,14 +152,33 @@ def test_feedback_stats(client):
 # ============================================================
 # D · 管理 Dashboard
 # ============================================================
-def test_admin_dashboard(client):
+def test_admin_dashboard_requires_admin(client):
+    """沒帶 X-User-Email → 403。驗證 RBAC 生效。"""
     r = client.get("/admin/dashboard")
+    assert r.status_code == 403
+
+
+def test_admin_dashboard_with_admin(client):
+    """白名單 admin email → 200。"""
+    r = client.get(
+        "/admin/dashboard",
+        headers={"X-User-Email": "sterio068@gmail.com"},
+    )
     assert r.status_code == 200
     body = r.json()
     assert "accounting" in body
     assert "projects" in body
     assert "feedback" in body
     assert "conversations" in body
+
+
+def test_admin_dashboard_rejects_non_admin(client):
+    """非白名單 email → 403。"""
+    r = client.get(
+        "/admin/dashboard",
+        headers={"X-User-Email": "random-staff@chengfu.local"},
+    )
+    assert r.status_code == 403
 
 
 # ============================================================

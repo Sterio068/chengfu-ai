@@ -2,6 +2,7 @@
  * Admin Dashboard · 成本 / 品質 / 用量總覽
  */
 import { escapeHtml } from "./util.js";
+import { authFetch } from "./auth.js";
 
 const BASE = "/api-accounting";
 
@@ -14,7 +15,7 @@ export const admin = {
 
   async loadDashboard() {
     try {
-      const r = await fetch(`${BASE}/admin/dashboard`);
+      const r = await authFetch(`${BASE}/admin/dashboard`);
       if (!r.ok) throw new Error(r.statusText);
       const d = await r.json();
       setText("admin-income",          (d.accounting.month_income  / 10000).toFixed(1) + "萬");
@@ -36,7 +37,7 @@ export const admin = {
     const root = document.getElementById("admin-agent-stats");
     if (!root) return;
     try {
-      const r = await fetch(`${BASE}/feedback/stats`);
+      const r = await authFetch(`${BASE}/feedback/stats`);
       const stats = await r.json();
       if (!stats.length) { root.innerHTML = '<div class="chip-empty">尚無足夠回饋資料</div>'; return; }
       stats.sort((a, b) => b.score - a.score);
@@ -59,7 +60,7 @@ export const admin = {
     const root = document.getElementById("admin-cost-stats");
     if (!root) return;
     try {
-      const r = await fetch(`${BASE}/admin/cost?days=30`);
+      const r = await authFetch(`${BASE}/admin/cost?days=30`);
       const d = await r.json();
       if (d.error || !d.by_model) {
         root.innerHTML = '<div class="chip-empty">LibreChat transactions 尚無資料(還沒對話累積)</div>';

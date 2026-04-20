@@ -7,20 +7,26 @@ const BASE = "/api-accounting/tender-alerts";
 
 export const tenders = {
   filter: "all",
+  _filterBound: false,
 
   async load() {
     await this.refresh();
-    this.bindFilter();
+    this.bindFilter();  // 內部 guard · 只綁一次
   },
 
   bindFilter() {
-    document.querySelectorAll("[data-tender-filter]").forEach(el => {
-      el.addEventListener("click", async () => {
-        document.querySelectorAll("[data-tender-filter]").forEach(x => x.classList.remove("active"));
-        el.classList.add("active");
-        this.filter = el.dataset.tenderFilter;
-        await this.refresh();
-      });
+    if (this._filterBound) return;
+    this._filterBound = true;
+    // Event delegation · 綁在父容器 · 避免元素重繪後 listener 丟失
+    const parent = document.querySelector(".view-tenders .projects-filter");
+    if (!parent) return;
+    parent.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-tender-filter]");
+      if (!btn) return;
+      parent.querySelectorAll("[data-tender-filter]").forEach(x => x.classList.remove("active"));
+      btn.classList.add("active");
+      this.filter = btn.dataset.tenderFilter;
+      await this.refresh();
     });
   },
 

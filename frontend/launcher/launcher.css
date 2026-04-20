@@ -2061,3 +2061,238 @@ button { transition: transform 0.1s ease-out, background 0.15s; }
   letter-spacing: 1px;
   color: var(--text-tertiary);
 }
+
+/* ============================================================
+   v4.2 · 外部審查建議 · UX 狀態/反饋/無障礙
+   ============================================================ */
+
+/* ---------- 空狀態 / 錯誤狀態卡(5 種模板共用)---------- */
+.empty-state {
+  max-width: 540px;
+  margin: 48px auto;
+  padding: 40px 32px;
+  background: var(--bg-content);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-1);
+  text-align: center;
+}
+.empty-state .empty-icon {
+  font-size: 40px;
+  margin-bottom: 14px;
+  line-height: 1;
+}
+.empty-state .empty-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.empty-state .empty-desc {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+.empty-state .empty-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.empty-state .empty-actions .btn-primary,
+.empty-state .empty-actions .btn-ghost {
+  padding: 10px 20px;
+  font-size: 13.5px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.empty-state .empty-hint {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.empty-state.error { border-top: 3px solid var(--red); }
+.empty-state.warn  { border-top: 3px solid var(--orange); }
+.empty-state.info  { border-top: 3px solid var(--blue); }
+
+/* ---------- 系統狀態 banner(全寬 · 後端離線 / 登入過期)---------- */
+.sys-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 10px 24px;
+  font-size: 13px;
+  color: white;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 300;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  animation: banner-slide-in 0.25s ease-out;
+  transform: translateY(-100%);
+}
+.sys-banner.show { transform: translateY(0); }
+.sys-banner.warn { background: var(--orange); }
+.sys-banner.info { background: var(--blue); }
+.sys-banner .banner-action {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.35);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sys-banner .banner-action:hover { background: rgba(255,255,255,0.32); }
+@keyframes banner-slide-in {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+body.has-banner .main-header { margin-top: 44px; }
+
+/* ---------- 固定露出的回饋按鈕(不再藏 hover)---------- */
+.chat-msg.assistant .chat-msg-actions {
+  opacity: 1;  /* 改為固定顯示 · 原為 hover */
+  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.chat-msg.assistant .chat-msg-actions::before {
+  content: "有用嗎?";
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-right: 4px;
+}
+.chat-msg-fb {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-content);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.12s;
+  opacity: 1;
+  padding: 0;
+}
+.chat-msg-fb:hover {
+  background: var(--bg-base);
+  border-color: var(--border-strong);
+}
+.chat-msg-fb.active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+/* ---------- Chat 輸入框提示條(快捷鍵 + 檔案 + 等級)---------- */
+.chat-input-area {
+  position: relative;
+}
+.chat-input-hints {
+  display: flex;
+  gap: 16px;
+  padding: 6px 14px 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.chat-input-hints kbd {
+  font-family: var(--font-mono);
+  background: none;
+  border: 0.5px solid var(--border-strong);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.chat-input-hints .hint-level {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.chat-input-hints .hint-level.l1 { background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); }
+.chat-input-hints .hint-level.l2 { background: color-mix(in srgb, var(--orange) 12%, transparent); color: var(--orange); }
+.chat-input-hints .hint-level.l3 { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); font-weight: 600; }
+
+/* ---------- 附件按鈕 disabled 狀態(v1.0 先關) ---------- */
+.chat-attach-btn.disabled,
+.chat-attach-btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  position: relative;
+}
+.chat-attach-btn.disabled:hover::after {
+  content: "v1.1 開放 · 現在請把檔案內容直接複製貼上";
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--text-primary);
+  color: var(--bg-content);
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  box-shadow: var(--shadow-2);
+  z-index: 10;
+}
+
+/* ---------- Focus 無障礙強化(審查員建議)---------- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.sidebar-item:focus-visible,
+.workspace-card:focus-visible,
+.tool-card:focus-visible,
+.chip:focus-visible,
+.project-card:focus-visible,
+.skill-card:focus-visible,
+.recent-item:focus-visible,
+.suggestion:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* 按鈕 focus 有背景更顯眼 */
+button:focus-visible,
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* ---------- 可點 div/article 加 role="button" 後的 cursor ---------- */
+[role="button"] {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ---------- 手機版 banner 適配 ---------- */
+@media (max-width: 768px) {
+  .sys-banner {
+    padding: 8px 16px;
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  body.has-banner .main-header { margin-top: 56px; }
+}

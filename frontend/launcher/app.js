@@ -27,7 +27,7 @@
 
 import { API, CORE_AGENTS, SKILLS, CLAUDE_SKILLS, WORKSPACE_TO_AGENT } from "./modules/config.js";
 import { escapeHtml, formatDate, greetingFor, timeAgo, formatMoney, skeletonCards } from "./modules/util.js";
-import { refreshAuth, authFetch } from "./modules/auth.js";
+import { refreshAuth, authFetch, setUserEmail } from "./modules/auth.js";
 import { Projects } from "./modules/projects.js";
 import { modal } from "./modules/modal.js";
 import { toast } from "./modules/toast.js";
@@ -62,6 +62,7 @@ export const app = {
     try {
       const data = await refreshAuth();
       this.user = data.user || data;
+      setUserEmail(this.user?.email);  // 讓 authFetch 帶 X-User-Email · 給後端 RBAC 用
     } catch (e) {
       console.warn("[ChengFu] 認證失敗:", e);
       window.location.href = "/login";
@@ -235,7 +236,7 @@ export const app = {
       const r = await resp.json();
       const convos = Array.isArray(r) ? r : (r.conversations || r.data || []);
       if (convos.length === 0) {
-        container.innerHTML = '<div class="chip-empty">尚無對話 · 從 Workspace 開始</div>';
+        container.innerHTML = '<div class="chip-empty">尚無對話 · 從工作區開始</div>';
         return;
       }
       const dotColors = ["#FF3B30", "#FF9500", "#AF52DE", "#34C759", "#007AFF"];

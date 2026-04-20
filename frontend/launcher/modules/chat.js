@@ -102,8 +102,49 @@ export const chat = {
     }, 0);
   },
 
+  // 輸入時 debounce 去問 backend L3 classifier · 更新等級提示 badge
+  _classifyTimer: null,
+  onInput(e) {
+    const text = (e?.target?.value || "").trim();
+    const badge = document.getElementById("chat-level-hint");
+    if (!badge) return;
+    if (text.length < 20) {
+      badge.className = "hint-level l1";
+      badge.textContent = "L1 公開";
+      badge.title = "短文字尚未判定 · 預設公開";
+      return;
+    }
+    clearTimeout(this._classifyTimer);
+    this._classifyTimer = setTimeout(async () => {
+      try {
+        const r = await fetch("/api-accounting/safety/classify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        const level = d.level || "01";
+        if (level === "03") {
+          badge.className = "hint-level l3";
+          badge.textContent = "⚠ L3 機敏";
+          badge.title = "偵測到機敏內容 · 送出前會再次確認。建議不要上雲。";
+        } else if (level === "02") {
+          badge.className = "hint-level l2";
+          badge.textContent = "L2 一般";
+          badge.title = "一般機密 · 建議去識別化後再送";
+        } else {
+          badge.className = "hint-level l1";
+          badge.textContent = "L1 公開";
+          badge.title = "公開資訊 · 可安全上雲";
+        }
+      } catch { /* backend 離線 · 不改 */ }
+    }, 450);
+  },
+
   pickFile() {
-    document.getElementById("chat-file-input")?.click();
+    // v1.0 先關閉 · 避免假成功
+    toast.info("v1.1 開放檔案上傳 · 現在請把檔案內容複製貼上");
   },
 
   async send(e) {
@@ -164,7 +205,7 @@ export const chat = {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const events = buffer.split("\n\n");
-      buffer = events.pop();
+      buffer = events.pop() ?? "";  // 保護:若 chunk 剛好以 \n\n 結尾,pop() 會是 undefined
       for (const evt of events) {
         const dataLines = evt.split("\n").filter(l => l.startsWith("data: ")).map(l => l.substring(6));
         for (const line of dataLines) {

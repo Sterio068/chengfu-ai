@@ -37,7 +37,7 @@
     </nav>
 
     <nav class="sidebar-section">
-      <div class="sidebar-section-label">Workspace</div>
+      <div class="sidebar-section-label">工作區</div>
       <a class="sidebar-item ws-nav" data-ws="1" style="--ws-color:#FF3B30">
         <span class="sidebar-icon" style="color:#FF3B30">
           <svg class="icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none">
@@ -228,15 +228,15 @@
           <div class="block-hint" id="frequent-hint">根據您最近 7 天使用</div>
         </div>
         <div class="chip-row" id="frequent-chips">
-          <div class="chip-empty">尚無常用 · 送出第一個問題,或點下方 Workspace 開始</div>
+          <div class="chip-empty">尚無常用 · 送出第一個問題,或點下方工作區開始</div>
         </div>
       </section>
 
-      <!-- 5 個 Workspace(主角)-->
+      <!-- 5 個工作區(主角)-->
       <section class="block">
         <div class="block-title">
-          <h2>🗂️ Workspace</h2>
-          <div class="block-hint">按 ⌘1-5 快速切換 · 每個 Workspace 是一整條工作流</div>
+          <h2>🗂️ 工作區</h2>
+          <div class="block-hint">按 ⌘1-5 快速切換 · 每個工作區是一整條工作流</div>
         </div>
         <div class="workspaces" id="workspaces-grid">
 
@@ -252,7 +252,7 @@
             </div>
             <div class="ws-desc">從看到招標須知,到送件前最後一哩的完整流程。</div>
             <div class="ws-meta">
-              <div class="ws-meta-item">🎯 <span class="ws-meta-num" id="ws1-agents">1</span> Agent</div>
+              <div class="ws-meta-item">🎯 <span class="ws-meta-num" id="ws1-agents">1</span> 助手</div>
               <div class="ws-meta-item">📅 本月 <span class="ws-meta-num" id="ws1-month">—</span> 次</div>
               <div class="ws-meta-item">⭐ 勝率 <span class="ws-meta-num" id="ws1-winrate">—</span></div>
             </div>
@@ -270,7 +270,7 @@
             </div>
             <div class="ws-desc">3D 場景模擬、舞台、動線、現場體驗、廠商合約一站到位。</div>
             <div class="ws-meta">
-              <div class="ws-meta-item">🎪 <span class="ws-meta-num" id="ws2-agents">1</span> Agent</div>
+              <div class="ws-meta-item">🎪 <span class="ws-meta-num" id="ws2-agents">1</span> 助手</div>
               <div class="ws-meta-item">📅 本月 <span class="ws-meta-num" id="ws2-month">—</span> 次</div>
               <div class="ws-meta-item">⏱ 省時 <span class="ws-meta-num" id="ws2-hours">—</span></div>
             </div>
@@ -288,7 +288,7 @@
             </div>
             <div class="ws-desc">主視覺發想、設計 Brief、AI 圖像、多渠道適配。PM × 設計師無縫接棒。</div>
             <div class="ws-meta">
-              <div class="ws-meta-item">🎨 <span class="ws-meta-num" id="ws3-agents">1</span> Agent</div>
+              <div class="ws-meta-item">🎨 <span class="ws-meta-num" id="ws3-agents">1</span> 助手</div>
               <div class="ws-meta-item">📅 本月 <span class="ws-meta-num" id="ws3-month">—</span> 次</div>
               <div class="ws-meta-item">✨ 滿意 <span class="ws-meta-num" id="ws3-sat">—</span></div>
             </div>
@@ -306,7 +306,7 @@
             </div>
             <div class="ws-desc">新聞稿、社群月企劃、Email、會議速記。對外發聲全部搞定。</div>
             <div class="ws-meta">
-              <div class="ws-meta-item">📣 <span class="ws-meta-num" id="ws4-agents">2</span> Agent</div>
+              <div class="ws-meta-item">📣 <span class="ws-meta-num" id="ws4-agents">2</span> 助手</div>
               <div class="ws-meta-item">📅 本月 <span class="ws-meta-num" id="ws4-month">—</span> 次</div>
               <div class="ws-meta-item">📈 曝光 <span class="ws-meta-num" id="ws4-reach">—</span></div>
             </div>
@@ -324,7 +324,7 @@
             </div>
             <div class="ws-desc">結案、報價、追蹤、CRM、合約、稅務、新人 onboarding。內部管理中樞。</div>
             <div class="ws-meta">
-              <div class="ws-meta-item">📊 <span class="ws-meta-num" id="ws5-agents">3</span> Agent</div>
+              <div class="ws-meta-item">📊 <span class="ws-meta-num" id="ws5-agents">3</span> 助手</div>
               <div class="ws-meta-item">📅 本月 <span class="ws-meta-num" id="ws5-month">—</span> 次</div>
               <div class="ws-meta-item">💰 節省 <span class="ws-meta-num" id="ws5-saved">—</span></div>
             </div>
@@ -462,14 +462,14 @@
       <div class="main-header">
         <div>
           <h1 class="greeting">📚 技能庫</h1>
-          <div class="greeting-sub">承富 12 個專屬 Skills + Anthropic 官方 17 個 Claude Skills + OpenClaw 參考庫,AI 會自動引用。</div>
+          <div class="greeting-sub">承富 12 個專屬範本 + Anthropic 官方 17 個 Claude 範本 + OpenClaw 參考庫,AI 會自動引用。</div>
         </div>
       </div>
 
-      <div class="block-title"><h2>承富 12 Skills</h2></div>
+      <div class="block-title"><h2>承富 12 個常用範本</h2></div>
       <div class="skills-grid" id="skills-grid"></div>
 
-      <div class="block-title" style="margin-top: 40px"><h2>Anthropic 官方 Skills(Claude 平台)</h2></div>
+      <div class="block-title" style="margin-top: 40px"><h2>Anthropic 官方範本(Claude 平台)</h2></div>
       <div class="skills-grid" id="claude-skills-grid"></div>
     </div>
 
@@ -526,7 +526,7 @@
       </div>
 
       <div class="v10-notice">
-        💡 想開發票或建報價,直接跟「💰 財務試算」Agent 說,它會自動呼叫會計 API 處理。
+        💡 想開發票或建報價,直接跟「💰 財務試算」助手說,它會自動呼叫會計 API 處理。
       </div>
     </div>
 
@@ -559,23 +559,31 @@
       </div>
     </div>
 
-    <!-- ========== VIEW: WORKFLOWS(自動化多 Agent 流程)========== -->
+    <!-- ========== VIEW: WORKFLOWS(自動化多助手流程)========== -->
     <div class="view view-workflows" data-view="workflows">
       <div class="main-header">
         <div>
           <h1 class="greeting">⚡ 自動化流程</h1>
-          <div class="greeting-sub">主管家協調多個專家串接 · 一句話完成完整工作流(v2.0 功能)</div>
+          <div class="greeting-sub">主管家協調多個專家串接 · 一句話完成完整工作流</div>
         </div>
       </div>
 
-      <div class="workspaces" id="workflows-grid">
-        <div class="chip-empty" style="grid-column: 1 / -1">載入中…</div>
+      <!-- v1.0 關閉入口 · 避免假成功 -->
+      <div class="empty-state">
+        <div class="empty-icon">🚧</div>
+        <div class="empty-title">自動化流程尚未開放(v2.0 功能)</div>
+        <div class="empty-desc">
+          這個頁面還在開發中 · 目前的串接需要手動操作。<br>
+          想跑完整投標/活動/公關閉環,請直接對「✨ 主管家」說你的目標,它會一步步帶你走。
+        </div>
+        <div class="empty-actions">
+          <button class="btn-primary" onclick="app.openAgent('00')">找主管家對話</button>
+          <button class="btn-ghost" onclick="app.showView('dashboard')">回首頁</button>
+        </div>
       </div>
 
-      <div class="v10-notice">
-        ⚠️ v2.0 實驗性功能 · 需要 LibreChat v0.8.4 的 Agent API 支援。
-        若執行失敗,請改用單一 Agent 手動操作。
-      </div>
+      <!-- 保留 grid 元素供未來啟用 · 不顯示 -->
+      <div class="workspaces" id="workflows-grid" hidden></div>
     </div>
 
     <!-- ========== VIEW: CRM PIPELINE(Kanban · v2.0 核心業務)========== -->
@@ -583,7 +591,7 @@
       <div class="main-header">
         <div>
           <h1 class="greeting">💼 商機 Pipeline</h1>
-          <div class="greeting-sub">拖拉卡片 · 跟 Agent 協作 · 視覺化承富投標全閉環</div>
+          <div class="greeting-sub">拖拉卡片 · 跟助手協作 · 視覺化承富投標全閉環</div>
         </div>
         <div class="header-actions">
           <button class="btn-ghost" onclick="crm.importFromTenders()">📥 匯入「有興趣」標案</button>
@@ -680,7 +688,7 @@
           </div>
         </div>
 
-        <div class="block-title" style="margin-top:24px"><h2>各 Agent 品質排行</h2></div>
+        <div class="block-title" style="margin-top:24px"><h2>各助手品質排行</h2></div>
         <div class="recent-list" id="admin-agent-stats">
           <div class="chip-empty">載入中…</div>
         </div>
@@ -739,7 +747,7 @@
         <div class="suggestion" onclick="app.openAgent('06')">
           <div class="sug-icon">📚</div>
           <div class="sug-title">先試:問知識庫</div>
-          <div class="sug-desc">找過往案例 / Skills / 承富內部規範 · 打一句話就好。</div>
+          <div class="sug-desc">找過往案例 / 範本 / 承富內部規範 · 打一句話就好。</div>
         </div>
       </div>
     </section>
@@ -805,7 +813,7 @@
 <!-- ============== ⌘K PALETTE ============== -->
 <div class="palette-backdrop" id="palette-backdrop" onclick="app.closePalette()"></div>
 <div class="palette" id="palette">
-  <input type="text" class="palette-input" id="palette-input" placeholder="搜尋 Agent / 專案 / 技能 / 對話…" autocomplete="off">
+  <input type="text" class="palette-input" id="palette-input" placeholder="搜尋助手 / 專案 / 範本 / 對話…" autocomplete="off">
   <div class="palette-results" id="palette-results"></div>
   <div class="palette-footer">
     <span><kbd>↑↓</kbd> 移動</span>
@@ -854,13 +862,20 @@
   <form class="chat-input-area" onsubmit="chat.send(event)" id="chat-form">
     <div class="chat-attachments" id="chat-attachments"></div>
     <div class="chat-input-row">
-      <button type="button" class="chat-attach-btn" onclick="chat.pickFile()" title="上傳檔案(PDF / Word / 音檔)">📎</button>
+      <button type="button" class="chat-attach-btn disabled" disabled aria-label="上傳檔案(v1.1 開放)"
+              title="v1.1 開放 · 現在請把檔案內容複製貼上">📎</button>
       <textarea class="chat-input-ta" id="chat-input" rows="1"
                 placeholder="問任何問題 · Shift+Enter 換行"
-                onkeydown="chat.onKey(event)"></textarea>
-      <button type="submit" class="chat-send" id="chat-send-btn" title="送出 (Enter)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                onkeydown="chat.onKey(event)"
+                oninput="chat.onInput(event)"></textarea>
+      <button type="submit" class="chat-send" id="chat-send-btn" aria-label="送出訊息" title="送出 (Enter)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
+    </div>
+    <div class="chat-input-hints">
+      <span><kbd>Enter</kbd> 送出</span>
+      <span><kbd>Shift</kbd>+<kbd>Enter</kbd> 換行</span>
+      <span class="hint-level l1" id="chat-level-hint" title="資料敏感度提示 · 幫你判斷能不能送 AI">L1 公開</span>
     </div>
     <input type="file" id="chat-file-input" hidden multiple>
   </form>

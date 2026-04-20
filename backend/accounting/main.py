@@ -10,13 +10,16 @@
   D. 管理:成本/品質/使用儀表板、異常告警
   E. 安全:Level 03 內容分級檢查、簡易 RBAC
 """
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from datetime import datetime, date
 from enum import Enum
 import os
+import uuid
+import logging
 from pymongo import MongoClient
 from bson import ObjectId
 
@@ -47,12 +50,50 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# ============================================================
+# CORS · 白名單(env CORS_ORIGINS 逗號分隔覆寫)
+# ============================================================
+_default_origins = "http://localhost,http://localhost:3080,http://承富-ai.local"
+_cors_env = os.getenv("CORS_ORIGINS", _default_origins)
+# 另允許 Cloudflare Tunnel 網域(CLOUDFLARE_TUNNEL_DOMAIN 單一值)
+_tunnel = os.getenv("CLOUDFLARE_TUNNEL_DOMAIN", "").strip()
+_allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+if _tunnel:
+    _allow_origins.append(f"https://{_tunnel}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # nginx 代理後端所以 OK
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allow_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-User-Email", "X-User-Role", "X-Request-ID"],
 )
+
+# ============================================================
+# Request ID + 結構化 log middleware
+# ============================================================
+logger = logging.getLogger("chengfu")
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"time":"%(asctime)s","level":"%(levelname)s","name":"%(name)s","msg":"%(message)s"}',
+)
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
+        request.state.request_id = rid
+        try:
+            resp = await call_next(request)
+        except Exception as e:
+            logger.error(f"rid={rid} unhandled_exc={type(e).__name__}:{e}")
+            raise
+        resp.headers["X-Request-ID"] = rid
+        logger.info(f"rid={rid} {request.method} {request.url.path} -> {resp.status_code}")
+        return resp
+
+
+app.add_middleware(RequestIDMiddleware)
 
 # Orchestrator(v2.0 · 主管家跨 Agent 呼叫)
 try:
@@ -75,6 +116,75 @@ def serialize(doc):
                     serialize(v) if isinstance(v, (dict, list)) else v)
                 for k, v in doc.items()}
     return doc
+
+
+# ============================================================
+# Auth · 簡易 RBAC(靠 LibreChat Mongo user role 查 · 非 JWT 硬解)
+# ============================================================
+_users_col = db.users  # LibreChat 的 users collection
+
+# ADMIN_EMAILS env 白名單(逗號分隔)· 相容舊部署用 ADMIN_EMAIL 單值
+_admin_allowlist = {e.strip().lower() for e in (
+    os.getenv("ADMIN_EMAILS", os.getenv("ADMIN_EMAIL", "sterio068@gmail.com")).split(",")
+) if e.strip()}
+
+
+def current_user_email(
+    x_user_email: Optional[str] = Header(default=None),
+) -> Optional[str]:
+    """從 launcher 前端注入的 `X-User-Email` header 取得。
+
+    launcher 在 app.init() 時已有 this.user.email,請在 authFetch 上附 header。
+    若 header 缺,回 None(不拒絕 · 但會讓 require_admin 失敗)。
+    """
+    return (x_user_email or "").strip().lower() or None
+
+
+def require_admin(email: Optional[str] = Depends(current_user_email)) -> str:
+    """硬權限 · 用在所有 /admin/* 與敏感端點。
+
+    判斷策略:
+      1. ADMIN_EMAILS env 白名單內 ✓
+      2. 或 MongoDB users.role == "ADMIN" ✓
+    兩者皆否 → 403。
+    """
+    if not email:
+        raise HTTPException(403, "缺 X-User-Email header · 請從 launcher 進入")
+    if email in _admin_allowlist:
+        return email
+    # Fallback · 查 LibreChat user document
+    try:
+        u = _users_col.find_one({"email": {"$regex": f"^{email}$", "$options": "i"}})
+        if u and (u.get("role") or "").upper() == "ADMIN":
+            return email
+    except Exception:
+        pass
+    raise HTTPException(403, f"需要管理員權限 · {email} 不在白名單內")
+
+
+# ============================================================
+# L3 機敏 gate · 送 Claude 前必經
+# ============================================================
+# 宣告在前面(下面 safety 區還有 classify API),這裡是 internal re-use
+_LEVEL_3_PATTERNS = [
+    r"選情", r"民調", r"政黨內部", r"候選人(策略|規劃)",
+    r"未公告.{0,10}標", r"內定.{0,5}廠商", r"評審.{0,5}名單",
+    r"\b[A-Z]\d{9}\b", r"\b\d{10}\b", r"\b\d{3}-\d{3}-\d{3}\b",
+    r"客戶.{0,5}(帳戶|密碼|財務狀況)",
+    r"(對手|競品).{0,5}(內部|機密|計畫)",
+]
+
+
+def assert_not_l3(text: str, endpoint_label: str = ""):
+    """若偵測到 L3 keyword,直接 400 拒絕,避免機敏資料上雲。"""
+    import re
+    for pattern in _LEVEL_3_PATTERNS:
+        if re.search(pattern, text):
+            raise HTTPException(
+                400,
+                f"❌ 內容含 Level 03 機敏關鍵字 · 不可送雲端 AI · {endpoint_label}"
+                " · 觸發 pattern: " + pattern,
+            )
 
 # ============================================================
 # 台灣預設會計科目(一次性 seed)
@@ -503,7 +613,7 @@ def feedback_stats():
 # D · 管理 / 儀表板
 # ============================================================
 @app.get("/admin/dashboard")
-def admin_dashboard():
+def admin_dashboard(_admin: str = Depends(require_admin)):
     """一頁式承富 AI 系統總覽。"""
     today = date.today()
     month_start = today.replace(day=1).isoformat()
@@ -556,7 +666,7 @@ def admin_dashboard():
 
 
 @app.delete("/admin/demo-data")
-def clear_demo_data():
+def clear_demo_data(_admin: str = Depends(require_admin)):
     """清除 seed-demo-data.py 建立的示範資料(正式上線前必跑)。"""
     result = {
         "projects": db.projects.delete_many({"_demo": True}).deleted_count,
@@ -573,7 +683,7 @@ def clear_demo_data():
 # 資料匯出 / 匯入(合規 + 遷移)
 # ============================================================
 @app.get("/admin/export")
-def export_all_data():
+def export_all_data(_admin: str = Depends(require_admin)):
     """一鍵匯出承富所有資料(JSON · for 合規稽核 / 遷移 / 備份)。"""
     return {
         "exported_at": datetime.utcnow().isoformat(),
@@ -607,7 +717,7 @@ class ImportData(BaseModel):
 
 
 @app.post("/admin/import")
-def import_data(payload: ImportData):
+def import_data(payload: ImportData, _admin: str = Depends(require_admin)):
     """從 JSON 匯入資料 · 不會覆蓋既有,只 append。"""
     result = {}
     for name, col, docs in [
@@ -632,11 +742,9 @@ def import_data(payload: ImportData):
 # Audit log(重要操作紀錄 · admin 可查)
 # ============================================================
 @app.get("/admin/audit-log")
-def audit_log(
-    action: Optional[str] = None,
+def audit_log(action: Optional[str] = None,
     user: Optional[str] = None,
-    limit: int = 100,
-):
+    limit: int = 100, _admin: str = Depends(require_admin)):
     q = {}
     if action: q["action"] = action
     if user:   q["user"] = user
@@ -644,7 +752,7 @@ def audit_log(
 
 
 @app.post("/admin/audit-log")
-def log_action(action: str, user: str, resource: Optional[str] = None, details: Optional[dict] = None):
+def log_action(action: str, user: str, resource: Optional[str] = None, details: Optional[dict] = None, _admin: str = Depends(require_admin)):
     audit_col.insert_one({
         "action": action,
         "user": user,
@@ -666,7 +774,7 @@ class EmailNotification(BaseModel):
 
 
 @app.post("/admin/email/send")
-def send_email(msg: EmailNotification):
+def send_email(msg: EmailNotification, _admin: str = Depends(require_admin)):
     """透過 SMTP 寄 Email(使用 .env 的 EMAIL_* 設定)。
 
     主要用途:月報自動寄給 admin · 異常告警 · 使用者密碼重設。
@@ -702,7 +810,7 @@ def send_email(msg: EmailNotification):
 
 
 @app.post("/admin/send-monthly-report")
-def send_monthly_report_to_admin():
+def send_monthly_report_to_admin(_admin: str = Depends(require_admin)):
     """產生月報 + 寄給 ADMIN_EMAIL · 可由 cron 每月 1 日觸發。"""
     report = monthly_report()
     admin_email = os.getenv("ADMIN_EMAIL", "sterio@chengfu.local")
@@ -766,7 +874,7 @@ def update_tender_alert(tender_key: str, status: str):
 
 
 @app.get("/admin/monthly-report")
-def monthly_report(month: Optional[str] = None):
+def monthly_report(month: Optional[str] = None, _admin: str = Depends(require_admin)):
     """月度營運報告 · 給老闆/Sterio 月底看。
 
     - 財務表現 vs 上月
@@ -860,7 +968,7 @@ def _generate_action_items(feedbacks: list) -> list[dict]:
 
 
 @app.get("/admin/cost")
-def cost_summary(days: int = 30):
+def cost_summary(days: int = 30, _admin: str = Depends(require_admin)):
     """粗估 API cost(從 LibreChat transactions collection 讀 · 若存在)。
     若 LibreChat 有 `transactions` collection 記 tokenCredits,可直接累計。
     """
@@ -1203,7 +1311,7 @@ class AgentPromptUpdate(BaseModel):
 
 
 @app.get("/admin/agent-prompts")
-def list_agent_prompts():
+def list_agent_prompts(_admin: str = Depends(require_admin)):
     """列出所有 10 Agent 的當前 prompt(從 JSON 讀 · 之後改從 MongoDB override)。"""
     import pathlib
     presets_dir = pathlib.Path("/app/presets") if pathlib.Path("/app/presets").exists() \
@@ -1230,7 +1338,7 @@ def list_agent_prompts():
 
 
 @app.post("/admin/agent-prompts")
-def update_agent_prompt(payload: AgentPromptUpdate):
+def update_agent_prompt(payload: AgentPromptUpdate, _admin: str = Depends(require_admin)):
     """線上更新 Agent prompt(寫 override collection · 不動原 JSON)。
 
     實際生效需再跑 create-agents.py 重建,或透過 LibreChat API patch。
@@ -1258,7 +1366,7 @@ def update_agent_prompt(payload: AgentPromptUpdate):
 
 
 @app.delete("/admin/agent-prompts/{agent_num}")
-def revert_agent_prompt(agent_num: str):
+def revert_agent_prompt(agent_num: str, _admin: str = Depends(require_admin)):
     """還原 Agent prompt 為原始 JSON 版。"""
     r = db.agent_overrides.delete_one({"agent_num": agent_num})
     return {"reverted": r.deleted_count > 0}
@@ -1283,8 +1391,27 @@ def startup():
     # 自動 seed 預設科目
     if accounts_col.count_documents({}) == 0:
         seed_accounts()
-    # 建立 indexes
+    # 建立 indexes(審查建議 · P1 效能)
     feedback_col.create_index([("agent_name", 1), ("verdict", 1)])
     feedback_col.create_index([("created_at", -1)])
     projects_col.create_index([("status", 1), ("updated_at", -1)])
+    projects_col.create_index([("name", 1)])
     audit_col.create_index([("created_at", -1)])
+    audit_col.create_index([("user", 1), ("action", 1)])
+    # Tenders 標案監測
+    db.tender_alerts.create_index([("status", 1), ("discovered_at", -1)])
+    db.tender_alerts.create_index([("tender_key", 1)], unique=True, sparse=True)
+    # CRM Kanban
+    db.crm_leads.create_index([("stage", 1), ("updated_at", -1)])
+    db.crm_leads.create_index([("source", 1)])
+    # Accounting
+    transactions_col.create_index([("date", -1)])
+    transactions_col.create_index([("project_id", 1)])
+    invoices_col.create_index([("date", -1)])
+    invoices_col.create_index([("status", 1), ("date", -1)])
+    # Conversations(LibreChat 共用 · 加不影響 LibreChat)
+    try:
+        db.conversations.create_index([("chengfu_summarized_at", -1)])
+    except Exception:
+        pass
+    logger.info("indexes ensured")

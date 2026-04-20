@@ -32,7 +32,7 @@ const STEPS = [
   },
   {
     title: "📚 任務 3:查承富過往知識",
-    body: "10 年累積的建議書、結案、新聞稿,都可以用人話問。<br><br><strong>試試:</strong>找「📚 知識庫查詢」Agent,問<br><code>「我們做過什麼環保類的案?」</code>",
+    body: "10 年累積的建議書、結案、新聞稿,都可以用人話問。<br><br><strong>試試:</strong>找「📚 知識庫查詢」助手,問<br><code>「我們做過什麼環保類的案?」</code>",
     next: "下一步",
     action: () => highlight('[data-view="skills"]'),
   },
@@ -56,7 +56,7 @@ const STEPS = [
   },
   {
     title: "👍 任務 6:給 AI 回饋",
-    body: "每個 AI 回應下面都有 👍 / 👎。<strong>幫我們越用越準!</strong><br><br>• 👍 好用的 → 系統學起來,以後優先用類似 pattern<br>• 👎 不好的 → 月底 AI 會分析,調整 Agent<br><br><strong>試試:</strong>下次對話,記得給個 👍 或 👎。",
+    body: "每個 AI 回應下面都有 👍 / 👎。<strong>幫我們越用越準!</strong><br><br>• 👍 好用的 → 系統學起來,以後優先用類似 pattern<br>• 👎 不好的 → 月底會分析,調整助手行為<br><br><strong>試試:</strong>下次對話,記得給個 👍 或 👎。",
     next: "好",
     action: null,
   },
