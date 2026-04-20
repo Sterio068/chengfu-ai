@@ -3,15 +3,11 @@
 > **使用說明:** 把整份文件貼給外部 reviewer(可以是另一個 AI 如 GPT-5 / Gemini / Claude Opus,也可以是人類顧問)。
 > 他們應該能從頭到尾讀完後,不用再追問背景,就給出具體可執行的建議。
 >
-> **完整專案原始碼(public repo · 免認證可讀):**
-> - GitHub 網址:<https://github.com/Sterio068/chengfu-ai>
-> - Clone:`git clone https://github.com/Sterio068/chengfu-ai.git && cd chengfu-ai`
-> - 專案根目錄 = repo 根(所有相對路徑如 `frontend/launcher/app.js` 都直接可讀)
->
-> **本機開發路徑(作者的 Mac mini · 若是跟作者同場討論時參考):**
+> **完整專案原始碼(本機路徑):**
 > - Project root:`/Users/sterio/Workspace/ChengFu`
-> - 所有相對路徑(如 `frontend/launcher/app.js`)皆以此為根
+> - 所有相對路徑(如 `frontend/launcher/app.js` / `backend/accounting/main.py`)皆以此為根
 > - 本機已跑:`./scripts/start.sh` · 瀏覽器開 <http://localhost/>
+> - 若 reviewer 是另一個 AI 在同一台機器執行,直接用檔案系統讀即可;如果是另一個會話 / 另一人,請作者把整個 `ChengFu/` 目錄提供給對方(zip、USB、scp、共享雲端皆可)
 >
 > **若 reviewer 只想看關鍵檔而不 clone,優先讀這幾份:**
 > - `CLAUDE.md` · `SYSTEM-DESIGN.md` · `ARCHITECTURE.md` · `docs/DECISIONS.md`
