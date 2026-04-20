@@ -88,6 +88,47 @@ else
 fi
 
 echo ""
+echo "[7] SSE contract · /api/ask/agents(需 admin credentials · 可 skip)"
+if [[ -n "${SMOKE_ADMIN_EMAIL:-}" && -n "${SMOKE_ADMIN_PASSWORD:-}" ]]; then
+    TOKEN=$(curl -s -X POST "$BASE/api/auth/login" \
+        -H "Content-Type: application/json" -H "User-Agent: $UA" \
+        -d "{\"email\":\"$SMOKE_ADMIN_EMAIL\",\"password\":\"$SMOKE_ADMIN_PASSWORD\"}" \
+        | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null)
+    if [[ -z "$TOKEN" ]]; then
+        log_fail "登入取 token 失敗(密碼錯?)"
+    else
+        AGENT_ID=$(curl -s "$BASE/api/agents" \
+            -H "Authorization: Bearer $TOKEN" -H "User-Agent: $UA" \
+            | python3 -c 'import sys,json;d=json.load(sys.stdin);a=d if isinstance(d,list) else d.get("data",[]);print(a[0]["id"] if a else "")' 2>/dev/null)
+        if [[ -z "$AGENT_ID" ]]; then
+            log_fail "無 Agent · 請先跑 create-agents.py"
+        else
+            # SSE 取 3 秒樣本 · 看有沒有 data: 事件
+            SSE=$(timeout 5 curl -sN -X POST "$BASE/api/ask/agents" \
+                -H "Authorization: Bearer $TOKEN" -H "User-Agent: $UA" \
+                -H "Content-Type: application/json" \
+                -d "{\"agent_id\":\"$AGENT_ID\",\"conversationId\":\"new\",\"parentMessageId\":\"00000000-0000-0000-0000-000000000000\",\"text\":\"hi\",\"endpoint\":\"agents\",\"messageId\":\"smoke-$(date +%s)\"}" 2>/dev/null || true)
+            if echo "$SSE" | grep -q "^data: "; then
+                log_pass "SSE 串流正常 · 有 data: 事件"
+            else
+                log_fail "SSE 無 data: 事件 · LibreChat SSE 格式可能變了"
+            fi
+
+            # 歷史對話 endpoint
+            CONVOS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/convos?pageSize=1" \
+                -H "Authorization: Bearer $TOKEN" -H "User-Agent: $UA")
+            if [[ "$CONVOS_CODE" == "200" ]]; then
+                log_pass "/api/convos 歷史讀取 200"
+            else
+                log_fail "/api/convos → $CONVOS_CODE"
+            fi
+        fi
+    fi
+else
+    echo "  ⏭  SKIP · 設 SMOKE_ADMIN_EMAIL + SMOKE_ADMIN_PASSWORD env 才會跑 SSE 測試"
+fi
+
+echo ""
 echo "============================================"
 echo "  結果:$PASS pass / $FAIL fail"
 echo "============================================"

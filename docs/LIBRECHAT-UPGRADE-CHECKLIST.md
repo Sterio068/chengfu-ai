@@ -8,6 +8,16 @@
 
 ## 📋 升版前(舊版基準快照)
 
+### 0. 先 dump agents collection(確保 _id 在升版後沒被重建)
+```bash
+docker exec chengfu-mongo mongodump --db chengfu --collection agents \
+    --archive=/tmp/agents-before.archive
+docker cp chengfu-mongo:/tmp/agents-before.archive /tmp/
+docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+    'JSON.stringify(db.agents.find({}, {_id:1, name:1}).toArray(), null, 2)' > /tmp/agents-before.json
+cat /tmp/agents-before.json | head -20
+```
+
 ### 1. 在舊版跑 smoke · 存基準
 ```bash
 ./scripts/smoke-librechat.sh > /tmp/smoke-before.log
@@ -120,6 +130,16 @@ diff /tmp/types-before /tmp/types-after
 ```
 **預期:** 一致。
 **若不同:** chat.js 的 SSE parser 需更新(見 `modules/chat.js` 的 `_stream()`)。
+
+### 5a. Agent `_id` 穩定性(關鍵 · 若 `modelSpecs` 已 hard-pin id)
+```bash
+# 升版後再 dump 一次
+docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+    'JSON.stringify(db.agents.find({}, {_id:1, name:1}).toArray(), null, 2)' > /tmp/agents-after.json
+diff /tmp/agents-before.json /tmp/agents-after.json
+```
+**預期:** 無差異(或僅 field 順序)。
+**若 _id 變了:** 所有指向 agent_id 的設定(launcher、modelSpecs、外部 bookmark)都要更新。此時要從 `/tmp/agents-before.archive` 還原舊 _id,或重新 POST create-agents.py 並手動把新 id 寫回設定。
 
 ### 5. projectIds 共享機制仍有效
 ```bash

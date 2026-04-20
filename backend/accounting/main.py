@@ -18,6 +18,7 @@ from typing import Optional, Literal
 from datetime import datetime, date
 from enum import Enum
 import os
+import json
 import uuid
 import logging
 from pymongo import MongoClient
@@ -81,13 +82,24 @@ logging.basicConfig(
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        from starlette.responses import JSONResponse
         rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
         request.state.request_id = rid
         try:
             resp = await call_next(request)
+        except HTTPException as e:
+            # HTTPException 讓 FastAPI 正常處理 · 但回寫 header
+            logger.error(f"rid={rid} http_exc={e.status_code}:{e.detail}")
+            resp = JSONResponse(
+                status_code=e.status_code,
+                content={"detail": e.detail, "request_id": rid},
+            )
         except Exception as e:
             logger.error(f"rid={rid} unhandled_exc={type(e).__name__}:{e}")
-            raise
+            resp = JSONResponse(
+                status_code=500,
+                content={"detail": "internal server error", "request_id": rid},
+            )
         resp.headers["X-Request-ID"] = rid
         logger.info(f"rid={rid} {request.method} {request.url.path} -> {resp.status_code}")
         return resp
@@ -152,9 +164,9 @@ def require_admin(email: Optional[str] = Depends(current_user_email)) -> str:
         raise HTTPException(403, "缺 X-User-Email header · 請從 launcher 進入")
     if email in _admin_allowlist:
         return email
-    # Fallback · 查 LibreChat user document
+    # Fallback · 查 LibreChat user document · 直接 lower-case 比對,避免 regex injection
     try:
-        u = _users_col.find_one({"email": {"$regex": f"^{email}$", "$options": "i"}})
+        u = _users_col.find_one({"email": email})
         if u and (u.get("role") or "").upper() == "ADMIN":
             return email
     except Exception:
@@ -163,28 +175,10 @@ def require_admin(email: Optional[str] = Depends(current_user_email)) -> str:
 
 
 # ============================================================
-# L3 機敏 gate · 送 Claude 前必經
+# L3 機敏 · 2026-04-21 老闆決議「先不硬擋」
+# 保留下方 /safety/classify endpoint 供前端提示用 · 不在 backend 做阻擋
+# 未來擴展時:把 LEVEL_3_PATTERNS 複用成 assert_not_l3,這裡就不重複宣告
 # ============================================================
-# 宣告在前面(下面 safety 區還有 classify API),這裡是 internal re-use
-_LEVEL_3_PATTERNS = [
-    r"選情", r"民調", r"政黨內部", r"候選人(策略|規劃)",
-    r"未公告.{0,10}標", r"內定.{0,5}廠商", r"評審.{0,5}名單",
-    r"\b[A-Z]\d{9}\b", r"\b\d{10}\b", r"\b\d{3}-\d{3}-\d{3}\b",
-    r"客戶.{0,5}(帳戶|密碼|財務狀況)",
-    r"(對手|競品).{0,5}(內部|機密|計畫)",
-]
-
-
-def assert_not_l3(text: str, endpoint_label: str = ""):
-    """若偵測到 L3 keyword,直接 400 拒絕,避免機敏資料上雲。"""
-    import re
-    for pattern in _LEVEL_3_PATTERNS:
-        if re.search(pattern, text):
-            raise HTTPException(
-                400,
-                f"❌ 內容含 Level 03 機敏關鍵字 · 不可送雲端 AI · {endpoint_label}"
-                " · 觸發 pattern: " + pattern,
-            )
 
 # ============================================================
 # 台灣預設會計科目(一次性 seed)

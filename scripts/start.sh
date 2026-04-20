@@ -11,12 +11,30 @@
 
 set -euo pipefail
 
+# CI 護欄 · headless 不該跑這個 script
+if [[ -n "${CI:-}" || -n "${GITHUB_ACTIONS:-}" ]]; then
+    echo "[skip] CI 環境偵測到 · start.sh 不應在 CI 跑 · 退出 0"
+    exit 0
+fi
+
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SERVICE_PREFIX="chengfu-ai"
 
 echo "============================================"
 echo "  承富 AI 系統 · 啟動中"
 echo "============================================"
+
+# 第一次跑(Keychain 完全空)· 導去 setup
+if ! security find-generic-password -s "${SERVICE_PREFIX}-jwt-secret" -w > /dev/null 2>&1; then
+    echo ""
+    echo "⚠️ Keychain 裡找不到 '${SERVICE_PREFIX}-*' 項目。"
+    echo "   這可能是第一次部署或 Keychain 被清。"
+    echo ""
+    echo "   請先執行:"
+    echo "     ./scripts/setup-keychain.sh"
+    echo ""
+    exit 1
+fi
 
 # ------------------ 前置檢查 ------------------
 if ! command -v docker > /dev/null; then

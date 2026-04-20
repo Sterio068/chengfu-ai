@@ -5,7 +5,7 @@
 import { escapeHtml } from "./util.js";
 import { modal } from "./modal.js";
 import { toast } from "./toast.js";
-import { authFetch } from "./auth.js";
+import { authFetch, SessionExpiredError } from "./auth.js";
 import { CORE_AGENTS } from "./config.js";
 
 export const chat = {
@@ -168,7 +168,12 @@ export const chat = {
     try {
       await this._stream(text, assistantBody);
     } catch (err) {
-      assistantBody.innerHTML = `<span style="color:var(--red)">❌ ${escapeHtml(err.message || "送出失敗")}</span>`;
+      // Session 過期:banner 已由 authFetch 顯示 · 訊息框靜默移除佔位,避免紅字誤導
+      if (err instanceof SessionExpiredError) {
+        assistantBody.closest(".chat-msg")?.remove();
+      } else {
+        assistantBody.innerHTML = `<span style="color:var(--red)">❌ ${escapeHtml(err.message || "送出失敗")}</span>`;
+      }
     } finally {
       this.isStreaming = false;
       if (sendBtn) sendBtn.disabled = false;
@@ -262,7 +267,8 @@ export const chat = {
       .replace(/\n\n+/g, "</p><p>")
       .replace(/\n/g, "<br>");
     el.innerHTML = `<p>${html}</p>`;
-    const msgs = el.closest(".chat-messages");
+    // `#chat-messages` 是 id 不是 class · 原 `.chat-messages` 選不到 · 修正
+    const msgs = document.getElementById("chat-messages");
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
   },
 

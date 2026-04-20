@@ -77,6 +77,29 @@ if [[ "$DOW" == "7" ]]; then
     echo "  📦 週備份: $WEEKLY_COPY"
 fi
 
+# ------------------ Off-site 加密備份(v4.3 · 審查紅線)------------------
+# 需先:
+#   brew install rclone gnupg
+#   gpg --full-generate-key   (name 設為 'chengfu')
+#   rclone config              (遠端名 "chengfu-offsite",可 Backblaze B2 / Cloudflare R2 / S3)
+# 若未設定 rclone · 此步驟略過(但應盡快補,Mac mini 燒掉 = 資料全滅)
+OFFSITE_REMOTE="${CHENGFU_OFFSITE_REMOTE:-chengfu-offsite:chengfu-backup}"
+if command -v rclone > /dev/null 2>&1 && rclone listremotes 2>/dev/null | grep -q "^${OFFSITE_REMOTE%%:*}:"; then
+    # 只上傳已 GPG 加密的 · 未加密檔絕不出門
+    if [[ "$ARCHIVE" == *.gpg ]]; then
+        rclone copy "$ARCHIVE"       "${OFFSITE_REMOTE}/daily/"  --quiet 2>&1 || echo "  ⚠ rclone daily 失敗"
+        rclone copy "$KB_ARCHIVE"    "${OFFSITE_REMOTE}/kb/"     --quiet 2>&1 || echo "  ⚠ rclone kb 失敗"
+        rclone copy "$KEYCHAIN_LIST" "${OFFSITE_REMOTE}/inventory/" --quiet 2>&1 || echo "  ⚠ rclone inv 失敗"
+        echo "  ☁  已異機備份到 ${OFFSITE_REMOTE}"
+    else
+        echo "  ⚠ 未 GPG 加密 · 不上傳異機 · 先設 'chengfu' GPG key"
+    fi
+    # 異機端保留 60 天(本機 30 + 異機多 30 = 雙保險)
+    rclone delete --min-age 60d "${OFFSITE_REMOTE}/daily/"  --quiet 2>/dev/null || true
+else
+    echo "  ⚠ 未設 rclone · 目前只本機備份 · 見 docs/05-SECURITY.md 異機設定"
+fi
+
 # ------------------ 輪替 ------------------
 find "$DAILY_DIR" -type f -mtime +${DAILY_RETENTION} -delete
 find "$WEEKLY_DIR" -type f -mtime +$((WEEKLY_RETENTION_WEEKS * 7)) -delete
