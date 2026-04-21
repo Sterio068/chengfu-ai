@@ -784,6 +784,63 @@
 
 </div>
 
+<!-- ============== PROJECT DRAWER(V1.1-SPEC §C · 老闆 Q5 決議 Drawer UI)============== -->
+<div class="drawer-backdrop" id="project-drawer-backdrop" onclick="app.closeProjectDrawer()"></div>
+<aside class="project-drawer" id="project-drawer" aria-hidden="true">
+  <header class="drawer-head">
+    <button class="drawer-close" onclick="app.closeProjectDrawer()" aria-label="關閉">✕</button>
+    <h2 id="drawer-project-name">—</h2>
+    <div class="drawer-actions-top">
+      <button type="button" class="btn-ghost" onclick="app.editProjectFromDrawer()">編輯</button>
+    </div>
+  </header>
+  <div class="drawer-body">
+    <!-- 基本資訊 -->
+    <section class="drawer-section">
+      <h4>基本</h4>
+      <dl class="drawer-kv">
+        <dt>客戶</dt><dd id="dr-client">—</dd>
+        <dt>預算</dt><dd id="dr-budget">—</dd>
+        <dt>截止</dt><dd id="dr-deadline">—</dd>
+        <dt>狀態</dt><dd id="dr-status">—</dd>
+      </dl>
+    </section>
+
+    <!-- 專案描述 -->
+    <section class="drawer-section" id="dr-description-section" style="display:none">
+      <h4>描述</h4>
+      <div id="dr-description" style="font-size:14px; line-height:1.6; color:var(--text-primary); white-space:pre-wrap"></div>
+    </section>
+
+    <!-- Handoff 4 格(預設收合 · 點標題展開)-->
+    <details class="drawer-handoff" id="dr-handoff">
+      <summary>🤝 交棒卡 · 給下一位同事看</summary>
+      <p class="hint">PM 存一次 · 設計師 / 業務另一分頁即時看到 · 不強迫必填</p>
+      <div class="field">
+        <label for="dr-goal">目標(一句話)</label>
+        <textarea id="dr-goal" rows="2" placeholder="例:中秋節社群活動主視覺"></textarea>
+      </div>
+      <div class="field">
+        <label for="dr-constraints">限制(一行一條)</label>
+        <textarea id="dr-constraints" rows="3" placeholder="例:&#10;品牌色橘黃&#10;預算 5 萬&#10;3 天內"></textarea>
+      </div>
+      <div class="field">
+        <label for="dr-assets">附件來源(一行一條 · NAS 路徑或 URL)</label>
+        <textarea id="dr-assets" rows="3" placeholder="例:&#10;/Volumes/NAS/clients/XX/2024/&#10;https://competitor.example.com"></textarea>
+      </div>
+      <div class="field">
+        <label for="dr-next">下一步(一行一條)</label>
+        <textarea id="dr-next" rows="3" placeholder="例:&#10;設計師產 3 方向 · 週四前&#10;PM 排與客戶提案會議"></textarea>
+      </div>
+      <div class="handoff-actions">
+        <button type="button" class="btn-ghost" onclick="app.saveHandoff()">💾 儲存</button>
+        <button type="button" class="btn-primary" onclick="app.insertHandoffToChat()">📨 插入對話</button>
+      </div>
+      <div class="handoff-meta" id="dr-handoff-meta"></div>
+    </details>
+  </div>
+</aside>
+
 <!-- ============== PROJECT EDIT MODAL ============== -->
 <div class="modal-backdrop" id="project-modal-backdrop" onclick="app.closeProjectModal()"></div>
 <div class="modal" id="project-modal">

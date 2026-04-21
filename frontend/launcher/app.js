@@ -418,7 +418,7 @@ export const app = {
         classes: [`status-${p.status || "active"}`],
         attrs: { "data-project-id": p.id },
         style: { "--project-color": color },
-        onclick: () => this.editProject(p.id),
+        onclick: () => this.openProjectDrawer(p.id),
       });
       return node;
     });
@@ -444,7 +444,7 @@ export const app = {
       }, {
         attrs: { "data-project-id": p.id },
         style: { "--project-color": color },
-        onclick: () => this.editProject(p.id),
+        onclick: () => this.openProjectDrawer(p.id),
       });
     });
     renderList(root, nodes);
@@ -573,6 +573,182 @@ export const app = {
     this.editingProjectId = null;
   },
 
+  // ---------- Project Drawer(V1.1-SPEC §C · Q5 決議 drawer)----------
+  async openProjectDrawer(id) {
+    const p = Projects.get(id);
+    if (!p) return;
+    this.drawerProjectId = id;
+
+    // 填基本資訊
+    const name = p.name || "未命名專案";
+    const setEl = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v || "—";
+    };
+    setEl("drawer-project-name", name);
+    setEl("dr-client", p.client || "—");
+    setEl("dr-budget", p.budget ? formatMoney(p.budget) : "—");
+    setEl("dr-deadline", p.deadline || "—");
+
+    // status badge
+    const statusEl = document.getElementById("dr-status");
+    if (statusEl) {
+      const s = p.status || "active";
+      statusEl.innerHTML = `<span class="drawer-status ${s}">${s === "closed" ? "已結案" : "進行中"}</span>`;
+    }
+
+    // description(有才顯示)
+    const descSec = document.getElementById("dr-description-section");
+    const descEl = document.getElementById("dr-description");
+    if (descSec && descEl) {
+      if (p.description) {
+        descEl.textContent = p.description;
+        descSec.style.display = "";
+      } else {
+        descSec.style.display = "none";
+      }
+    }
+
+    // 清空 handoff 欄位,再 fetch
+    ["dr-goal", "dr-constraints", "dr-assets", "dr-next"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    setEl("dr-handoff-meta", "");
+
+    // 滑出 drawer(先顯示 · 再 fetch handoff · 避免卡感)
+    document.getElementById("project-drawer-backdrop")?.classList.add("open");
+    const drawer = document.getElementById("project-drawer");
+    drawer?.classList.add("open");
+    drawer?.setAttribute("aria-hidden", "false");
+
+    // fetch handoff(獨立 endpoint · 不卡主要 UI)
+    try {
+      const r = await fetch(`/api-accounting/projects/${id}/handoff`);
+      if (!r.ok) return;
+      const { handoff } = await r.json();
+      if (handoff && typeof handoff === "object") {
+        const goal = handoff.goal || "";
+        const constraints = (handoff.constraints || []).join("\n");
+        const assets = (handoff.asset_refs || [])
+          .map(a => a.ref || a.label || "").filter(Boolean).join("\n");
+        const next = (handoff.next_actions || []).join("\n");
+        const setVal = (id, v) => {
+          const el = document.getElementById(id);
+          if (el) el.value = v;
+        };
+        setVal("dr-goal", goal);
+        setVal("dr-constraints", constraints);
+        setVal("dr-assets", assets);
+        setVal("dr-next", next);
+        if (handoff.updated_by || handoff.updated_at) {
+          const meta = `上次由 ${handoff.updated_by || "—"} 編輯於 ${
+            handoff.updated_at ? timeAgo(handoff.updated_at) : "—"
+          }`;
+          setEl("dr-handoff-meta", meta);
+        }
+        // 有內容就展開 details
+        const hasContent = goal || constraints || assets || next;
+        const details = document.getElementById("dr-handoff");
+        if (details && hasContent) details.open = true;
+      }
+    } catch (e) {
+      console.warn("[drawer] handoff fetch failed", e);
+    }
+  },
+
+  closeProjectDrawer() {
+    document.getElementById("project-drawer-backdrop")?.classList.remove("open");
+    const drawer = document.getElementById("project-drawer");
+    drawer?.classList.remove("open");
+    drawer?.setAttribute("aria-hidden", "true");
+    this.drawerProjectId = null;
+  },
+
+  editProjectFromDrawer() {
+    if (!this.drawerProjectId) return;
+    const id = this.drawerProjectId;
+    this.closeProjectDrawer();
+    // 延遲 250ms 等 drawer 滑出動畫結束再開 modal · 避免重疊動畫
+    setTimeout(() => this.editProject(id), 250);
+  },
+
+  async saveHandoff() {
+    if (!this.drawerProjectId) return;
+    const id = this.drawerProjectId;
+    const lines = (s) => (s || "").split("\n").map(x => x.trim()).filter(Boolean);
+    const assetLines = lines(document.getElementById("dr-assets")?.value);
+    const asset_refs = assetLines.map(line => ({
+      type: line.startsWith("http") ? "url" :
+            line.startsWith("/Volumes/") ? "nas" : "note",
+      label: line,
+      ref: line,
+    }));
+    const payload = {
+      goal: (document.getElementById("dr-goal")?.value || "").trim(),
+      constraints: lines(document.getElementById("dr-constraints")?.value),
+      asset_refs,
+      next_actions: lines(document.getElementById("dr-next")?.value),
+    };
+    try {
+      const r = await fetch(`/api-accounting/projects/${id}/handoff`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(r.statusText);
+      const body = await r.json();
+      const meta = document.getElementById("dr-handoff-meta");
+      if (meta) meta.textContent = `已儲存 · ${timeAgo(body.updated_at)}`;
+      toast.success("交棒卡已儲存");
+      // 廣播 · 其他分頁 re-render project 列表(刷 updated_at)
+      try {
+        if ("BroadcastChannel" in self) {
+          const bc = new BroadcastChannel("chengfu-projects");
+          bc.postMessage({ type: "handoff-saved", ts: Date.now() });
+          bc.close();
+        }
+      } catch {}
+    } catch (e) {
+      toast.error("儲存失敗:" + (e.message || "網路錯誤"));
+    }
+  },
+
+  insertHandoffToChat() {
+    const goal = (document.getElementById("dr-goal")?.value || "").trim();
+    const constraints = (document.getElementById("dr-constraints")?.value || "").trim();
+    const assets = (document.getElementById("dr-assets")?.value || "").trim();
+    const next = (document.getElementById("dr-next")?.value || "").trim();
+
+    if (!goal && !constraints && !assets && !next) {
+      toast.info("交棒卡還是空的 · 填至少一格再試");
+      return;
+    }
+
+    const prompt = [
+      "你接到這個專案的交棒:",
+      goal ? `\n目標:${goal}` : "",
+      constraints ? `\n限制:\n${constraints}` : "",
+      assets ? `\n附件來源:\n${assets}` : "",
+      next ? `\n下一步:\n${next}` : "",
+      "",
+      "請先回覆:",
+      "1. 你理解了什麼?",
+      "2. 還缺什麼資訊?",
+      "3. 你打算怎麼開始?",
+    ].filter(Boolean).join("\n");
+
+    // 複製到 clipboard + 開新 LibreChat 對話
+    navigator.clipboard?.writeText(prompt).then(
+      () => toast.success("已複製到剪貼簿 · 貼到新對話即可"),
+      () => toast.info("請手動複製交棒內容到對話"),
+    );
+    // 延遲一點開新對話視窗 · 讓 user 看到 toast
+    setTimeout(() => {
+      window.location.href = "/c/new";
+    }, 400);
+  },
+
   // ---------- Theme ----------
   applyTheme() {
     const saved = localStorage.getItem("chengfu-theme") || "auto";
@@ -647,6 +823,10 @@ export const app = {
       if (e.key === "Escape") {
         this.closePalette();
         this.closeProjectModal();
+        // drawer 也要關 · 但 modal 開著的時候 Esc 先給 modal
+        if (!document.getElementById("project-modal")?.classList.contains("open")) {
+          this.closeProjectDrawer();
+        }
         if (document.getElementById("chat-pane")?.classList.contains("open")
             && !document.querySelector(".modal2-box.open")
             && !document.querySelector(".palette.open")) {

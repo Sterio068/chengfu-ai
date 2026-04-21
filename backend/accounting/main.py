@@ -585,6 +585,62 @@ def delete_project(project_id: str):
     return {"deleted": r.deleted_count}
 
 
+# ------------------------------------------------------------
+# B2 · Handoff 4 格卡(跨助手 · 跨人 · 跨日的交棒 artifact)
+# V1.1-SPEC §C · 獨立 endpoint 不用 PUT /projects/{id} 全量更新
+# ------------------------------------------------------------
+class HandoffAssetRef(BaseModel):
+    type: Literal["nas", "url", "file", "note"] = "note"
+    label: str = ""
+    ref: str = ""
+
+
+class HandoffCard(BaseModel):
+    goal: str = ""
+    constraints: list[str] = []
+    asset_refs: list[HandoffAssetRef] = []
+    next_actions: list[str] = []
+    source_conversation_id: Optional[str] = None
+
+
+@app.put("/projects/{project_id}/handoff")
+def update_handoff(project_id: str, card: HandoffCard, request: Request):
+    """PM 存完 · 多分頁 BroadcastChannel 會通知其他同仁 re-render。"""
+    email = (request.headers.get("X-User-Email") or "").strip().lower() or None
+    payload = {
+        **card.model_dump(),
+        "updated_by": email,
+        "updated_at": datetime.utcnow(),
+    }
+    try:
+        r = projects_col.update_one(
+            {"_id": ObjectId(project_id)},
+            {"$set": {"handoff": payload, "updated_at": datetime.utcnow()}},
+        )
+    except Exception:
+        raise HTTPException(400, "project_id 格式錯誤")
+    if r.matched_count == 0:
+        raise HTTPException(404, "專案不存在")
+    return {"ok": True, "updated_at": payload["updated_at"].isoformat()}
+
+
+@app.get("/projects/{project_id}/handoff")
+def get_handoff(project_id: str):
+    try:
+        doc = projects_col.find_one(
+            {"_id": ObjectId(project_id)}, {"handoff": 1, "name": 1}
+        )
+    except Exception:
+        raise HTTPException(400, "project_id 格式錯誤")
+    if not doc:
+        raise HTTPException(404, "專案不存在")
+    h = doc.get("handoff") or {}
+    # datetime → isoformat · 前端可直接 JSON.parse
+    if isinstance(h.get("updated_at"), datetime):
+        h["updated_at"] = h["updated_at"].isoformat()
+    return {"project_name": doc.get("name", ""), "handoff": h}
+
+
 # ============================================================
 # C · 回饋(👍👎 集中收集)
 # ============================================================

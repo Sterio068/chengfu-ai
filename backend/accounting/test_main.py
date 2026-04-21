@@ -128,6 +128,64 @@ def test_list_projects(client):
     assert isinstance(r.json(), list)
 
 
+def test_handoff_card_roundtrip(client):
+    """B2 · Handoff 4 格卡 · 存 + 取 + 預設值"""
+    # 建一個 project
+    r = client.post("/projects", json={"name": "handoff test proj"})
+    pid = r.json()["id"]
+
+    # 初始 handoff 應該是空
+    r = client.get(f"/projects/{pid}/handoff")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["project_name"] == "handoff test proj"
+    assert body["handoff"] == {} or body["handoff"].get("goal", "") == ""
+
+    # 存卡
+    card = {
+        "goal": "中秋節社群活動主視覺",
+        "constraints": ["品牌色橘黃", "預算 5 萬", "3 天內"],
+        "asset_refs": [
+            {"type": "nas", "label": "客戶舊包裝", "ref": "/Volumes/NAS/x/"},
+            {"type": "url", "label": "競品參考", "ref": "https://example.com"},
+        ],
+        "next_actions": ["設計師產 3 方向 · 週四前", "PM 排與客戶提案會議"],
+    }
+    r = client.put(
+        f"/projects/{pid}/handoff",
+        json=card,
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+    # 取回來必一致
+    r = client.get(f"/projects/{pid}/handoff")
+    h = r.json()["handoff"]
+    assert h["goal"] == "中秋節社群活動主視覺"
+    assert len(h["constraints"]) == 3
+    assert len(h["asset_refs"]) == 2
+    assert h["asset_refs"][0]["type"] == "nas"
+    assert h["updated_by"] == "pm@chengfu.local"
+    assert "updated_at" in h
+
+
+def test_handoff_card_project_not_found(client):
+    """送到不存在的 id · 回 404"""
+    fake_id = "6070" + "0" * 20  # 24 hex chars · 但無此 doc
+    r = client.put(
+        f"/projects/{fake_id}/handoff",
+        json={"goal": "x"},
+    )
+    assert r.status_code == 404
+
+
+def test_handoff_card_bad_project_id(client):
+    """非 ObjectId 格式 · 回 400"""
+    r = client.put("/projects/not-an-objectid/handoff", json={"goal": "x"})
+    assert r.status_code == 400
+
+
 # ============================================================
 # C · 回饋收集
 # ============================================================

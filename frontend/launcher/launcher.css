@@ -2366,3 +2366,192 @@ button:focus-visible,
 .roi-funnel .f-sep { color: var(--text-tertiary); font-weight: 400; font-size: 13px; }
 .roi-funnel .f-num { font-family: var(--font-mono); }
 .roi-funnel .f-win { color: var(--green); }
+
+/* ==========================================================================
+   Project Drawer · V1.1-SPEC §C · 點 project card 滑出 40% panel
+   類似 macOS Mail 點郵件行為 · 左側 list 仍可點
+   ========================================================================== */
+.drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
+  z-index: 140;  /* 低於 modal(150) · 讓 modal 可蓋過 drawer */
+}
+.drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+.project-drawer {
+  position: fixed;
+  top: 0; right: -42%;
+  width: 42%;
+  height: 100vh;
+  background: var(--bg-content);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
+  transition: right 0.25s ease-out;
+  z-index: 145;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.project-drawer.open { right: 0; }
+@media (max-width: 1024px) {
+  .project-drawer { width: 90%; right: -90%; }
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-content);
+  z-index: 2;
+}
+.drawer-close {
+  width: 28px; height: 28px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.drawer-close:hover { background: var(--border); }
+.drawer-head h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+.drawer-head .drawer-actions-top {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.drawer-body {
+  flex: 1;
+  padding: var(--s-4) var(--s-5) var(--s-8);
+  overflow-y: auto;
+}
+
+.drawer-section {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-section:last-of-type { border-bottom: none; }
+.drawer-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin: 0 0 var(--s-2);
+}
+.drawer-kv {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: var(--s-2) var(--s-3);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.drawer-kv dt {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.drawer-kv dd {
+  color: var(--text-primary);
+  margin: 0;
+  word-break: break-all;
+}
+.drawer-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--r-md);
+  font-size: 11px;
+  font-weight: 600;
+}
+.drawer-status.active {
+  background: rgba(52, 199, 89, 0.12);
+  color: var(--green, #30a46c);
+}
+.drawer-status.closed {
+  background: rgba(142, 142, 147, 0.16);
+  color: var(--text-tertiary);
+}
+
+.drawer-handoff {
+  margin-top: var(--s-4);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg-subtle, transparent);
+}
+.drawer-handoff > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  list-style: none;
+  padding: 4px 0;
+}
+.drawer-handoff > summary::-webkit-details-marker { display: none; }
+.drawer-handoff > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+}
+.drawer-handoff[open] > summary::before {
+  transform: rotate(90deg);
+}
+.drawer-handoff .hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: var(--s-2) 0 var(--s-3);
+  line-height: 1.5;
+}
+.drawer-handoff .field {
+  margin-bottom: var(--s-3);
+}
+.drawer-handoff .field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.drawer-handoff textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-content);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 52px;
+}
+.drawer-handoff textarea:focus {
+  outline: 2px solid var(--accent, #007aff);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+.drawer-handoff .handoff-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.drawer-handoff .handoff-meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: right;
+  margin-top: var(--s-2);
+}
