@@ -9,6 +9,9 @@ export const palette = {
   _source: null,   // () => [{icon, label, hint, action}]
   _asyncSources: [],  // [async (q) => items[]] · V1.1 §E-3 知識庫加入
   _asyncTimer: null,
+  // Round 9 E-3 fix · stale query guard
+  // 每次 render 遞增 · async callback 比對是否仍為最新
+  _queryVersion: 0,
 
   bind(sourceFn) { this._source = sourceFn; },
 
@@ -36,6 +39,10 @@ export const palette = {
   },
 
   render(q) {
+    // Round 9 · 每次 query 變動 → 遞增 version · 舊 async callback 回來時比對
+    this._queryVersion++;
+    const myVersion = this._queryVersion;
+
     const items = this._source?.() || [];
     const filtered = q
       ? items.filter(i => (i.label + i.hint).toLowerCase().includes(q.toLowerCase()))
@@ -47,9 +54,13 @@ export const palette = {
     if (this._asyncTimer) clearTimeout(this._asyncTimer);
     if (q && q.length >= 2 && this._asyncSources.length) {
       this._asyncTimer = setTimeout(async () => {
+        // 再次確認 · debounce 期間可能又有新輸入
+        if (myVersion !== this._queryVersion) return;
         const async_items = (await Promise.all(
           this._asyncSources.map(fn => fn(q).catch(() => []))
         )).flat();
+        // Round 9 · async 回來時若 version 已變 · 丟棄 stale 結果
+        if (myVersion !== this._queryVersion) return;
         if (async_items.length) {
           const combined = [...filtered.slice(0, 8), ...async_items.slice(0, 5)];
           this._actions = combined;

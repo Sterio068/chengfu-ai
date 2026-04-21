@@ -40,6 +40,7 @@ import { voice } from "./modules/voice.js";
 import { accounting } from "./modules/accounting.js";
 import { admin } from "./modules/admin.js";
 import { knowledge } from "./modules/knowledge.js";
+import { design } from "./modules/design.js";
 import { tenders } from "./modules/tenders.js";
 import { workflows } from "./modules/workflows.js";
 import { crm } from "./modules/crm.js";
@@ -506,8 +507,15 @@ export const app = {
   },
 
   slashCmd(cmd) {
+    // Round 9 A · /design → 生圖 modal(有 polling 閉環)
+    if (cmd === "/design" || cmd === "/image" || cmd === "/生圖") {
+      design.openPromptModal();
+      return;
+    }
     chat.open("00", cmd + " ");
   },
+
+  openDesignModal() { design.openPromptModal(); },
 
   // ---------- Projects CRUD ----------
   newProject() {
@@ -588,6 +596,15 @@ export const app = {
     if (!p) return;
     this.drawerProjectId = id;
 
+    // Round 9 bug fix · 若之前被知識庫模式隱藏 · 這裡復原
+    const drawer = document.getElementById("project-drawer");
+    const handoffEl = document.getElementById("dr-handoff");
+    if (handoffEl && handoffEl.dataset.hiddenByKnowledge === "1") {
+      handoffEl.style.display = "";
+      delete handoffEl.dataset.hiddenByKnowledge;
+    }
+    if (drawer) drawer.dataset.mode = "project";
+
     // 填基本資訊
     const name = p.name || "未命名專案";
     const setEl = (id, v) => {
@@ -627,13 +644,12 @@ export const app = {
 
     // 滑出 drawer(先顯示 · 再 fetch handoff · 避免卡感)
     document.getElementById("project-drawer-backdrop")?.classList.add("open");
-    const drawer = document.getElementById("project-drawer");
     drawer?.classList.add("open");
     drawer?.setAttribute("aria-hidden", "false");
 
-    // fetch handoff(獨立 endpoint · 不卡主要 UI)
+    // Round 9 C · fetch handoff 改用 authFetch · 確保 X-User-Email header
     try {
-      const r = await fetch(`/api-accounting/projects/${id}/handoff`);
+      const r = await authFetch(`/api-accounting/projects/${id}/handoff`);
       if (!r.ok) return;
       const { handoff } = await r.json();
       if (handoff && typeof handoff === "object") {
@@ -700,7 +716,8 @@ export const app = {
       next_actions: lines(document.getElementById("dr-next")?.value),
     };
     try {
-      const r = await fetch(`/api-accounting/projects/${id}/handoff`, {
+      // Round 9 C · 改 authFetch · updated_by 要能寫入正確 email
+      const r = await authFetch(`/api-accounting/projects/${id}/handoff`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -747,10 +764,19 @@ export const app = {
       "3. 你打算怎麼開始?",
     ].filter(Boolean).join("\n");
 
-    // 複製到 clipboard + 開新 LibreChat 對話
+    // Round 9 Q2 · sessionStorage 自動帶入新對話輸入框
+    // 舊行為(clipboard + redirect)保留為 fallback
+    try {
+      sessionStorage.setItem("chengfu.pendingPrompt", prompt);
+      sessionStorage.setItem("chengfu.pendingPromptSource", "handoff");
+      sessionStorage.setItem("chengfu.pendingPromptTs", String(Date.now()));
+    } catch (e) {
+      console.warn("[handoff] sessionStorage unavailable:", e);
+    }
+    // clipboard 作為 Safari 隱私模式 / 跨分頁 fallback(sessionStorage 存但沒貼到)
     navigator.clipboard?.writeText(prompt).then(
-      () => toast.success("已複製到剪貼簿 · 貼到新對話即可"),
-      () => toast.info("請手動複製交棒內容到對話"),
+      () => toast.success("交棒內容已準備 · 新對話會自動帶入"),
+      () => toast.success("交棒內容已準備"),
     );
     // 延遲一點開新對話視窗 · 讓 user 看到 toast
     setTimeout(() => {
@@ -803,6 +829,13 @@ export const app = {
       hint: s.ws,
       action: () => this.showView("skills"),
     }));
+    // Round 9 A · /design palette entry
+    items.push({
+      icon: "🎨",
+      label: "生圖 · Fal.ai Recraft v3(每次 3 張挑方向)",
+      hint: "/design",
+      action: () => design.openPromptModal(),
+    });
     return items;
   },
 
@@ -874,6 +907,32 @@ const convoToOpen  = urlParams.get("convo");
 if (pendingInput) {
   window.addEventListener("DOMContentLoaded", () => {
     chat.open("00", decodeURIComponent(pendingInput));
+  });
+}
+
+// Round 9 Q2 · Handoff 插入對話 sessionStorage 自動帶入
+// sessionStorage 5 分鐘內有效 · 避免舊資料誤帶入
+if (!pendingInput && !convoToOpen) {
+  window.addEventListener("DOMContentLoaded", () => {
+    try {
+      const pending = sessionStorage.getItem("chengfu.pendingPrompt");
+      const ts = parseInt(sessionStorage.getItem("chengfu.pendingPromptTs") || "0");
+      const source = sessionStorage.getItem("chengfu.pendingPromptSource");
+      if (pending && (Date.now() - ts < 5 * 60 * 1000)) {
+        sessionStorage.removeItem("chengfu.pendingPrompt");
+        sessionStorage.removeItem("chengfu.pendingPromptTs");
+        sessionStorage.removeItem("chengfu.pendingPromptSource");
+        // 用主管家(00)開 · 交棒卡適用於任何助手
+        setTimeout(() => {
+          chat.open("00", pending);
+          if (source === "handoff") {
+            toast.info?.("交棒內容已自動帶入 · 檢查無誤後送出即可");
+          }
+        }, 200);
+      }
+    } catch (e) {
+      console.warn("[handoff] sessionStorage restore failed:", e);
+    }
   });
 }
 

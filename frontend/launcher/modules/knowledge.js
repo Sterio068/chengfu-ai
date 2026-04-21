@@ -337,9 +337,16 @@ export const knowledge = {
       }
       document.getElementById("dr-description-section").style.display = "";
       // hide handoff 區塊 · 知識庫瀏覽不適用
-      document.getElementById("dr-handoff").style.display = "none";
+      // Round 9 bug fix · 標記為「知識庫模式」· app.openProjectDrawer 會在開專案時復原
+      const handoffEl = document.getElementById("dr-handoff");
+      if (handoffEl) {
+        handoffEl.style.display = "none";
+        handoffEl.dataset.hiddenByKnowledge = "1";
+      }
+      const drawer = document.getElementById("project-drawer");
+      if (drawer) drawer.dataset.mode = "knowledge";
       document.getElementById("project-drawer-backdrop")?.classList.add("open");
-      document.getElementById("project-drawer")?.classList.add("open");
+      drawer?.classList.add("open");
     } catch (e) { toast.error(e.message); }
   },
 
