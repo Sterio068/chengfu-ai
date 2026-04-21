@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 應用
 COPY main.py .
+COPY services/ ./services/
 
 # 健康檢查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \

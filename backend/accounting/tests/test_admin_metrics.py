@@ -1,0 +1,186 @@
+"""
+services/admin_metrics.py · unit tests
+不依賴 FastAPI / TestClient · 純資料 + mongomock
+"""
+import pytest
+import mongomock
+from datetime import datetime, timedelta
+from services import admin_metrics
+
+
+@pytest.fixture(autouse=True)
+def _reset_cache():
+    """每 test 前清 _SCHEMA_CACHED · 避免 cache 汙染"""
+    admin_metrics.reset_cache()
+    yield
+    admin_metrics.reset_cache()
+
+
+@pytest.fixture
+def db():
+    client = mongomock.MongoClient()
+    return client.chengfu_test
+
+
+@pytest.fixture
+def users_col(db):
+    return db.users
+
+
+def test_price_ntd_haiku():
+    cost = admin_metrics.price_ntd("claude-haiku-4-5", 1_000_000, 1_000_000, 32.5)
+    # input 0.25 + output 1.25 = 1.5 USD × 32.5 = NT$ 48.75
+    assert cost == 48.75
+
+
+def test_price_ntd_unknown_model_fallback_to_sonnet():
+    """未知模型用 Sonnet 中位數"""
+    cost = admin_metrics.price_ntd("claude-unknown-x", 1_000_000, 1_000_000, 32.5)
+    sonnet = admin_metrics.price_ntd("claude-sonnet-4-6", 1_000_000, 1_000_000, 32.5)
+    assert cost == sonnet
+
+
+def test_probe_tx_schema_empty(db):
+    s = admin_metrics.probe_tx_schema(db)
+    assert s["ok"] is True
+    assert "尚無資料" in s["issue"]
+
+
+def test_probe_tx_schema_ok(db):
+    db.transactions.insert_one({
+        "rawAmount": {"prompt": 100, "completion": 50},
+        "model": "claude-haiku-4-5",
+        "user": "user_abc",
+        "createdAt": datetime.utcnow(),
+    })
+    s = admin_metrics.probe_tx_schema(db)
+    assert s["ok"] is True
+    assert s["issue"] == ""
+
+
+def test_probe_tx_schema_missing_field(db):
+    """若 LibreChat 改 schema 去掉 rawAmount · ok=False"""
+    db.transactions.insert_one({
+        "amount": 100,  # 新 schema
+        "model": "claude-haiku-4-5",
+        "user": "x",
+        "createdAt": datetime.utcnow(),
+    })
+    s = admin_metrics.probe_tx_schema(db)
+    assert s["ok"] is False
+    assert "rawAmount" in s["issue"]
+
+
+def test_budget_status_no_data(db):
+    r = admin_metrics.budget_status(db, monthly_budget_ntd=12000)
+    assert r["spent_ntd"] == 0
+    assert r["alert_level"] == "ok"
+    assert r["pricing_version"] == admin_metrics.PRICE_VERSION
+
+
+def test_budget_status_with_data(db):
+    now = datetime.utcnow()
+    db.transactions.insert_one({
+        "rawAmount": {"prompt": 4_000_000, "completion": 2_000_000},
+        "model": "claude-sonnet-4-6",
+        "user": "x",
+        "createdAt": now,
+    })
+    r = admin_metrics.budget_status(db, monthly_budget_ntd=12000)
+    # Sonnet: 4M × 3 + 2M × 15 = 12 + 30 = 42 USD × 32.5 = NT$ 1365
+    assert r["spent_ntd"] == 1365
+    assert r["alert_level"] == "ok"  # < 80%
+
+
+def test_budget_status_over_budget(db):
+    """超 100% · alert_level = over"""
+    now = datetime.utcnow()
+    # Opus: 100M × 15 + 50M × 75 = 1500 + 3750 = 5250 USD × 32.5 = NT$ 170625
+    db.transactions.insert_one({
+        "rawAmount": {"prompt": 100_000_000, "completion": 50_000_000},
+        "model": "claude-opus-4-7",
+        "user": "x",
+        "createdAt": now,
+    })
+    r = admin_metrics.budget_status(db, monthly_budget_ntd=12000)
+    assert r["alert_level"] == "over"
+    assert r["pct"] > 100
+
+
+def test_quota_check_off_mode(db, users_col):
+    r = admin_metrics.quota_check(db, users_col, "a@b.com", mode="off")
+    assert r["allowed"] is True
+
+
+def test_quota_check_no_email(db, users_col):
+    """沒帶 email 給過 · 避免擋 anonymous"""
+    r = admin_metrics.quota_check(db, users_col, None, mode="hard_stop")
+    assert r["allowed"] is True
+
+
+def test_quota_check_override_admin(db, users_col):
+    """admin 白名單永遠過"""
+    r = admin_metrics.quota_check(
+        db, users_col, "admin@x.com",
+        mode="hard_stop",
+        admin_allowlist={"admin@x.com"},
+    )
+    assert r["allowed"] is True
+    assert r.get("override") is True
+
+
+def test_quota_check_hard_stop_over(db, users_col):
+    """超 100% + hard_stop = 擋"""
+    uid = users_col.insert_one({"email": "staff@x.com"}).inserted_id
+    db.transactions.insert_one({
+        "rawAmount": {"prompt": 100_000_000, "completion": 50_000_000},
+        "model": "claude-opus-4-7",
+        "user": uid,
+        "createdAt": datetime.utcnow(),
+    })
+    r = admin_metrics.quota_check(
+        db, users_col, "staff@x.com",
+        mode="hard_stop",
+        user_soft_cap_ntd=1200.0,
+    )
+    assert r["allowed"] is False
+    assert "本月已用" in r["reason"]
+
+
+def test_quota_check_soft_warn_over(db, users_col):
+    """超 100% + soft_warn = 過 + warning"""
+    uid = users_col.insert_one({"email": "staff@x.com"}).inserted_id
+    db.transactions.insert_one({
+        "rawAmount": {"prompt": 100_000_000, "completion": 50_000_000},
+        "model": "claude-opus-4-7",
+        "user": uid,
+        "createdAt": datetime.utcnow(),
+    })
+    r = admin_metrics.quota_check(
+        db, users_col, "staff@x.com",
+        mode="soft_warn",
+        user_soft_cap_ntd=1200.0,
+    )
+    assert r["allowed"] is True
+    assert "超預算" in r["warning"]
+
+
+def test_librechat_contract_includes_fingerprint(db):
+    db.transactions.insert_one({
+        "rawAmount": {"prompt": 100, "completion": 50},
+        "model": "claude-haiku-4-5",
+        "user": "x",
+        "createdAt": datetime.utcnow(),
+    })
+    r = admin_metrics.librechat_contract(db)
+    assert r["transactions_schema_ok"] is True
+    assert r["price_version"] == admin_metrics.PRICE_VERSION
+    assert isinstance(r["transactions_fingerprint_last10"], list)
+    assert len(r["transactions_fingerprint_last10"]) == 1
+    assert r["transactions_fingerprint_last10"][0]["has_rawAmount"] is True
+
+
+def test_tender_funnel_empty(db):
+    r = admin_metrics.tender_funnel(db)
+    assert r["funnel"]["new_discovered"] == 0
+    assert r["funnel"]["won"] == 0
