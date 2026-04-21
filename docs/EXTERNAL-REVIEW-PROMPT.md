@@ -1,4 +1,4 @@
-# 承富 AI 系統 · 外部審查請求 (v5.2)
+# 承富 AI 系統 · 外部審查請求 (v5.3)
 
 ---
 
@@ -26,16 +26,24 @@
 | 13 | 密碼紙條沒銷毀 SOP | `docs/PRE-DELIVERY-CHECKLIST.md:100-107` | commit `08cf827` |
 | 14 | 備份沒異機、沒 restore 驗證 | `scripts/backup.sh:83-105` rclone + `PRE-DELIVERY-CHECKLIST.md:170-202` 月度 restore | commit `bedf413`/`08cf827` |
 
-### ✅ 你該聚焦的 4 項真未解(v1.1 大項目)
+### ✅ 4 項真未解的**完整技術規格已在第 8 輪收齊**
 
-| # | 項目 | 已做 | 還沒做 | 預估工時 |
+A/B/C/D 4 項 v1.1 大項目的詳細實作 spec(含 Python 代碼示意 / 失敗策略 / 工時)已寫進:
+**`docs/V1.1-IMPLEMENTATION-SPEC.md`** — 等承富老闆答 5 題後就照施工。
+
+| # | 項目 | spec | 工時 | 狀態 |
 |---|---|---|---|---|
-| A | **Fal.ai Recraft v3 真生圖** | action schema `fal-ai-image-gen.json` 已寫 | 後端 action handler + Launcher 選尺寸 UI + 重生按鈕 + failure path | 6-8h |
-| B | **PDF 文字抽取 MVP** | 輸入框「長文件 3 步貼法」hover 提示(過渡) | PyMuPDF first / OCR fallback · 頁碼保留 | 8-12h |
-| C | **跨助手 handoff 4 格卡** | ROADMAP 已描述 | project 層新欄位 + UI + 「插入對話」按鈕 | 6-8h |
-| D | **main.py 拆 admin_metrics.py** | 程式碼在 main.py:760-1300 範圍 | 抽到 `services/admin_metrics.py` · 其他 handler 保留 | 6-8h |
+| A | Fal.ai Recraft v3 真生圖 | V1.1-SPEC §A | 6-8h | 等老闆 Q2(1 張 vs 3 張)+ FAL_API_KEY |
+| B | PDF 文字抽取 MVP | V1.1-SPEC §B | 8-12h | 等老闆 Q1(掃描比例)+ Q4(OCR 進容器?) |
+| C | Handoff 4 格卡 | V1.1-SPEC §C | 6-8h(v1.2) | 等老闆 Q5(modal/drawer/expand) |
+| D | main.py 拆 admin_metrics | V1.1-SPEC §D | 6-8h | 純 refactor · 不需老闆同意 · 可立即排 |
 
-**你的真正價值:** 對 A/B/C/D 四項給**具體實作細節**(資料結構、錯誤處理、降級策略),而不是再指出前 14 項「已修但你不知道」的紅線。
+**所以本輪 reviewer 不要再給 A/B/C/D 的實作建議**(已收齊 · 重複只會稀釋訊號)。
+
+**你該做的:**
+1. 找出 Round 1-8 都漏掉的**新角度**(e.g. 性能、安全、UX、教材未覆蓋的)
+2. 質疑 V1.1-SPEC 裡的具體決策(e.g. 「num_images=1 預設真的對嗎?」「PyMuPDF text density threshold 120 字真的合理嗎?」)
+3. 預測**上線後**最可能出問題的場景(技術 + 人為)
 
 ---
 
