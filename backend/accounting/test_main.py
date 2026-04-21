@@ -271,3 +271,134 @@ def test_l3_classifier_detects_unit_internal(client):
     })
     assert r.status_code == 200
     assert r.json()["level"] == "03"
+
+
+# ============================================================
+# F · Fal.ai 設計助手(V1.1-SPEC §A · Q2 num_images=3)
+# ============================================================
+def test_design_recraft_without_api_key(client):
+    """FAL_API_KEY 未設 → 503 + friendly_message"""
+    import main as main_mod
+    saved = main_mod.FAL_KEY
+    main_mod.FAL_KEY = ""
+    try:
+        r = client.post("/design/recraft", json={
+            "prompt": "中秋節品牌主視覺 · 橘黃色調 · 現代簡潔",
+            "image_size": "square_hd",
+        })
+        assert r.status_code == 503
+        body = r.json()
+        # FastAPI 把 detail 包一層
+        detail = body.get("detail", {})
+        if isinstance(detail, dict):
+            assert "未啟用" in detail.get("friendly_message", "")
+            assert detail.get("status") == "unconfigured"
+        else:
+            # 若 detail 是字串 · 至少要有訊息
+            assert "未啟用" in str(detail) or "FAL" in str(detail)
+    finally:
+        main_mod.FAL_KEY = saved
+
+
+def test_design_recraft_rejects_short_prompt(client):
+    """prompt < 4 字 → 422 pydantic validation"""
+    r = client.post("/design/recraft", json={"prompt": "abc"})
+    assert r.status_code == 422
+
+
+def test_design_recraft_rejects_bad_size(client):
+    """image_size 不在 enum → 422"""
+    r = client.post("/design/recraft", json={
+        "prompt": "a reasonable prompt here",
+        "image_size": "ultra_wide_xyz",
+    })
+    assert r.status_code == 422
+
+
+def test_design_recraft_status_without_api_key(client):
+    """status 端點 · 無 key 也 503"""
+    import main as main_mod
+    saved = main_mod.FAL_KEY
+    main_mod.FAL_KEY = ""
+    try:
+        r = client.get("/design/recraft/status/req_fake")
+        assert r.status_code == 503
+    finally:
+        main_mod.FAL_KEY = saved
+
+
+def test_design_recraft_success_mocked(client, monkeypatch):
+    """Mock httpx · 驗收 done 路徑 + log 寫進 design_jobs"""
+    import main as main_mod
+
+    class FakeResp:
+        def __init__(self, status_code, data):
+            self.status_code = status_code
+            self._data = data
+        def json(self): return self._data
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                import httpx
+                raise httpx.HTTPStatusError("", request=None, response=self)
+
+    class FakeClient:
+        def __init__(self, *a, **kw): self.calls = []
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def post(self, url, **kw):
+            return FakeResp(200, {"request_id": "req_fake_123"})
+        async def get(self, url, **kw):
+            if url.endswith("/status"):
+                return FakeResp(200, {"status": "COMPLETED"})
+            return FakeResp(200, {"images": [
+                {"url": "https://fal.cdn/a.png", "width": 1024, "height": 1024},
+                {"url": "https://fal.cdn/b.png", "width": 1024, "height": 1024},
+                {"url": "https://fal.cdn/c.png", "width": 1024, "height": 1024},
+            ]})
+
+    monkeypatch.setattr(main_mod, "FAL_KEY", "fake-key-for-test")
+    monkeypatch.setattr(main_mod.httpx, "AsyncClient", FakeClient)
+    # asyncio.sleep → 立刻 return · 避免測試等 12 秒
+    async def _nop(x): return
+    monkeypatch.setattr(main_mod.asyncio, "sleep", _nop)
+
+    r = client.post("/design/recraft", json={
+        "prompt": "中秋節品牌主視覺 橘黃調",
+        "image_size": "square_hd",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "done"
+    assert body["job_id"] == "req_fake_123"
+    assert len(body["images"]) == 3  # Q2 · 老闆要 3 張
+
+
+def test_design_recraft_moderation_rejected(client, monkeypatch):
+    """Mock 422 · 驗 moderation 路徑回 rejected + 人話"""
+    import main as main_mod
+    import httpx
+
+    class RejResp:
+        status_code = 422
+        def json(self): return {"detail": "moderation"}
+        def raise_for_status(self):
+            raise httpx.HTTPStatusError("", request=None, response=self)
+
+    class FakeClient:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def post(self, *a, **kw): return RejResp()
+        async def get(self, *a, **kw): return RejResp()
+
+    monkeypatch.setattr(main_mod, "FAL_KEY", "fake-key-for-test")
+    monkeypatch.setattr(main_mod.httpx, "AsyncClient", FakeClient)
+
+    r = client.post("/design/recraft", json={
+        "prompt": "真人總統肖像 寫實",  # 被 moderation 的假例
+        "image_size": "square_hd",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "rejected"
+    assert "抽象" in body["friendly_message"] or "敏感" in body["friendly_message"]

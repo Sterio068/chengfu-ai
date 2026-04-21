@@ -22,6 +22,8 @@ import os
 import json
 import uuid
 import logging
+import asyncio
+import httpx
 from pymongo import MongoClient
 from bson import ObjectId
 
@@ -1109,6 +1111,168 @@ def quota_check(email: Optional[str] = Depends(current_user_email)):
         usd_to_ntd=_USD_TO_NTD,
     )
 
+
+
+# ============================================================
+# F · Fal.ai Recraft v3 生圖(V1.1-SPEC §A · Q2 決議 num_images=3)
+# 無 FAL_API_KEY → 503 · moderation 拒絕 → 人話訊息 · 不暴露 Fal 原文
+# ============================================================
+FAL_QUEUE_URL = "https://queue.fal.run/fal-ai/recraft-v3"
+FAL_KEY = os.getenv("FAL_API_KEY", "").strip()
+FAL_POLL_MAX_SECONDS = int(os.getenv("FAL_POLL_MAX_SECONDS", "12"))
+FAL_POLL_INTERVAL = float(os.getenv("FAL_POLL_INTERVAL", "1.0"))
+
+
+class RecraftRequest(BaseModel):
+    project_id: Optional[str] = None
+    prompt: str = Field(min_length=4, max_length=2000)
+    image_size: Literal["square_hd", "portrait_16_9", "landscape_16_9"] = "square_hd"
+    style: str = "realistic_image"
+    regenerate_of: Optional[str] = None
+
+
+def _log_design_job(req_id: str, email: Optional[str], req: RecraftRequest,
+                    status: str, n_images: int = 0):
+    """記到 design_jobs collection · 不存圖檔(留在 Fal CDN)。"""
+    try:
+        db.design_jobs.insert_one({
+            "request_id": req_id,
+            "user": email,
+            "project_id": req.project_id,
+            "prompt": req.prompt[:500],  # 太長 truncate · 避免 Mongo index 負擔
+            "image_size": req.image_size,
+            "style": req.style,
+            "regenerate_of": req.regenerate_of,
+            "status": status,
+            "n_images": n_images,
+            "created_at": datetime.utcnow(),
+        })
+    except Exception as e:
+        logging.warning("[design] log fail: %s", e)
+
+
+@app.post("/design/recraft")
+async def design_recraft(req: RecraftRequest, request: Request):
+    """生圖主端點 · Q2 決議每次 3 張。
+
+    Response 三態:
+    - done: 12 秒內完成 · 直接回 images[]
+    - pending: 12 秒未完成 · 回 job_id + friendly_message(前端可後續 poll)
+    - rejected: moderation 拒絕 · friendly_message 教育語氣
+    """
+    email = (request.headers.get("X-User-Email") or "").strip().lower() or None
+
+    if not FAL_KEY:
+        # 老闆沒設 key · 503 + 友善訊息(Day 0 可略過不部署)
+        raise HTTPException(503, detail={
+            "friendly_message": "設計助手尚未啟用 · 請管理員設定 FAL_API_KEY",
+            "status": "unconfigured",
+        })
+
+    headers = {
+        "Authorization": f"Key {FAL_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "prompt": req.prompt,
+        "image_size": req.image_size,
+        "style": req.style,
+        "num_images": 3,  # 老闆 Q2 · 一次 3 張挑方向
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # 1. 送任務到 Fal queue
+        try:
+            q = await client.post(FAL_QUEUE_URL, headers=headers, json=payload)
+            q.raise_for_status()
+            req_id = q.json().get("request_id")
+            if not req_id:
+                _log_design_job("(unknown)", email, req, "no_request_id")
+                raise HTTPException(502, detail={
+                    "friendly_message": "設計服務無回應 · 請稍後重試",
+                    "status": "service_error",
+                })
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code if e.response is not None else 0
+            if code in (400, 422):
+                _log_design_job("(moderation)", email, req, "rejected")
+                return {
+                    "status": "rejected",
+                    "friendly_message": "描述太像真人、官方標誌或敏感文字 · 請改成抽象視覺描述",
+                }
+            if code == 401:
+                logging.error("[design] FAL_API_KEY 無效")
+                raise HTTPException(503, detail={
+                    "friendly_message": "設計助手金鑰失效 · 請管理員檢查",
+                    "status": "auth_error",
+                })
+            _log_design_job("(http_error)", email, req, f"http_{code}")
+            raise HTTPException(502, detail={
+                "friendly_message": "設計服務忙碌中 · 請稍後重試",
+                "status": "service_error",
+            })
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError):
+            _log_design_job("(timeout)", email, req, "connect_timeout")
+            raise HTTPException(502, detail={
+                "friendly_message": "設計服務連線逾時 · 請稍後重試",
+                "status": "timeout",
+            })
+
+        # 2. Poll 結果(最多 12 秒)
+        status_url = f"{FAL_QUEUE_URL}/requests/{req_id}/status"
+        result_url = f"{FAL_QUEUE_URL}/requests/{req_id}"
+        loops = max(1, int(FAL_POLL_MAX_SECONDS / FAL_POLL_INTERVAL))
+        for _ in range(loops):
+            try:
+                s = await client.get(status_url, headers=headers)
+                if s.status_code == 200 and s.json().get("status") == "COMPLETED":
+                    r = await client.get(result_url, headers=headers)
+                    images = r.json().get("images", []) if r.status_code == 200 else []
+                    _log_design_job(req_id, email, req, "done", n_images=len(images))
+                    return {
+                        "job_id": req_id,
+                        "status": "done",
+                        "images": images,
+                        "friendly_message": None,
+                    }
+            except (httpx.TimeoutException, httpx.ConnectError):
+                # 單次 poll fail 不 fatal · 繼續重試
+                pass
+            await asyncio.sleep(FAL_POLL_INTERVAL)
+
+        # 3. 12 秒仍未完成 · 回 pending(前端可後續 poll /design/recraft/status/{job_id})
+        _log_design_job(req_id, email, req, "pending")
+        return {
+            "job_id": req_id,
+            "status": "pending",
+            "friendly_message": "生圖中(Fal 目前繁忙)· 可關掉視窗,稍後到「歷史」查看",
+        }
+
+
+@app.get("/design/recraft/status/{job_id}")
+async def design_recraft_status(job_id: str):
+    """Pending job 後續查詢 · 不耗 Anthropic tokens 的獨立端點。"""
+    if not FAL_KEY:
+        raise HTTPException(503, "Fal.ai 未設定")
+    headers = {"Authorization": f"Key {FAL_KEY}"}
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            s = await client.get(f"{FAL_QUEUE_URL}/requests/{job_id}/status", headers=headers)
+            if s.status_code == 404:
+                raise HTTPException(404, "找不到此生圖任務")
+            if s.status_code != 200:
+                raise HTTPException(502, "Fal 查詢失敗")
+            st = s.json().get("status", "UNKNOWN")
+            if st == "COMPLETED":
+                r = await client.get(f"{FAL_QUEUE_URL}/requests/{job_id}", headers=headers)
+                return {
+                    "job_id": job_id, "status": "done",
+                    "images": r.json().get("images", []) if r.status_code == 200 else [],
+                }
+            return {"job_id": job_id, "status": "pending",
+                    "friendly_message": "仍在生成中 · 再等幾秒"}
+        except httpx.TimeoutException:
+            raise HTTPException(502, "查詢逾時")
 
 
 # ============================================================
