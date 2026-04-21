@@ -31,18 +31,18 @@
 
 ### Q3. 第一批 `knowledge-base/samples/` 能匿名提供哪 3 類?
 
-**承富答:** **超出原問題範圍** · 老闆要**整個 NAS 整合**:
-- 建議書 + 標案需求檔 + **所有設計圖**
-- **各項專案分資料夾**
-- **希望系統能夠讀取所有類型資料**
+**承富答(2 段):**
+1. 第一波(2026-04-21):「建議書 + 標案需求檔 + **所有設計圖** · **各項專案分資料夾** · 希望系統能夠讀取所有類型資料」
+2. 補充(2026-04-21):「**不只 NAS 要可以指定專案資料夾**」(支援多源)
 
-**→ 這變成 v1.1 最大工程 · 原 `docs/NAS-INTEGRATION-SPEC.md` 全面啟動**
+**→ 這變成 v1.2 最大工程 · 升級為「多來源知識庫」(不只 NAS)**
 
 **影響範圍:**
-- 不只 samples/ · 是完整 NAS 掛載 + 索引
-- 不只 PDF · 要支援 DOCX / PPTX / XLSX / AI / PSD / JPG 等
-- 需要專案資料夾 metadata(誰 / 何時 / 狀態)
-- 工時從「2h 手動 copy 5-10 份」→ **30-40h 完整 NAS 整合**
+- 從「單一 NAS 路徑」→ **多 sources 機制**(NAS / 本機 / 外接 / 雲掛載點皆可)
+- Admin 可動態加資料源(UI · 不寫死 env)
+- 每個 source 獨立:enabled / exclude_patterns / agent_access / mime_whitelist
+- 不只 PDF · 支援 DOCX / PPTX / XLSX / JPG / PNG metadata
+- 工時從「2h 手動」→ **39-52h 多源知識庫完整整合**
 
 ### Q4. accounting 容器能加 PyMuPDF + Tesseract 嗎?
 

@@ -149,14 +149,18 @@ Week 5-6 · v1.1(22-26h)· 對齊老闆 top 3 個閉環
 ├── C · Projects drawer + Handoff 4 格卡(6-8h)
 └── 測試 + 教材更新(2h)
 
-Week 7-10 · v1.2(30-40h)· 老闆 Q3 的 NAS 完整整合
-├── NAS 掛載 + ro 帳號 + Keychain(3-4h)
+Week 7-10 · v1.2(39-52h)· 多來源知識庫(老闆 Q3 + 補充「不只 NAS」)
+├── knowledge_sources collection + Mongo schema(1h)
+├── Admin Sources 管理 UI(列表/新增 modal/重索引)(5-6h)
+├── Sources CRUD API + 路徑驗證(3-4h)
+├── NAS / 本機 / 外接掛載文件 + Keychain(3-4h)
 ├── 多格式抽字器(PDF/DOCX/PPTX/XLSX/IMG)(8-10h)
-├── Meili 索引 + cron 增量(4-6h)
-├── API endpoints + Agent Action(6-9h)
-├── 前端 ⌘K 搜 NAS + 知識庫 view + @nas autocomplete(6-8h)
-├── 承富同仁整理專案資料夾(Champion 分週 · 不阻擋 Sterio)
-└── 測試 + 教材(3-4h)
+├── Meili 索引 + per-source 增量 cron(4-6h)
+├── 公開 API(search/read/list)+ Agent 存取權檢查(4-6h)
+├── Agent Action schema attach 投標/設計/結案(2-3h)
+├── 前端 ⌘K 多源搜尋 + 知識庫 view + @ autocomplete(6-8h)
+├── 測試 + 文件(3-4h)
+└── 承富同仁整理專案資料夾(Champion 分週 · 不阻擋 Sterio)
 
 Week 11+ · v2.0(長遠)
 ├── 廠商 CSV 批次比價信
