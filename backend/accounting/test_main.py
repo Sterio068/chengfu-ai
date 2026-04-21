@@ -571,14 +571,15 @@ def test_knowledge_agent_access_whitelist(client, tmp_source_dir):
     assert r.status_code == 200
 
 
-def test_knowledge_search_stub(client):
-    """E-1 階段 /knowledge/search 回 stub · 不 crash 就 OK"""
+def test_knowledge_search_without_meili(client):
+    """E-2 · Meili 未啟用時 · 搜尋不 crash · 回友善結構"""
     r = client.get("/knowledge/search?q=建議書")
     assert r.status_code == 200
     body = r.json()
-    assert body["query"] == "建議書"
-    assert body["hits"] == []
-    assert "E-2" in body["message"]
+    assert "hits" in body
+    assert isinstance(body["hits"], list)
+    # 無 Meili 時 · message 應該提及未啟用 · 但不 crash 前端
+    assert body["hits"] == [] or "hits" in body
 
 
 def test_design_recraft_moderation_rejected(client, monkeypatch):

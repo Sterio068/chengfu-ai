@@ -1668,6 +1668,27 @@ def revert_agent_prompt(agent_num: str, _admin: str = Depends(require_admin)):
 # E-3:前端 Admin UI + 知識庫 view(另一批)
 # ============================================================
 import fnmatch
+from services import knowledge_indexer
+from services.knowledge_extract import extract as extract_file
+
+# Meili client · 延遲初始化(container 啟動順序不保證 Meili 已 ready)
+_meili_client = None
+
+
+def _get_meili_client():
+    global _meili_client
+    if _meili_client is not None:
+        return _meili_client
+    try:
+        import meilisearch
+        host = os.getenv("MEILI_HOST", "http://meilisearch:7700")
+        key = os.getenv("MEILI_MASTER_KEY", "")
+        _meili_client = meilisearch.Client(host, key)
+        return _meili_client
+    except Exception as e:
+        logger.warning("[knowledge] Meili client init failed: %s", e)
+        return None
+
 
 # 允許掛載的 source root 白名單(防呆)· 不在清單上的絕對路徑建不起來
 _ALLOWED_SOURCE_ROOTS = [
@@ -1797,7 +1818,7 @@ def update_source(
 
 @app.delete("/admin/sources/{source_id}")
 def delete_source(source_id: str, _admin: str = Depends(require_admin)):
-    """刪 source · E-2 會連帶從 Meili 清此 source 的文件"""
+    """刪 source · 連帶從 Meili 清此 source 的文件(best-effort · Meili 掛也不擋刪)"""
     try:
         _id = ObjectId(source_id)
     except Exception:
@@ -1805,14 +1826,20 @@ def delete_source(source_id: str, _admin: str = Depends(require_admin)):
     doc = knowledge_sources_col.find_one_and_delete({"_id": _id})
     if not doc:
         raise HTTPException(404, "資料源不存在")
-    # E-2 會實作 Meili 清除 · 這裡先 stub
-    logger.info("[knowledge] source deleted: %s · Meili cleanup queued (E-2)", source_id)
-    return {"ok": True, "name": doc.get("name")}
+    # 從 Meili 清這個 source 的所有文件
+    meili = _get_meili_client()
+    cleanup = knowledge_indexer.delete_source_from_index(source_id, meili) \
+        if meili else {"ok": False, "reason": "meili not configured"}
+    logger.info("[knowledge] source deleted: %s · meili_cleanup=%s", source_id, cleanup)
+    return {"ok": True, "name": doc.get("name"), "meili_cleanup": cleanup}
 
 
 @app.post("/admin/sources/{source_id}/reindex")
-def reindex_source(source_id: str, _admin: str = Depends(require_admin)):
-    """手動觸發 reindex · E-2 會接上真正索引 · 這裡先更新 last_indexed_at stub"""
+def reindex_source_endpoint(source_id: str, _admin: str = Depends(require_admin)):
+    """手動觸發 reindex · 同步執行(source 不大時可以接受)。
+
+    大 source(> 5000 檔)建議走 cron 或背景 task(v1.2 做 Celery / ARQ)
+    """
     try:
         _id = ObjectId(source_id)
     except Exception:
@@ -1822,13 +1849,9 @@ def reindex_source(source_id: str, _admin: str = Depends(require_admin)):
         raise HTTPException(404, "資料源不存在")
     if not src.get("enabled"):
         raise HTTPException(400, "資料源已停用")
-    # E-2 stub · 回 queued
-    logger.info("[knowledge] reindex queued for %s (E-2 will run actual indexer)", source_id)
-    return {
-        "status": "queued",
-        "source_id": source_id,
-        "message": "已排入索引工作(E-2 功能上線後即時執行 · 目前每日 02:00 cron)",
-    }
+    meili = _get_meili_client()
+    stats = knowledge_indexer.reindex_source(source_id, knowledge_sources_col, meili)
+    return stats
 
 
 # ------------------------------------------------------------
@@ -1973,7 +1996,8 @@ def knowledge_read(
     except Exception as e:
         logger.warning("[knowledge] audit log fail: %s", e)
 
-    # E-1 只回 metadata · E-2 會接 extract(pdf/docx/...)
+    # E-2 · extract() 按副檔名路由到 PDF/DOCX/PPTX/XLSX/image/text 抽字器
+    extracted = extract_file(abs_path)
     import mimetypes
     mime, _ = mimetypes.guess_type(abs_path)
     return {
@@ -1986,8 +2010,8 @@ def knowledge_read(
         "modified_at": datetime.fromtimestamp(
             os.path.getmtime(abs_path)
         ).isoformat(),
-        "content_preview": None,  # E-2 會填 pdf/docx 抽字前 2000 字
-        "extract_status": "pending_e2",  # 告知前端 E-2 未上線
+        **{k: v for k, v in extracted.items()
+           if k not in ("path", "filename", "size", "modified_at")},
     }
 
 
@@ -1997,21 +2021,17 @@ def knowledge_search(
     source_id: Optional[str] = None,
     project: Optional[str] = None,
     limit: int = Query(default=20, ge=1, le=100),
-    request: Request = None,
 ):
-    """全文搜尋 · E-1 回 stub(empty hits + message)· E-2 接真正 Meili"""
-    # 確認 q 有意義 · 回友善結構讓前端不會 crash
-    return {
-        "query": q,
-        "hits": [],
-        "estimatedTotalHits": 0,
-        "message": "知識庫索引尚未建立(E-2 功能) · 目前只能用 /knowledge/list 瀏覽",
-        "filters_applied": {
-            "source_id": source_id,
-            "project": project,
-            "limit": limit,
-        },
-    }
+    """全文搜尋 · 經 Meili · source_id / project 可過濾"""
+    meili = _get_meili_client()
+    if not meili:
+        return {
+            "query": q,
+            "hits": [],
+            "estimatedTotalHits": 0,
+            "message": "搜尋服務未啟用 · 請管理員檢查 Meili",
+        }
+    return knowledge_indexer.search(meili, q, source_id=source_id, project=project, limit=limit)
 
 
 # ============================================================

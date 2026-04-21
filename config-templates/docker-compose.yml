@@ -111,10 +111,16 @@ services:
     restart: unless-stopped
     depends_on:
       - mongodb
+      - meilisearch
     environment:
       - MONGO_URI=mongodb://mongodb:27017/chengfu
       - LIBRECHAT_INTERNAL_URL=http://librechat:3080
       - TZ=Asia/Taipei
+      # V1.1 §E 多來源知識庫 · 需 Meili 與允許的 source root
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - KNOWLEDGE_ALLOWED_ROOTS=${KNOWLEDGE_ALLOWED_ROOTS:-/Volumes,/Users,/mnt,/data}
+      - FAL_API_KEY=${FAL_API_KEY:-}
     expose:
       - "8000"
     networks:
