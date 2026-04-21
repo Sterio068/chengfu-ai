@@ -73,8 +73,27 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build accounting image
         run: docker build -t chengfu-accounting backend/accounting/
+      - name: Prepare CI .env(複製 example · 真實 key 由 Keychain 注入)
+        run: |
+          # CI 只驗 compose syntax · 不真跑 · 用 .env.example 當 placeholder
+          cp config-templates/.env.example config-templates/.env
       - name: Verify compose syntax
+        env:
+          # 給 docker compose 補預設 · 避免 "variable not set" warning 升 fatal
+          MEILI_MASTER_KEY: ci-placeholder-key
+          KNOWLEDGE_ALLOWED_ROOTS: /tmp
+          FAL_API_KEY: ""
         run: docker compose -f config-templates/docker-compose.yml config > /dev/null
+      - name: Verify sandbox compose syntax
+        env:
+          MEILI_MASTER_KEY: ci-placeholder-key
+          SANDBOX_LIBRECHAT_VERSION: v0.8.5-rc1
+        run: |
+          if [ -f config-templates/docker-compose.sandbox.yml ]; then
+            docker compose -f config-templates/docker-compose.sandbox.yml config > /dev/null
+          else
+            echo "⚠ sandbox compose not present yet · skip"
+          fi
 
   e2e-test:
     name: Playwright E2E(可選 · 需實機啟動)
