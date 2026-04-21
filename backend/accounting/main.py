@@ -10,6 +10,7 @@
   D. 管理:成本/品質/使用儀表板、異常告警
   E. 安全:Level 03 內容分級檢查、簡易 RBAC
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -43,12 +44,45 @@ audit_col = db.audit_log
 convos_col = db.conversations  # LibreChat 的 collection · 只讀
 
 # ============================================================
+# Lifespan (FastAPI ≥ 0.93 推薦取代 on_event)
+# ============================================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup · seed + indexes(原 startup 函式內容)
+    if accounts_col.count_documents({}) == 0:
+        seed_accounts()
+    feedback_col.create_index([("agent_name", 1), ("verdict", 1)])
+    feedback_col.create_index([("created_at", -1)])
+    projects_col.create_index([("status", 1), ("updated_at", -1)])
+    projects_col.create_index([("name", 1)])
+    audit_col.create_index([("created_at", -1)])
+    audit_col.create_index([("user", 1), ("action", 1)])
+    db.tender_alerts.create_index([("status", 1), ("discovered_at", -1)])
+    db.tender_alerts.create_index([("tender_key", 1)], unique=True, sparse=True)
+    db.crm_leads.create_index([("stage", 1), ("updated_at", -1)])
+    db.crm_leads.create_index([("source", 1)])
+    transactions_col.create_index([("date", -1)])
+    transactions_col.create_index([("project_id", 1)])
+    invoices_col.create_index([("date", -1)])
+    invoices_col.create_index([("status", 1), ("date", -1)])
+    try:
+        db.conversations.create_index([("chengfu_summarized_at", -1)])
+    except Exception:
+        pass
+    logger.info("indexes ensured · app ready")
+    yield
+    # Shutdown
+    logger.info("app shutting down")
+
+
+# ============================================================
 # App
 # ============================================================
 app = FastAPI(
     title="承富會計 API",
     description="承富 AI 系統 · 內建會計模組",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # ============================================================
@@ -309,7 +343,7 @@ def list_accounts(type: Optional[AccountType] = None):
 def create_account(acc: Account):
     if accounts_col.find_one({"code": acc.code}):
         raise HTTPException(400, f"科目編號 {acc.code} 已存在")
-    r = accounts_col.insert_one({**acc.dict(), "created_at": datetime.utcnow()})
+    r = accounts_col.insert_one({**acc.model_dump(), "created_at": datetime.utcnow()})
     return {"id": str(r.inserted_id)}
 
 
@@ -321,7 +355,7 @@ def create_transaction(tx: Transaction):
     for code in [tx.debit_account, tx.credit_account]:
         if not accounts_col.find_one({"code": code}):
             raise HTTPException(400, f"科目 {code} 不存在")
-    data = tx.dict()
+    data = tx.model_dump()
     data["created_at"] = datetime.utcnow()
     r = transactions_col.insert_one(data)
     # 更新專案財務
@@ -366,7 +400,7 @@ def _next_invoice_no():
 
 @app.post("/invoices")
 def create_invoice(inv: Invoice):
-    data = inv.dict()
+    data = inv.model_dump()
     if not data.get("invoice_no"):
         data["invoice_no"] = _next_invoice_no()
     # 計算
@@ -405,7 +439,7 @@ def _next_quote_no():
 
 @app.post("/quotes")
 def create_quote(quote: Quote):
-    data = quote.dict()
+    data = quote.model_dump()
     if not data.get("quote_no"):
         data["quote_no"] = _next_quote_no()
     subtotal = sum(item["quantity"] * item["unit_price"] for item in data["items"])
@@ -530,7 +564,7 @@ def list_projects(status: Optional[str] = None):
 
 @app.post("/projects")
 def create_project(p: Project):
-    data = p.dict()
+    data = p.model_dump()
     data["created_at"] = datetime.utcnow()
     data["updated_at"] = datetime.utcnow()
     r = projects_col.insert_one(data)
@@ -565,7 +599,7 @@ class Feedback(BaseModel):
 
 @app.post("/feedback")
 def create_feedback(fb: Feedback):
-    data = fb.dict()
+    data = fb.model_dump()
     data["created_at"] = datetime.utcnow()
     feedback_col.update_one(
         {"message_id": fb.message_id, "user_email": fb.user_email},
@@ -1393,7 +1427,7 @@ def list_leads(stage: Optional[str] = None, owner: Optional[str] = None):
 
 @app.post("/crm/leads")
 def create_lead(lead: Lead):
-    data = lead.dict()
+    data = lead.model_dump()
     data["created_at"] = datetime.utcnow()
     data["updated_at"] = datetime.utcnow()
     r = db.crm_leads.insert_one(data)
@@ -1582,32 +1616,4 @@ def health():
     }
 
 
-@app.on_event("startup")
-def startup():
-    # 自動 seed 預設科目
-    if accounts_col.count_documents({}) == 0:
-        seed_accounts()
-    # 建立 indexes(審查建議 · P1 效能)
-    feedback_col.create_index([("agent_name", 1), ("verdict", 1)])
-    feedback_col.create_index([("created_at", -1)])
-    projects_col.create_index([("status", 1), ("updated_at", -1)])
-    projects_col.create_index([("name", 1)])
-    audit_col.create_index([("created_at", -1)])
-    audit_col.create_index([("user", 1), ("action", 1)])
-    # Tenders 標案監測
-    db.tender_alerts.create_index([("status", 1), ("discovered_at", -1)])
-    db.tender_alerts.create_index([("tender_key", 1)], unique=True, sparse=True)
-    # CRM Kanban
-    db.crm_leads.create_index([("stage", 1), ("updated_at", -1)])
-    db.crm_leads.create_index([("source", 1)])
-    # Accounting
-    transactions_col.create_index([("date", -1)])
-    transactions_col.create_index([("project_id", 1)])
-    invoices_col.create_index([("date", -1)])
-    invoices_col.create_index([("status", 1), ("date", -1)])
-    # Conversations(LibreChat 共用 · 加不影響 LibreChat)
-    try:
-        db.conversations.create_index([("chengfu_summarized_at", -1)])
-    except Exception:
-        pass
-    logger.info("indexes ensured")
+# startup() 已 migrate 到上方 lifespan() · 此處留空避免重複註冊

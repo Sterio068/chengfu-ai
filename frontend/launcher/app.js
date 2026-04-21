@@ -77,6 +77,11 @@ export const app = {
     chat.bind({ agents: () => this.agents, user: () => this.user });
     crm.setUser(this.user?.email);
     palette.bind(() => this._paletteItems());
+    // 多分頁同步:其他分頁改了專案,本分頁自動 re-render(避免髒清單)
+    Projects.bindOnChange(() => {
+      this.renderProjects();
+      this.renderProjectsPreview();
+    });
 
     // 並行載入
     await Promise.all([

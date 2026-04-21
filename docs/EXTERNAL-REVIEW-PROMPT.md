@@ -80,21 +80,31 @@ git clone https://github.com/Sterio068/chengfu-ai.git && cd chengfu-ai
 - **P1 create-agents.py** 共享失敗 hard fail(原只 warn)
 - **P1 librechat.yaml** 註解「29 個 Agent」改「10 個助手」
 
-### 因此 · reviewer 請**不要再審以下項**(已在 4 輪處理)
-- FE:SSE pop 邊界、tenders listener 疊加、auth 401 retry、chat.js `.chat-messages` selector、對話續接 `?convo`、history modal reopen、onboarding 步數、L3 警語、術語中文化、errors toast 曝內部
-- BE:CORS whitelist、13 個 /admin/* 全 RBAC、email regex injection、`import json`、Request-ID 500、Mongo index、LibreChat transactions schema probe
-- Ops:異機備份腳本 (rclone 已接)、LibreChat 升版 checklist、accounting image stale guard、CI 護欄、SSE smoke
+### Round 5(第二位外部 AI reviewer · 2026-04-21)· **與 Round 4 約 70% 重疊 · 30% 真新項全修**
+- **P1 Pydantic deprecation 全清** · `.dict()` → `.model_dump()`(7 處)· `@app.on_event("startup")` → `lifespan(asynccontextmanager)`
+- **P1 多分頁髒資料** · `Projects` 模組加 `BroadcastChannel`(舊 Safari 走 storage event fallback)· app.js 注入 `bindOnChange` callback re-render
+- **P1 教材覆蓋** · 新增 `docs/CASES/02-設計Brief端到端.md`(設計師 25 分鐘流程)+ `docs/CASES/03-廠商比價信端到端.md`(業務 8 分鐘流程)
+- **P1 混合角色導覽** · `docs/HANDBOOK/README.md` 加「PM+業務 / PM+設計 / 設計+行銷 / 老闆+PM / Champion」5 種混合配對表
+- **P1 密碼紙條銷毀 SOP** · 加進 `PRE-DELIVERY-CHECKLIST.md` Day -4(誰持有 / 何時銷毀 / 簽收存檔)
+- **P1 月度 restore dry-run** · 加進 `PRE-DELIVERY-CHECKLIST.md` Day +30(自動化指令 + 連 3 月 fail 觸發異機方案重評)
+- **18 pytest pass · 0 deprecation warnings**(原 11 → 0)
+
+### 因此 · reviewer 請**不要再審以下項**(已在 5 輪處理)
+- FE:SSE pop 邊界、tenders listener 疊加、auth 401 retry、chat.js `.chat-messages` selector、對話續接 `?convo`、history modal reopen、onboarding 步數、L3 警語、術語中文化、errors toast 曝內部、**多分頁同步 BroadcastChannel**
+- BE:CORS whitelist、13 個 /admin/* 全 RBAC、email regex injection、`import json`、Request-ID 500、Mongo index、LibreChat transactions schema probe、**Pydantic .dict() / on_event deprecation**
+- Ops:異機備份腳本 (rclone 已接)、LibreChat 升版 checklist、accounting image stale guard、CI 護欄、SSE smoke、**月度 restore dry-run 制度**、**密碼紙條銷毀 SOP**
 - UI:overpromise 文案(專案跟對話 / ⌘K 搜對話 / 超預算自動 email / PM 直接 re-use 段落)
 - UX:onboarding 10→3 步、Day 0 first-win 驗收硬條件
-- 文件:docs/HANDBOOK 4 份、docs/CASES/01 海廢案、docs/QUICKSTART、NAS + LINE SPEC、PRE-DELIVERY-CHECKLIST、BASELINE、LIBRECHAT-UPGRADE-CHECKLIST
-- 架構:backend split-brain(已歸檔 scaffold)、ROI 3 儀表、PRICE_VERSION 標示
+- 文件:docs/HANDBOOK 4 份 + **混合角色導覽**、docs/CASES **3 個完整案例**(海廢/設計/廠商)、docs/QUICKSTART、NAS + LINE SPEC、PRE-DELIVERY-CHECKLIST、BASELINE、LIBRECHAT-UPGRADE-CHECKLIST
+- 架構:backend split-brain(已歸檔 scaffold)、ROI 3 儀表、PRICE_VERSION 標示、lifespan + model_dump
 
-### 建議 reviewer 本輪**新聚焦的問題**(Round 4 之後仍未解):
-1. **Day 0 當天 10 人真坐下來用 · 最可能卡在哪 3 個畫面?**(不是 bug · 是體驗卡點)
-2. **設計師第一次拿 Launcher · 有真正會出圖的 happy path 嗎?**(目前只產 prompt · Fal.ai 沒串)
-3. **70 頁招標 PDF 複製貼上的痛** · reviewer 建議「本地 PDF 文字抽取 + 頁碼保留 + 分段貼入」· 優先做嗎?
-4. **T0 Baseline fallback(抽最近 5 案 + 1 週工時日誌)** · 這個 fallback 機制該怎麼落地?Champion 能用多久收齊?
-5. **上線第 2 週最可能的死法**:usage 崩掉 / 同仁放棄 / 老闆不付錢 · 你最擔心哪個?
+### 建議 reviewer 本輪**新聚焦的問題**(Round 5 之後仍未解):
+1. **Fal.ai Recraft v3 真生圖** · 老闆 top 1 是設計 · 但設計夥伴目前只產 prompt · 何時補上?
+2. **PDF 文字抽取**(取代 70 頁複製貼上痛)· born-digital first / OCR fallback · 規格?
+3. **預算 hard stop 真做**(目前只儀表 · 文件已誠實揭露但業務上仍想要)· FastAPI 最小可行版本?
+4. **跨助手 handoff 摘要卡** · 4 格(目標 / 限制 / 附件 / 待辦)· 放 project 層還是 chat 層?
+5. **上線第 2 週的死法 + 急救** · 你的判斷哪個風險最高?(usage 崩 / 同仁放棄 / 老闆不付錢)
+6. **承富老闆 Round 4 的 5 題答案** · 是否該重新做一次質性訪談 · 確認 v4.5 仍對齊?
 
 ---
 
@@ -228,9 +238,9 @@ uptime (3001) ──── 服務監控
 
 ---
 
-## 4. 當前狀態(DoD 視角 · v4.4 · 2026-04-21)
+## 4. 當前狀態(DoD 視角 · v4.5 · 2026-04-21)
 
-### ✅ 程式碼完成度:**96%**(已通過 3 輪內部審查 + 1 輪外部 AI 審查)
+### ✅ 程式碼完成度:**97%**(已通過 3 輪內部審查 + 2 輪外部 AI 審查)
 - 6 容器全 healthy · 10 Agent 全建立 + 共享 `instance` global project
 - 前端 v4.3 · ES Modules · 無 build step · 單檔 CSS · Path A 內建 chat
 - UX:3 步 onboarding(對齊老闆 top 3)· 術語全中文化 · 5 狀態卡 · banner · focus visible
@@ -465,8 +475,9 @@ uptime (3001) ──── 服務監控
 ### 這份文件被審查的歷史:
 - **v1:** 原版 · 被一個外部 reviewer 審了 1 次(紅線:附件假成功 / admin 裸奔 / Workflow alert / Token 過期)
 - **v2:** 修完 v1 紅線後,跑了**內部 3 輪多代理審查**(每輪 3-4 agent)· 又修了 22 條
-- **v3:** 第一位**外部 AI reviewer**(Round 4 · 2026-04-21 凌晨)· 給「程式碼像產品 · 但承諾落差會吃信任」的總評 · P0+P1 紅線全修(對話續接、文案誠實化、Day 0 first-win 驗收硬條件、split-brain 收束、errors 可恢復話術、LibreChat schema adapter)
-- **你(v4):** 現在讀這份 · 預期你找到新的視角(體驗卡點 / 真實落地痛點 / 上線第 2 週死法)· **不要重複指出已修的**
+- **v3:** 第一位**外部 AI reviewer**(Round 4 · 2026-04-21 凌晨 2:57)· P0+P1 紅線全修
+- **v4:** 第二位**外部 AI reviewer**(Round 5 · 2026-04-21)· 與 v3 報告 70% 重疊(他沒看到 v3 修完狀態)· 30% 真新項全修(Pydantic deprecation 清零、BroadcastChannel 多分頁同步、設計+廠商 2 個新案例、混合角色導覽、密碼銷毀 SOP、月度 restore 制度)
+- **你(v5):** 現在讀這份 · 預期你找新視角(設計師 first-win / PDF 痛 / 預算 hard stop / handoff 卡 / 上線第 2 週死法)· **不要重複指出已修的**
 
 ---
 

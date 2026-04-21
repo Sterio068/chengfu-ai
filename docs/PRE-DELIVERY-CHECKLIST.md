@@ -52,6 +52,15 @@
 - [ ] 收集 10 同仁 email + 姓名 + role (ADMIN 或 USER)
 - [ ] `python3 scripts/create-users.py` · 建 10 帳號 · 每人一次性初始密碼
 - [ ] 印 10 張「帳號 + 臨時密碼」紙條 · 教育訓練當天發
+
+### 密碼紙條銷毀 SOP(Round 5 reviewer 提醒 · 紙本機敏)
+- [ ] 紙條由 **Sterio 持有**(不是 Champion · 避免 Champion 同時知 10 人密碼)
+- [ ] 教育訓練當天 · **見證下發放** · 同仁簽收
+- [ ] 同仁第一次登入後 **強制改密碼**(LibreChat 設定:首次登入導 /change-password)
+- [ ] 教育訓練結束 30 分鐘內 · 老闆面前 **碎紙機銷毀紙條**
+- [ ] 碎紙照片 + 簽收名單存 `docs/PASSWORD-DISTRIBUTION-LOG-<日期>.md`(僅 admin 可讀)
+- [ ] 之後密碼遺失 → 走下方密碼 reset SOP
+
 - [ ] 寫 `docs/PASSWORD-RESET-SOP.md`:
   ```
   同仁忘記密碼的 SOP:
@@ -145,6 +154,42 @@
   - 👍/👎 比率最低的助手是哪幾個?
   - 被問最多的 3 個問題是?(寫進下版 handbook FAQ)
   - 月費用戶實際使用時數 vs baseline
+
+---
+
+## Day +30 / 月度巡檢(交付後常態化)
+
+### 每月第一個工作日 · 由 Champion 跑
+
+- [ ] **備份 restore dry-run** · 證明備份可還原
+  ```bash
+  # 1. 從異機抓最新備份
+  rclone copy chengfu-offsite:chengfu-backup/daily/$(rclone lsf chengfu-offsite:chengfu-backup/daily/ | sort | tail -1) /tmp/
+
+  # 2. GPG 解密
+  gpg --decrypt /tmp/chengfu-*.archive.gpg > /tmp/restore.archive
+
+  # 3. Restore 到暫存 DB(不動 production)
+  docker exec -i chengfu-mongo mongorestore --archive --db chengfu_test_restore < /tmp/restore.archive
+
+  # 4. 驗:user count > 0 / agents count = 10 / projects count >= 1
+  docker exec chengfu-mongo mongosh chengfu_test_restore --quiet --eval '
+    print("users:", db.users.countDocuments());
+    print("agents:", db.agents.countDocuments());
+    print("projects:", db.projects.countDocuments());
+  '
+
+  # 5. 清暫存 DB
+  docker exec chengfu-mongo mongosh --eval 'db.getSiblingDB("chengfu_test_restore").dropDatabase()'
+  ```
+- [ ] 結果寫進 `reports/restore-drill-<YYYY-MM>.md`(時間 + 備份檔名 + counts + pass/fail)
+- [ ] 連續 3 個月 fail · 觸發**異機備份方案重新評估**
+
+### 同月內 · 也要做的事
+- [ ] 看 `/admin/budget-status` · 月底實際花費 vs 預算 · 寫進月報
+- [ ] 看 `/admin/top-users` · 異常高用量同仁 → Champion 私訊了解狀況
+- [ ] 看 `/admin/tender-funnel` · 漏斗轉換率 vs 上月 vs T0 baseline
+- [ ] 整理本月新 FAQ 進 `docs/CASES/FAQ-Day1.md` 持續滾動更新
 
 ---
 
