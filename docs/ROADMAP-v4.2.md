@@ -134,19 +134,35 @@
 
 ---
 
-## 5. 路線圖 Gantt 概覽
+## 5. 路線圖(2026-04-21 · 老闆答完 5 題調整)
 
 ```
-  Week 1  Week 2  Week 3  Week 4
- ┌──────┬──────┬──────┬──────┐
- │ 設計夥伴強化                     │ 🎨 ⌘3
- │       │投標顧問強化              │ 🎯 ⌘1
- │       │       │活動廠商強化       │ 🎪 ⌘2
- │NAS 接 │NAS 接 │LINE 優化         │ 📂
- │       │教學手冊 基礎  │案例演示   │ 📖
- │Tailsc │                         │ 🔧 遠端
- └──────┴──────┴──────┴──────┘
-    已交付                      驗收 DoD
+Week 0-4 · v1.0 交付                            · 基礎系統 · samples/ 手動
+├── Mac mini 上架 / Cloudflare Tunnel / 10 帳號
+├── knowledge-base/samples/ 手動灌 5-10 份代表性檔
+├── Day 0 登入 100% 成功站 + 角色 first-win 驗收
+└── 2 場教育訓練
+
+Week 5-6 · v1.1(22-26h)· 對齊老闆 top 3 個閉環
+├── A · Fal.ai Recraft v3 · 3 張挑方向(8-10h)
+├── D · main.py 拆 admin_metrics.py(6-8h)
+├── C · Projects drawer + Handoff 4 格卡(6-8h)
+└── 測試 + 教材更新(2h)
+
+Week 7-10 · v1.2(30-40h)· 老闆 Q3 的 NAS 完整整合
+├── NAS 掛載 + ro 帳號 + Keychain(3-4h)
+├── 多格式抽字器(PDF/DOCX/PPTX/XLSX/IMG)(8-10h)
+├── Meili 索引 + cron 增量(4-6h)
+├── API endpoints + Agent Action(6-9h)
+├── 前端 ⌘K 搜 NAS + 知識庫 view + @nas autocomplete(6-8h)
+├── 承富同仁整理專案資料夾(Champion 分週 · 不阻擋 Sterio)
+└── 測試 + 教材(3-4h)
+
+Week 11+ · v2.0(長遠)
+├── 廠商 CSV 批次比價信
+├── Company Memory(跨對話摘要)
+├── 設計圖 CLIP vision embedding
+└── 多 Agent workflow 實啟用
 ```
 
 ---

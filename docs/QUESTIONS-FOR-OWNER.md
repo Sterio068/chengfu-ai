@@ -20,44 +20,43 @@
 
 ### Q1. 承富常見招標 PDF · 掃描件 vs born-digital 比例?
 
-> **為什麼問:** 決定 `B PDF 抽字` 是否需要 OCR(Tesseract 多 30-50MB Docker image 重)
-> **若 90%+ born-digital** → 只裝 PyMuPDF · 不裝 OCR
-> **若 30%+ 掃描** → OCR 必裝
-
-承富答:_____________________________________________________
+**承富答(2026-04-21):** **OCR 要進容器** · 代表掃描件佔比不低(30%+)
+**影響:** `accounting` Dockerfile 必須裝 `tesseract-ocr tesseract-ocr-chi-tra`(image +50MB)
 
 ### Q2. 設計師偏好「1 張慢慢重生」or「3 張挑方向」?
 
-> **為什麼問:** 決定 `A Fal.ai` UI 預設 num_images 與成本
-> **1 張重生** → 成本低 · 適合「慢慢收斂」(reviewer 推薦,因為政府/老品牌案性質)
-> **3 張挑** → 成本 3 倍 · 適合「海選腦力激盪」
+**承富答:** **一次 3 張挑方向**
+**影響:** Fal.ai `num_images=3` · 成本 3 倍但符合設計師實際工作流
+**UI 調整:** 3 張並排網格 + 「留這張」「全重生」「選中間一張重生」3 種動作
 
-承富答:_____________________________________________________
+### Q3. 第一批 `knowledge-base/samples/` 能匿名提供哪 3 類?
 
-### Q3. 第一批 `knowledge-base/samples/` 能匿名提供哪 3 類真實檔?
+**承富答:** **超出原問題範圍** · 老闆要**整個 NAS 整合**:
+- 建議書 + 標案需求檔 + **所有設計圖**
+- **各項專案分資料夾**
+- **希望系統能夠讀取所有類型資料**
 
-> **為什麼問:** 知識庫沒灌 = 上線第 2 週「generic 感」放棄(Round 6+8 reviewer 共識)
-> 三選二:**建議書** / **設計 brief** / **廠商比價信**(其他擇優)
-> 5-10 份就夠
+**→ 這變成 v1.1 最大工程 · 原 `docs/NAS-INTEGRATION-SPEC.md` 全面啟動**
 
-承富答:_____________________________________________________
+**影響範圍:**
+- 不只 samples/ · 是完整 NAS 掛載 + 索引
+- 不只 PDF · 要支援 DOCX / PPTX / XLSX / AI / PSD / JPG 等
+- 需要專案資料夾 metadata(誰 / 何時 / 狀態)
+- 工時從「2h 手動 copy 5-10 份」→ **30-40h 完整 NAS 整合**
 
-### Q4. accounting 容器能加 PyMuPDF + Tesseract 嗎?還是想把 OCR 留宿主機腳本?
+### Q4. accounting 容器能加 PyMuPDF + Tesseract 嗎?
 
-> **為什麼問:** 決定 `B PDF 抽字` 部署方式
-> **加進容器** → 簡單 · 容器大 30-50MB · 升級時 image rebuild 慢
-> **宿主機腳本** → 容器小 · 但 Sterio 要在 Mac mini 多裝一套 Python · 外包工程師 Claude Code 遠端時看不到
+**Sterio 答:** **能接受**
+**影響:** Dockerfile 加依賴 · image 從 ~200MB → ~280MB · 可接受
 
-Sterio 答(技術判斷):_____________________________________________________
+### Q5. 專案詳情 UI modal / drawer / expand?
 
-### Q5. 專案詳情 UI 偏好 modal / drawer / 卡片展開?
-
-> **為什麼問:** 決定 `C handoff 4 格卡` 放哪
-> **modal** → 強制聚焦 · 但會打斷工作流
-> **drawer** → 右側滑出 · 不擋 Projects 列表 · reviewer 傾向這個
-> **卡片展開** → 點卡片直接 expand · 但卡片高度會跳動
-
-承富 / Champion 答(UX 判斷):_____________________________________________________
+**承富答:** **Drawer**(右側滑出 · 40% 寬 panel)
+**影響:**
+- `frontend/launcher/index.html` 加 `.project-drawer` 元素
+- 點 project card → drawer 滑出 · 左邊 projects 列表仍可見
+- Handoff 4 格在 drawer 內 · 預設收合 · 展開可填
+- 類似 macOS Mail 點郵件的體感(資深同仁熟悉)
 
 ---
 
