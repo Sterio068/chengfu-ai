@@ -27,7 +27,7 @@
         <string>/bin/bash</string>
         <string>-c</string>
         <!-- 注意:launchd 不繼承 user PATH · 明確指定 homebrew path -->
-        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "$HOME/Workspace/ChengFu" &amp;&amp; ./scripts/backup.sh</string>
+        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "__REPO_ROOT__" &amp;&amp; ./scripts/backup.sh</string>
     </array>
 
     <!-- 每日 02:00 跑 -->

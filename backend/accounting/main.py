@@ -210,30 +210,97 @@ _admin_allowlist = {e.strip().lower() for e in (
 ) if e.strip()}
 
 
+def _verify_librechat_cookie(request: Request) -> Optional[str]:
+    """Codex R3.2 · 從 LibreChat refreshToken / token cookie 驗 JWT 取 email
+
+    LibreChat 用 JWT_SECRET 簽 token · 我們共用同 secret · 可 verify
+    若驗過 · 回 email;否則 None(fallback 到 X-User-Email legacy path)
+    """
+    try:
+        # LibreChat httpOnly cookies · 在 proxy_pass 時會隨 request 帶進來
+        token = request.cookies.get("token") or request.cookies.get("refreshToken")
+        if not token:
+            return None
+        import jwt as _jwt
+        secret = os.getenv("JWT_SECRET", "")
+        if not secret or secret.startswith("<GENERATE"):
+            return None  # secret 沒設 · 無法驗 · fallback
+        # LibreChat access token 用 JWT_SECRET · refreshToken 用 JWT_REFRESH_SECRET
+        # 先試 access · 失敗再試 refresh
+        for sec_env in ("JWT_SECRET", "JWT_REFRESH_SECRET"):
+            sec = os.getenv(sec_env, "")
+            if not sec or sec.startswith("<GENERATE"):
+                continue
+            try:
+                payload = _jwt.decode(token, sec, algorithms=["HS256"])
+                email = (payload.get("email") or "").strip().lower()
+                if email:
+                    return email
+            except Exception:
+                continue
+        return None
+    except Exception as e:
+        logger.debug("[auth] cookie verify fail: %s", e)
+        return None
+
+
 def current_user_email(
+    request: Request,
     x_user_email: Optional[str] = Header(default=None),
 ) -> Optional[str]:
-    """從 launcher 前端注入的 `X-User-Email` header 取得。
+    """取得當前使用者 email · 優先順序(Codex R3.2):
+    1. LibreChat cookie 驗過的 email(最可信)
+    2. X-User-Email header(legacy · v1.2 前保留 · 但會標記 untrusted)
 
-    launcher 在 app.init() 時已有 this.user.email,請在 authFetch 上附 header。
-    若 header 缺,回 None(不拒絕 · 但會讓 require_admin 失敗)。
+    若只靠 X-User-Email · 任何人 curl 可偽造 admin。
+    有 cookie 時優先用 cookie 結果 · 標記 trusted=True。
     """
+    trusted_email = _verify_librechat_cookie(request)
+    if trusted_email:
+        request.state.email_trusted = True
+        return trusted_email
+    # Fallback · legacy X-User-Email(標記不可信 · require_admin 會判斷)
+    request.state.email_trusted = False
     return (x_user_email or "").strip().lower() or None
 
 
-def require_admin(email: Optional[str] = Depends(current_user_email)) -> str:
+def require_admin(request: Request,
+                  email: Optional[str] = Depends(current_user_email)) -> str:
     """硬權限 · 用在所有 /admin/* 與敏感端點。
 
-    判斷策略:
-      1. ADMIN_EMAILS env 白名單內 ✓
-      2. 或 MongoDB users.role == "ADMIN" ✓
-    兩者皆否 → 403。
+    Codex R3.2 · 要求 email 必須是 cookie 驗過的(trusted)
+    X-User-Email header 可被 curl 偽造 · admin 操作不能只靠 header
+    策略:
+      · production(JWT_SECRET 有設) → 強制 cookie 驗過才算 admin
+      · 測試 / JWT_SECRET 未設 → fallback 舊行為(向後相容)
+    判斷:
+      1. cookie-trusted email + ADMIN_EMAILS 白名單 ✓
+      2. cookie-trusted + MongoDB users.role == "ADMIN" ✓
+      3. X-User-Email header + 白名單 + JWT_SECRET 未設(相容) ✓
+      · 其他 → 403
     """
     if not email:
-        raise HTTPException(403, "缺 X-User-Email header · 請從 launcher 進入")
+        raise HTTPException(403, "未識別使用者 · 請從 launcher 進入登入")
+
+    # Cookie 驗過 · 走嚴格路徑
+    trusted = getattr(request.state, "email_trusted", False)
+    jwt_configured = bool(os.getenv("JWT_SECRET", "")) and \
+                     not os.getenv("JWT_SECRET", "").startswith("<GENERATE")
+
+    if not trusted and jwt_configured:
+        # Production · JWT 已設 · 但 cookie 沒驗過 → 偽造可能
+        logger.warning(
+            "[auth] admin endpoint %s 被非 cookie 路徑呼叫(email=%s)· 擋",
+            request.url.path, email,
+        )
+        raise HTTPException(
+            403,
+            "Admin 操作需從 launcher 登入(含 LibreChat cookie)· "
+            "X-User-Email header 單獨不足以授權"
+        )
+
     if email in _admin_allowlist:
         return email
-    # Fallback · 查 LibreChat user document · 直接 lower-case 比對,避免 regex injection
     try:
         u = _users_col.find_one({"email": email})
         if u and (u.get("role") or "").upper() == "ADMIN":
@@ -2080,10 +2147,13 @@ def knowledge_list(source_id: Optional[str] = None, project: Optional[str] = Non
             {"_id": 1, "name": 1, "type": 1, "path": 1, "last_index_stats": 1,
              "agent_access": 1},
         ))
-        # Q3 · agent_num 在白名單外的 source 完全藏起(連名字都看不到)
-        if agent_num:
-            docs = [d for d in docs
-                    if not d.get("agent_access") or agent_num in d["agent_access"]]
+        # Q3 + Codex R3.3 · agent_num 在白名單外的 source 完全藏起
+        # 原邏輯:agent_num 有值才過濾 · 不帶 header 就看到全部(含機敏)
+        # 新邏輯:source 有 agent_access 白名單 → 必需對應 agent_num 才看得到
+        #         source 無 agent_access(空 []) → 公開 · 所有人可見
+        docs = [d for d in docs
+                if not d.get("agent_access") or
+                (agent_num and agent_num in d["agent_access"])]
         return {
             "sources": [
                 {
@@ -2106,14 +2176,21 @@ def knowledge_list(source_id: Optional[str] = None, project: Optional[str] = Non
 
     # Agent 存取權限檢查
     agent_num = (request.headers.get("X-Agent-Num") if request else None)
-    if agent_num and src.get("agent_access") and agent_num not in src["agent_access"]:
+    # Codex R3.3 · source 有 agent_access 白名單時 · 缺 X-Agent-Num 預設拒絕
+    # 否則直接呼叫 API 不帶 header 可繞過限制 · 看到「只給投標助手」的機敏資料
+    if src.get("agent_access") and (not agent_num or agent_num not in src["agent_access"]):
         raise HTTPException(403, f"此資料源未開放給 #{agent_num} 助手")
 
-    base = src["path"]
-    target = os.path.abspath(os.path.join(base, project)) if project else base
-    # path traversal 防護
-    if not target.startswith(os.path.abspath(base)):
+    # Codex R3.4 · 用 realpath + commonpath 取代 abspath.startswith
+    base = os.path.realpath(src["path"])
+    target = os.path.realpath(os.path.join(base, project)) if project else base
+    # path traversal 防護(含 symlink)
+    try:
+        common = os.path.commonpath([base, target])
+    except ValueError:
         raise HTTPException(403, "路徑越界")
+    if common != base:
+        raise HTTPException(403, "路徑越界(symlink 或 ../ 逃逸)")
     if not os.path.isdir(target):
         raise HTTPException(404, "資料夾不存在")
 
@@ -2166,14 +2243,24 @@ def knowledge_read(
 
     # Agent 存取權限
     agent_num = request.headers.get("X-Agent-Num")
-    if agent_num and src.get("agent_access") and agent_num not in src["agent_access"]:
+    # Codex R3.3 · source 有 agent_access 白名單時 · 缺 X-Agent-Num 預設拒絕
+    # 否則直接呼叫 API 不帶 header 可繞過限制 · 看到「只給投標助手」的機敏資料
+    if src.get("agent_access") and (not agent_num or agent_num not in src["agent_access"]):
         raise HTTPException(403, f"此資料源未開放給 #{agent_num} 助手")
 
-    # path traversal 防護
-    base = os.path.abspath(src["path"])
-    abs_path = os.path.abspath(os.path.join(base, rel_path))
-    if not abs_path.startswith(base + os.sep) and abs_path != base:
+    # path traversal 防護(Codex R3.4 · realpath 解 symlink 再 commonpath)
+    # 僅 abspath 不夠 · 使用者可在 source 內放 symlink 指向 source 外
+    # 例:/Volumes/NAS/projects/link -> /Users/other/secrets
+    # abspath 只做字面 ../ 解析 · 不跟 symlink · 仍會通過
+    base = os.path.realpath(src["path"])  # 解 symlink
+    abs_path = os.path.realpath(os.path.join(base, rel_path))
+    try:
+        common = os.path.commonpath([base, abs_path])
+    except ValueError:
+        # 不同 drive / 完全不同 root · Windows-style
         raise HTTPException(403, "路徑越界")
+    if common != base:
+        raise HTTPException(403, "路徑越界(symlink 或 ../ 逃逸)")
     if not os.path.isfile(abs_path):
         raise HTTPException(404, "檔案不存在或不是檔案")
 
@@ -2248,16 +2335,17 @@ def knowledge_search(
         }
     result = knowledge_indexer.search(meili, q, source_id=source_id, project=project, limit=limit)
 
-    # Q3 · 過濾 hit · 移除無權限的 source_id
+    # Q3 + Codex R3.3 · 過濾 hit · 無 agent_num 時也要擋 agent_access 限定的 source
     agent_num = request.headers.get("X-Agent-Num") if request else None
-    if agent_num and isinstance(result, dict) and result.get("hits"):
+    if isinstance(result, dict) and result.get("hits"):
         # 找出此 agent 不能讀的 source_id 黑名單
         forbidden_ids = set()
         for src in knowledge_sources_col.find(
             {"enabled": True, "agent_access": {"$exists": True, "$ne": []}},
             {"_id": 1, "agent_access": 1},
         ):
-            if agent_num not in src["agent_access"]:
+            # 若未帶 agent_num 或不在白名單 · 都擋(Codex R3.3 新:無 header 預設嚴格)
+            if not agent_num or agent_num not in src["agent_access"]:
                 forbidden_ids.add(str(src["_id"]))
         if forbidden_ids:
             original = len(result["hits"])

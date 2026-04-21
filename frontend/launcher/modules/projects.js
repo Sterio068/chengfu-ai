@@ -40,9 +40,14 @@ export const Projects = {
   load() { return this._cache; },
   get(id) { return this._cache.find(p => p.id === id || p._id === id); },
 
+  // Codex R3.7 · 檢查 r.ok · server 500 不應誤報成功
   async add(data) {
     if (this._online) {
-      await fetch(API, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(data) });
+      const r = await fetch(API, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(data) });
+      if (!r.ok) {
+        const err = await r.text().catch(() => r.statusText);
+        throw new Error(`新建專案失敗(${r.status}):${err.substring(0, 100)}`);
+      }
       await this.refresh();
     } else {
       const proj = { id: "proj_" + Date.now(), _id: "proj_" + Date.now(), ...data,
@@ -55,7 +60,11 @@ export const Projects = {
 
   async update(id, data) {
     if (this._online) {
-      await fetch(`${API}/${id}`, { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify(data) });
+      const r = await fetch(`${API}/${id}`, { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify(data) });
+      if (!r.ok) {
+        const err = await r.text().catch(() => r.statusText);
+        throw new Error(`更新專案失敗(${r.status}):${err.substring(0, 100)}`);
+      }
       await this.refresh();
     } else {
       const idx = this._cache.findIndex(p => p.id === id);
@@ -67,7 +76,11 @@ export const Projects = {
 
   async remove(id) {
     if (this._online) {
-      await fetch(`${API}/${id}`, { method: "DELETE" });
+      const r = await fetch(`${API}/${id}`, { method: "DELETE" });
+      if (!r.ok) {
+        const err = await r.text().catch(() => r.statusText);
+        throw new Error(`刪除專案失敗(${r.status}):${err.substring(0, 100)}`);
+      }
       await this.refresh();
     } else {
       this._cache = this._cache.filter(p => p.id !== id);

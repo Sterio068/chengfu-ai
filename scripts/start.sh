@@ -112,14 +112,23 @@ echo "  ✅ Keychain 讀取完成"
 echo "[2/3] 啟動 docker compose..."
 cd "${PROJECT_DIR}/config-templates"
 
-# Image stale guard · accounting image 若比 backend source 舊就 rebuild
-# (Round 3 regression reviewer 抓到的:改 source 沒 rebuild 會導致 RBAC 等全數未生效)
-ACC_SRC="${PROJECT_DIR}/backend/accounting/main.py"
-if [[ -f "$ACC_SRC" ]] && docker image inspect config-templates-accounting > /dev/null 2>&1; then
+# Image stale guard(Codex R3.5 · 擴到整個 backend/accounting/ 不只 main.py)
+# 改 services/*.py 或 requirements.txt 會漏 rebuild · 造成線上跑舊版
+ACC_DIR="${PROJECT_DIR}/backend/accounting"
+if [[ -d "$ACC_DIR" ]] && docker image inspect config-templates-accounting > /dev/null 2>&1; then
     IMG_TS=$(docker image inspect config-templates-accounting --format '{{.Created}}' 2>/dev/null)
-    SRC_TS=$(stat -f '%Sm' -t '%Y-%m-%dT%H:%M:%SZ' "$ACC_SRC" 2>/dev/null || stat -c '%y' "$ACC_SRC" 2>/dev/null)
-    if [[ "$SRC_TS" > "$IMG_TS" ]]; then
-        echo "  🔨 偵測到 accounting source 比 image 新 · rebuild 中..."
+    # 找整個目錄最近變動的檔(忽略 __pycache__ / .pytest_cache)
+    NEWEST_SRC=$(find "$ACC_DIR" -type f \
+        \! -path "*/__pycache__/*" \
+        \! -path "*/.pytest_cache/*" \
+        \! -path "*/tests/__pycache__/*" \
+        -exec stat -f '%m %N' {} + 2>/dev/null \
+        | sort -rn | head -1)
+    SRC_MTIME=$(echo "$NEWEST_SRC" | awk '{print $1}')
+    SRC_FILE=$(echo "$NEWEST_SRC" | cut -d' ' -f2-)
+    IMG_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${IMG_TS%.*}" +%s 2>/dev/null || echo 0)
+    if [[ -n "$SRC_MTIME" && "$SRC_MTIME" -gt "$IMG_EPOCH" ]]; then
+        echo "  🔨 偵測到 $SRC_FILE 比 image 新 · rebuild 中..."
         docker compose build accounting 2>&1 | tail -3
     fi
 fi

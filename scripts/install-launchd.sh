@@ -27,8 +27,11 @@ for plist_file in "$PLIST_SRC"/*.plist; do
     if [[ ! -f "$plist_file" ]]; then continue; fi
     name=$(basename "$plist_file")
     dst="${PLIST_DST}/${name}"
-    # 把 USERNAME 替換成當前使用者 · 否則 launchd 不認
-    sed "s|/Users/USERNAME/|${HOME}/|g" "$plist_file" > "$dst"
+    # Codex R3.10 · 替換 /Users/USERNAME/ 與 __REPO_ROOT__
+    # 後者支援 repo 不在 $HOME/Workspace/ChengFu 時的自訂位置
+    sed -e "s|/Users/USERNAME/|${HOME}/|g" \
+        -e "s|__REPO_ROOT__|${REPO_ROOT}|g" \
+        "$plist_file" > "$dst"
     chmod 644 "$dst"
     echo "  📄 安裝 ${name}"
     # 若已 load 過 · 先 unload

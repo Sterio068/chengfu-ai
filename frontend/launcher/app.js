@@ -558,11 +558,18 @@ export const app = {
       status:      form.status.value,
     };
     if (!data.name) return;
-    if (this.editingProjectId) await Projects.update(this.editingProjectId, data);
-    else                       await Projects.add(data);
+    // Codex R3.7 · Projects.add/update 現在 throw on server 500 · 要 catch
+    try {
+      if (this.editingProjectId) await Projects.update(this.editingProjectId, data);
+      else                       await Projects.add(data);
+    } catch (err) {
+      toast.error(err.message || "儲存失敗 · 請重試");
+      return;  // 不關 modal · 保留表單讓 user 重試
+    }
     this.closeProjectModal();
     this.renderProjects();
     this.renderProjectsPreview();
+    toast.success("專案已儲存");
   },
 
   async deleteProject() {
@@ -572,7 +579,13 @@ export const app = {
       { title: "刪除專案", icon: "⚠️", primary: "刪除", danger: true }
     );
     if (!ok) return;
-    await Projects.remove(this.editingProjectId);
+    // Codex R3.7 · Projects.remove throw on server 500
+    try {
+      await Projects.remove(this.editingProjectId);
+    } catch (err) {
+      toast.error(err.message || "刪除失敗 · 請重試");
+      return;
+    }
     this.closeProjectModal();
     this.renderProjects();
     this.renderProjectsPreview();

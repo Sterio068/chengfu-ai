@@ -566,9 +566,11 @@ def test_knowledge_agent_access_whitelist(client, tmp_source_dir):
     )
     assert r.status_code == 200
 
-    # 沒帶 X-Agent-Num(同仁直接叫)不擋
+    # Codex R3.3 · 沒帶 X-Agent-Num 且 source 有 agent_access → 擋
+    # 舊行為(漏洞):不擋 · 任何人可 curl 繞過
+    # 新行為:嚴格 · 無 header 即無權限
     r = client.get(f"/knowledge/read?source_id={sid}&rel_path=readme.md")
-    assert r.status_code == 200
+    assert r.status_code == 403
 
 
 def test_knowledge_search_without_meili(client):
@@ -609,10 +611,12 @@ def test_knowledge_list_hides_sources_for_unauthorized_agent(client, tmp_source_
     names = [s["name"] for s in r.json()["sources"]]
     assert "機密客戶合約" in names
 
-    # 不帶 X-Agent-Num(一般同仁直接瀏覽)不過濾 · 照常看得到
+    # Codex R3.3 · 不帶 X-Agent-Num 時 · agent_access 有白名單的 source 預設擋
+    # 之前行為:不過濾(漏洞 · 繞過白名單)
+    # 新行為:預設嚴格 · 無 header = 無權限 · 看不到機敏 source
     r = client.get("/knowledge/list")
     names = [s["name"] for s in r.json()["sources"]]
-    assert "機密客戶合約" in names
+    assert "機密客戶合約" not in names
 
 
 def test_knowledge_list_empty_agent_access_visible_to_all(client, tmp_source_dir):
@@ -763,6 +767,36 @@ def test_admin_adoption_custom_days(client):
     r = client.get("/admin/adoption?days=30", headers=ADMIN_HEADERS)
     assert r.status_code == 200
     assert r.json()["period_days"] == 30
+
+
+# ============================================================
+# Codex R3.4 · symlink escape prevention
+# ============================================================
+def test_knowledge_read_blocks_symlink_escape(client, tmp_source_dir):
+    """source 內 symlink 指 source 外的檔 · /knowledge/read 應擋"""
+    import os as _os, tempfile
+    # 在白名單外建一個檔
+    outside = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt")
+    outside.write("secret content from outside")
+    outside.close()
+
+    # 在 source 內建 symlink 指外部
+    link = _os.path.join(tmp_source_dir, "escape-link.txt")
+    try:
+        _os.symlink(outside.name, link)
+        r = client.post("/admin/sources",
+            json={"name": "sym test", "path": tmp_source_dir},
+            headers=ADMIN_HEADERS)
+        sid = r.json()["id"]
+
+        # 試讀 symlink · R3.4 後應該被擋
+        r = client.get(f"/knowledge/read?source_id={sid}&rel_path=escape-link.txt")
+        assert r.status_code == 403, \
+            "Codex R3.4:symlink 指外部應被 commonpath 檢查擋住"
+    finally:
+        if _os.path.islink(link):
+            _os.unlink(link)
+        _os.unlink(outside.name)
 
 
 def test_knowledge_read_fails_closed_when_audit_broken(client, tmp_source_dir, monkeypatch):

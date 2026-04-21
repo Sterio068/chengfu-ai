@@ -303,7 +303,20 @@ def main() -> int:
         print(f"   Base URL: {BASE}")
         print()
 
-    success, fail = 0, 0
+        # Codex R3.9 · idempotent · 先取現有 agents · 存在就 skip 或 PATCH
+        # 原行為:每次跑都 POST · 跑 2 次會建 2 組 · 承富老闆會看到 20 個助手
+        print("🔍 取現有 agents 清單...")
+        try:
+            existing = api("GET", "/api/agents", token=token)
+            # LibreChat 回 {"data": [...]} 或直接 list
+            existing_list = existing.get("data") if isinstance(existing, dict) else existing
+            existing_by_name = {a.get("name"): a for a in (existing_list or [])}
+            print(f"   已存在 {len(existing_by_name)} 個 agents")
+        except Exception as e:
+            print(f"   ⚠ 無法取現有 · 繼續但可能建重複: {e}")
+            existing_by_name = {}
+
+    success, fail, skipped = 0, 0, 0
     for f, data in presets:
         agent = preset_json_to_agent(data)
         if args.dry_run:
@@ -312,10 +325,26 @@ def main() -> int:
             print(f"          instructions 長度={len(agent['instructions'])} 字")
             success += 1
             continue
+
+        # Codex R3.9 · 已存在 · 走 PATCH 更新而非 POST 新建
+        existing_agent = existing_by_name.get(agent["name"])
+        if existing_agent:
+            agent_id = existing_agent.get("id") or existing_agent.get("_id")
+            try:
+                api("PATCH", f"/api/agents/{agent_id}", token=token, data=agent)
+                print(f"🔄 更新現有 {agent['name']} (id={agent_id})")
+                # 不重共享 · 沿用舊 projectIds
+                success += 1
+                continue
+            except Exception as e:
+                print(f"⚠ PATCH {agent['name']} 失敗 · skip: {e}")
+                skipped += 1
+                continue
+
         try:
             resp = api("POST", "/api/agents", token=token, data=agent)
             agent_id = resp.get("id") or resp.get("_id") or "unknown"
-            print(f"✅ {agent['name']}")
+            print(f"✅ 新建 {agent['name']}")
             print(f"   agent_id={agent_id}")
             # 建立後 · 共享給全公司 · v4.4 起 · 共享失敗視為錯誤(避免表面成功實質沒共享)
             if agent_id != "unknown":
@@ -340,7 +369,8 @@ def main() -> int:
 
     print()
     print("=" * 44)
-    print(f"  結果:{success} 成功 / {fail} 失敗")
+    print(f"  結果:{success} 成功 / {fail} 失敗" +
+          (f" / {skipped} 略過(Codex R3.9 · 重跑保留既有)" if not args.dry_run and skipped else ""))
     print("=" * 44)
 
     if not args.dry_run and fail == 0:

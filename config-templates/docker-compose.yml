@@ -54,8 +54,10 @@ services:
     container_name: chengfu-librechat
     restart: unless-stopped
     depends_on:
-      - mongodb
-      - meilisearch
+      mongodb:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
     # 不再對外 expose 3080,改由 nginx 代理
     expose:
       - "3080"
@@ -64,6 +66,16 @@ services:
       - HOST=0.0.0.0
       - MONGO_URI=mongodb://mongodb:27017/chengfu
       - MEILI_HOST=http://meilisearch:7700
+      # Codex R3.1 · start.sh 從 Keychain 注入的 env · 明示傳入 · 否則 env_file 裡 placeholder 會覆蓋
+      # env_file 讀檔時 · docker compose 不會把 host env 覆蓋 file 值 · 必須這裡 explicit
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CREDS_KEY=${CREDS_KEY}
+      - CREDS_IV=${CREDS_IV}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-ci-placeholder-insecure-do-not-use}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
     volumes:
       - ./librechat.yaml:/app/librechat.yaml:ro
       - ./images:/app/client/public/images
@@ -87,6 +99,13 @@ services:
     networks:
       - chengfu-network
     mem_limit: 2g
+    # Codex R3.6 · 加 healthcheck · depends_on.condition 用 service_healthy 才真等
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   # ==================== Meilisearch 全文檢索 ====================
   # 對話歷史搜尋(不是 RAG,是 UI 層的歷史對話搜尋)
@@ -103,6 +122,13 @@ services:
     networks:
       - chengfu-network
     mem_limit: 1g
+    # Codex R3.6 · Meili 有 /health · 用 curl(busybox wget --spider 不穩)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7700/health | grep -q available"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # ==================== 會計 API(承富內建)====================
   # 台灣格式會計模組 + 專案 / 回饋 / Admin / L3 classifier / Orchestrator / 採購網監測
@@ -111,8 +137,10 @@ services:
     container_name: chengfu-accounting
     restart: unless-stopped
     depends_on:
-      - mongodb
-      - meilisearch
+      mongodb:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
     environment:
       - MONGO_URI=mongodb://mongodb:27017/chengfu
       - LIBRECHAT_INTERNAL_URL=http://librechat:3080

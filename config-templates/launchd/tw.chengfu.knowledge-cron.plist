@@ -17,7 +17,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "$HOME/Workspace/ChengFu" &amp;&amp; ./scripts/knowledge-cron.sh</string>
+        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "__REPO_ROOT__" &amp;&amp; ./scripts/knowledge-cron.sh</string>
     </array>
 
     <!-- 03:00 跑 · 錯開 02:00 backup 避免同時吃 I/O -->
