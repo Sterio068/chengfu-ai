@@ -56,7 +56,80 @@ head -20 /tmp/sse-before.jsonl  # 確認有 data: 事件
 
 ---
 
-## 🚀 升版執行
+## 🧪 升版前必須 · sandbox 隔離測試(Round 8 紅線)
+
+> **規則:絕不在 production 直接升版** · 升版必須先在 sandbox 跑完 §5-§6 全套契約測試
+> sandbox 與 production **完全不共用** · DB / port / volume 都隔離
+
+### 0. 啟動 sandbox(待升版本)
+```bash
+# 設你想測的 LibreChat 版本(GitHub Releases 看)
+export SANDBOX_LIBRECHAT_VERSION=v0.8.5-rc1
+
+# 啟動 sandbox(不影響 production · -p 用獨立 project name)
+cd config-templates
+docker compose -f docker-compose.sandbox.yml -p chengfu-sandbox up -d
+sleep 30
+docker compose -f docker-compose.sandbox.yml -p chengfu-sandbox ps
+```
+
+**端口對照表(sandbox vs production):**
+
+| 服務 | production port | sandbox port |
+|---|---|---|
+| nginx | 80 | **8080** |
+| accounting | 8000(內網) | **8081** |
+| mongo | 27017(內網) | **27018**(對外可 dump) |
+| meili | 7700(內網) | 7700(內網不對外) |
+| 對外 URL | http://localhost/ | http://localhost:8080/ |
+
+### 1. 跑契約測試指向 sandbox
+```bash
+# smoke 第一個位置參數就是 BASE URL
+./scripts/smoke-librechat.sh http://localhost:8080 > /tmp/smoke-sandbox.log
+# 全綠才往下
+```
+
+### 2. 跑 LibreChat 契約專屬端點(transactions schema)
+```bash
+curl -sH "X-User-Email: sterio068@gmail.com" \
+     http://localhost:8081/admin/librechat-contract | jq .
+
+# 預期:
+# { "transactions_schema_ok": true, ... }
+# 若 false · 升版會打破成本核算 · 退回不升
+```
+
+### 3. 把舊版 production agents dump 到 sandbox(模擬真實升版)
+```bash
+# 從 production mongo 撈
+docker exec chengfu-mongo mongodump --db chengfu --collection agents \
+    --archive 2>/dev/null > /tmp/agents-prod.archive
+
+# 灌進 sandbox mongo(注意 db rename 為 chengfu_sandbox)
+docker exec -i chengfu-mongo-sandbox mongorestore \
+    --nsFrom 'chengfu.agents' --nsTo 'chengfu_sandbox.agents' \
+    --archive --quiet < /tmp/agents-prod.archive
+
+# 驗 agents _id 升版後是否穩定(下面 §5a 同邏輯但對 sandbox)
+docker exec chengfu-mongo-sandbox mongosh chengfu_sandbox --quiet --eval \
+    'JSON.stringify(db.agents.find({},{_id:1,name:1}).toArray())' > /tmp/agents-sandbox.json
+diff /tmp/agents-before.json /tmp/agents-sandbox.json
+```
+
+### 4. sandbox 全綠 → 才開始下節真正升版
+
+### 5. sandbox cleanup(測完一定要收 · 否則占 RAM)
+```bash
+docker compose -f config-templates/docker-compose.sandbox.yml -p chengfu-sandbox down -v
+rm -rf config-templates/data-sandbox/
+# 確認真的清:
+docker ps -a | grep sandbox  # 應該為空
+```
+
+---
+
+## 🚀 升版執行(sandbox 全綠才能跑)
 
 ### 1. 改 pin 版本
 ```yaml
