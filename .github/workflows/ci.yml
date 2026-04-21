@@ -81,6 +81,7 @@ jobs:
         env:
           # 給 docker compose 補預設 · 避免 "variable not set" warning 升 fatal
           MEILI_MASTER_KEY: ci-placeholder-key
+          # Codex R2.2 · 明示 · 不走 default
           KNOWLEDGE_ALLOWED_ROOTS: /tmp
           FAL_API_KEY: ""
         run: docker compose -f config-templates/docker-compose.yml config > /dev/null

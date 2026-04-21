@@ -120,7 +120,9 @@ services:
       # V1.1 §E 多來源知識庫 · 需 Meili 與允許的 source root
       - MEILI_HOST=http://meilisearch:7700
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-ci-placeholder-insecure-do-not-use}
-      - KNOWLEDGE_ALLOWED_ROOTS=${KNOWLEDGE_ALLOWED_ROOTS:-/Volumes,/Users,/mnt,/data}
+      # Codex R2.2 · 預設收緊至 /Volumes(NAS)+ /data(容器 bind mount)
+      # /Users / /mnt 要開請 env 明示 · 防離職員工桌面被索引
+      - KNOWLEDGE_ALLOWED_ROOTS=${KNOWLEDGE_ALLOWED_ROOTS:-/Volumes,/data}
       - FAL_API_KEY=${FAL_API_KEY:-}
     expose:
       - "8000"

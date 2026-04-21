@@ -118,39 +118,72 @@ def probe_ocr_startup() -> dict:
         logger.error("[ocr] probe %s", _OCR_LAST_ERROR)
         return ocr_status()
 
-    # Step 3 · PyMuPDF OCR 實測(用 1 個字的 image PDF)
+    # Step 3 · PyMuPDF OCR 實測(Codex R2.5 · 用真 image 不是 text layer)
+    # 原 insert_text 建的是文字層 · textpage_ocr 直接讀 text 層就過 · 沒驗到 OCR
+    # 改:PIL 畫 "OK" 的 bitmap · 嵌進 PDF · OCR 必須真從像素認字
     try:
         fitz = _lazy_fitz()
-        # 建一個非常小的 PDF · 全白 · 不會真的跑 OCR · 但會走 textpage_ocr 路徑一次
-        # 若 tesseract binding 有問題 · 這裡會立刻抛
         import tempfile, os as _os
+        # 用 PIL 畫一張 200×100 的白底黑字 image
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            raise RuntimeError("PIL not installed · required for OCR probe")
+
+        img = Image.new("RGB", (200, 100), color="white")
+        draw = ImageDraw.Draw(img)
+        # 用預設字型畫 "OK" · 大概 30px 高 · 應足以 OCR 識別
+        draw.text((50, 35), "OK", fill="black")
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            img_path = f.name
+        img.save(img_path, "PNG")
+
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             tmp_pdf = f.name
         try:
+            # 建一個 PDF · 只有圖片(無文字層)
             doc = fitz.open()
-            page = doc.new_page(width=100, height=100)
-            page.insert_text((10, 50), "OK", fontsize=16)
+            page = doc.new_page(width=200, height=100)
+            page.insert_image(fitz.Rect(0, 0, 200, 100), filename=img_path)
             doc.save(tmp_pdf)
             doc.close()
-            # 再打開 + 嘗試 OCR textpage
+            # 再打開 · 確認 text layer 是空的(才算 image-only)
             doc = fitz.open(tmp_pdf)
             page = doc[0]
+            plain_text = page.get_text("text").strip()
+            if plain_text:
+                logger.warning("[ocr] probe PDF 居然有 text layer · PIL 寫入方式需查")
+            # OCR 路徑
             tp = page.get_textpage_ocr(language="chi_tra+eng")
             text = page.get_text(textpage=tp)
             doc.close()
+            recognized = text.strip()
             _OCR_AVAILABLE = True
             _OCR_LAST_ERROR = None
-            logger.info("[ocr] probe OK · 語言=%s · probe result=%r", _OCR_LANGS, text.strip()[:20])
+            _OCR_PROBE_RESULT = recognized[:50]
+            logger.info(
+                "[ocr] probe OK(real image OCR)· 語言=%s · recognized=%r",
+                _OCR_LANGS, recognized[:20],
+            )
         finally:
-            try:
-                _os.unlink(tmp_pdf)
-            except Exception:
-                pass
+            for p in (img_path, tmp_pdf):
+                try:
+                    _os.unlink(p)
+                except Exception:
+                    pass
     except Exception as e:
         _OCR_AVAILABLE = False
-        _OCR_LAST_ERROR = f"probe OCR call fail · {type(e).__name__}: {str(e)[:120]}"
+        _OCR_LAST_ERROR = f"probe OCR (image) fail · {type(e).__name__}: {str(e)[:120]}"
         logger.error("[ocr] probe step 3 %s", _OCR_LAST_ERROR)
     return ocr_status()
+
+
+def reset_ocr_cache():
+    """Codex R2.5 · 給 /admin/ocr/reprobe 用 · 維運後不用重啟整個容器"""
+    global _OCR_AVAILABLE, _OCR_LAST_ERROR, _OCR_LANGS
+    _OCR_AVAILABLE = None
+    _OCR_LAST_ERROR = None
+    _OCR_LANGS = []
 
 
 def ocr_status() -> dict:

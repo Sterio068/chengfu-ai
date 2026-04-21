@@ -434,6 +434,58 @@ def test_indexer_meili_task_failed_keeps_search_behind(tmp_src):
     assert doc.get("last_search_indexed_at") is None
 
 
+def test_indexer_meili_partial_failure_keeps_search_behind(tmp_src):
+    """Codex Round 10.5 R2.1 · 一批成功 + 一批失敗 · last_search 不前進
+    避免失敗批的檔永遠漏補"""
+    import tempfile, os as _os
+    # 先在 tmp_src 補多個檔 · 確保 > 200 個觸發多 batch
+    for i in range(250):
+        p = _os.path.join(tmp_src["path"], f"extra-{i:04d}.txt")
+        with open(p, "w") as f:
+            f.write(f"file {i}")
+
+    class FakeTaskInfo:
+        def __init__(self, uid): self.task_uid = uid
+    class FakeResult:
+        def __init__(self, status): self.status = status
+    # 第一批 succeed · 第二批 fail · 第三批 succeed(flush)
+    call_counter = {"n": 0}
+    class FakeIndex:
+        def update_settings(self, *a): pass
+        def add_documents(self, docs):
+            call_counter["n"] += 1
+            return FakeTaskInfo(call_counter["n"])
+        def delete_documents(self, **kw): pass
+    class FakeMeili:
+        def index(self, uid): return FakeIndex()
+        def create_index(self, *a, **kw): pass
+        def delete_index(self, *a): pass
+        def wait_for_task(self, uid, timeout_in_ms=60000):
+            # task 1 ok · task 2 fail · task 3 ok
+            if uid == 2:
+                return FakeResult("failed")
+            return FakeResult("succeeded")
+
+    import services.knowledge_indexer as ki
+    orig = ki._ensure_index
+    ki._ensure_index = lambda c: FakeIndex()
+    try:
+        stats = knowledge_indexer.reindex_source(
+            tmp_src["id"], tmp_src["col"], meili_client=FakeMeili(),
+        )
+    finally:
+        ki._ensure_index = orig
+
+    # 有檔抽了 · 但一批失敗 · 整輪視為不前進
+    assert stats["file_count"] > 0
+    assert stats["search_progress_advanced"] is False, \
+        "Codex R2.1:任一 Meili batch 失敗 · last_search 必不前進"
+    doc = tmp_src["col"].find_one(
+        {"_id": __import__("bson").ObjectId(tmp_src["id"])}
+    )
+    assert doc.get("last_search_indexed_at") is None
+
+
 def test_indexer_meili_task_no_uid_returns_true_with_warning(tmp_src, caplog):
     """舊 Meili client 不回 task_uid · indexer 應該假成功 + log warning"""
     class NoUidTaskInfo:

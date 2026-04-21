@@ -32,7 +32,7 @@ trap "rm -rf $TMP_DIR" EXIT
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 開始 Meili 還原:$INPUT"
 
-# 1. 若是 .gpg · 先解密
+# 1. 若是 .gpg · 先解密(Codex R2.3 新檔名可能是 .dump.gpg · 也支援)
 if [[ "$INPUT" == *.gpg ]]; then
     if ! command -v gpg > /dev/null; then
         echo "❌ 缺 gpg · brew install gnupg"
@@ -48,12 +48,17 @@ if [[ "$INPUT" == *.gpg ]]; then
     INPUT="$DECRYPTED"
 fi
 
-# 2. 解壓 tar.gz · 取出 dump
-echo "  📦 解壓..."
-tar -xzf "$INPUT" -C "$TMP_DIR"
-DUMP_FILE=$(find "$TMP_DIR/dumps" -name "*.dump" | head -1)
-if [[ -z "$DUMP_FILE" ]]; then
-    echo "❌ tar 內找不到 .dump 檔"
+# 2. 判斷是 .tar.gz(舊版)還是 .dump(新 R2.3 單檔)
+DUMP_FILE=""
+if [[ "$INPUT" == *.tar.gz ]]; then
+    echo "  📦 解壓 tar.gz..."
+    tar -xzf "$INPUT" -C "$TMP_DIR"
+    DUMP_FILE=$(find "$TMP_DIR/dumps" -name "*.dump" 2>/dev/null | head -1)
+elif [[ "$INPUT" == *.dump ]]; then
+    DUMP_FILE="$INPUT"
+fi
+if [[ -z "$DUMP_FILE" || ! -f "$DUMP_FILE" ]]; then
+    echo "❌ 找不到 .dump 檔 · 輸入格式應為 .tar.gz 或 .dump(或其 .gpg)"
     exit 1
 fi
 echo "  📄 找到 dump: $(basename "$DUMP_FILE")"
@@ -61,7 +66,7 @@ echo "  📄 找到 dump: $(basename "$DUMP_FILE")"
 # 3. 停 Meili · 清舊 data · 放 dump · 用 --import-dump 啟動
 echo "  🛑 停 Meili..."
 cd "$REPO_ROOT/config-templates"
-docker compose stop meilisearch
+docker compose stop meilisearch || true
 
 # 把 dump 放到 bind-mount 內
 mkdir -p "$MEILI_DATA/dumps"
@@ -76,14 +81,35 @@ if [[ -d "$MEILI_DATA/data.ms" ]]; then
         { mkdir -p "$BACKUP_CURRENT" && mv "$MEILI_DATA/data.ms" "$BACKUP_CURRENT/"; }
 fi
 
-# 4. 用 import-dump 模式起 · 一次性還原 · 再回復正常啟動
-# Meili >= 1.0 · MEILI_IMPORT_DUMP env 或 --import-dump flag
-echo "  ⚙  以 import-dump 模式啟動 Meili..."
-docker compose run --rm \
+# 4. Codex R2.4 · MEILI_IMPORT_DUMP 匯入完後 Meili 會繼續 serve · 不是 one-shot
+#    用 temporary container 起來 · 等 ready · stop · 再正常啟動
+echo "  ⚙  啟動暫時容器以 import-dump..."
+TEMP_CID=$(docker run -d --rm --name chengfu-meili-import-tmp \
+    -v "$(cd "$MEILI_DATA" && pwd):/meili_data" \
     -e MEILI_IMPORT_DUMP=/meili_data/dumps/${DUMP_BASENAME} \
     -e MEILI_NO_ANALYTICS=true \
     -e MEILI_MASTER_KEY="${MEILI_MASTER_KEY:-ci-placeholder-insecure-do-not-use}" \
-    meilisearch
+    getmeili/meilisearch:v1.12.0)
+
+# 等 Meili ready(poll /health)
+echo "  ⏳  等匯入完成..."
+READY=""
+for i in $(seq 1 60); do  # 最多 5 分鐘
+    HEALTH=$(docker exec chengfu-meili-import-tmp wget -qO- http://localhost:7700/health 2>/dev/null || echo "")
+    if echo "$HEALTH" | grep -q 'available'; then
+        READY="yes"
+        break
+    fi
+    sleep 5
+done
+docker stop chengfu-meili-import-tmp 2>/dev/null || true
+if [[ -z "$READY" ]]; then
+    echo "  ❌ 匯入超時 · 從 $BACKUP_CURRENT 回復"
+    rm -rf "$MEILI_DATA/data.ms"
+    mv "$BACKUP_CURRENT/data.ms" "$MEILI_DATA/" 2>/dev/null || true
+    exit 1
+fi
+echo "  ✅ 匯入完成 · 暫時容器已停"
 
 # 5. 正常啟動
 echo "  ▶  恢復正常 Meili..."

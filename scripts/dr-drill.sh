@@ -36,9 +36,12 @@ echo ""
 
 START=$(date +%s)
 
+# Codex R2.4 · 定義 BACKUP_DIR(原本後面 $BACKUP_DIR 未定義 · set -u 會炸)
+BACKUP_DIR="${HOME}/chengfu-backups/daily"
+
 # ---------- Step 1: 找最新備份 ----------
 echo -e "${BLUE}[1/6]${NC} 找最新備份..."
-LATEST=$(ls -t ~/chengfu-backups/daily/chengfu-*.archive.gz* 2>/dev/null | head -1)
+LATEST=$(ls -t "$BACKUP_DIR"/chengfu-*.archive.gz* 2>/dev/null | head -1)
 if [[ -z "$LATEST" ]]; then
     echo -e "${RED}❌ 找不到備份!請先跑 scripts/backup.sh${NC}"
     exit 1

@@ -1126,6 +1126,15 @@ def librechat_contract(_admin: str = Depends(require_admin)):
     return admin_metrics.librechat_contract(db)
 
 
+@app.post("/admin/ocr/reprobe")
+def reprobe_ocr(_admin: str = Depends(require_admin)):
+    """Codex R2.5 · 不用重啟容器就能重試 OCR probe
+    維運場景:tesseract 裝完 / TESSDATA_PREFIX 修完 / 臨時語言包問題解完"""
+    from services.knowledge_extract import reset_ocr_cache, probe_ocr_startup
+    reset_ocr_cache()
+    return probe_ocr_startup()
+
+
 @app.get("/admin/budget-status")
 def budget_status(_admin: str = Depends(require_admin)):
     """本月預算進度 · 給 Launcher 首頁進度條 + email 預警用"""

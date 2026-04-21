@@ -285,20 +285,27 @@ def adoption_metrics(db, users_col, projects_col, feedback_col,
         "to": now.isoformat(),
     }
 
-    # 1. 活躍使用者(去 users 撈有寫 LibreChat conversations 的)
+    # 1. 活躍使用者(Codex R2.6 · 用 aggregate · distinct 百萬筆會 OOM)
     try:
-        active_user_ids = db.transactions.distinct(
-            "user", {"createdAt": {"$gte": from_dt}}
-        )
+        unique_agg = list(db.transactions.aggregate([
+            {"$match": {"createdAt": {"$gte": from_dt}}},
+            {"$group": {"_id": "$user"}},
+            {"$limit": 500},  # 安全上限 · 承富 10 人絕不會到
+        ]))
+        active_user_ids = [u["_id"] for u in unique_agg]
         result["active_users"] = len(active_user_ids)
-        result["active_user_emails"] = []
-        for uid in active_user_ids[:20]:  # 安全上限
+        # 用 $in batch 查 · 不再逐一 find
+        if active_user_ids:
             try:
-                u = users_col.find_one({"_id": uid}, {"email": 1})
-                if u and u.get("email"):
-                    result["active_user_emails"].append(u["email"])
+                users = list(users_col.find(
+                    {"_id": {"$in": active_user_ids}},
+                    {"email": 1}
+                ))
+                result["active_user_emails"] = [u.get("email") for u in users if u.get("email")]
             except Exception:
-                pass
+                result["active_user_emails"] = []
+        else:
+            result["active_user_emails"] = []
     except Exception as e:
         result["active_users_error"] = str(e)
         result["active_users"] = None
@@ -325,9 +332,28 @@ def adoption_metrics(db, users_col, projects_col, feedback_col,
         result["calls_error"] = str(e)
 
     # 3. Handoff 填寫率
+    # Codex R2.6 · goal trim 後非空才算已填 · 避免只打空白繞過
     try:
         total_projects = projects_col.count_documents({})
-        with_handoff = projects_col.count_documents({"handoff.goal": {"$exists": True, "$ne": ""}})
+        with_handoff = 0
+        try:
+            # 先試 Mongo 4.0+ 原生 $trim(production 用這個 · 最快)
+            filled_agg = list(projects_col.aggregate([
+                {"$match": {"handoff.goal": {"$exists": True, "$type": "string"}}},
+                {"$project": {"trimmed": {"$trim": {"input": "$handoff.goal"}}}},
+                {"$match": {"trimmed": {"$ne": ""}}},
+                {"$count": "n"},
+            ]))
+            with_handoff = filled_agg[0]["n"] if filled_agg else 0
+        except Exception:
+            # fallback · mongomock 不支援 $trim · 逐一檢查
+            for doc in projects_col.find(
+                {"handoff.goal": {"$exists": True}},
+                {"handoff.goal": 1},
+            ):
+                goal = ((doc.get("handoff") or {}).get("goal") or "")
+                if isinstance(goal, str) and goal.strip():
+                    with_handoff += 1
         result["handoff"] = {
             "total_projects": total_projects,
             "with_handoff_filled": with_handoff,

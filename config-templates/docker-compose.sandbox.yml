@@ -126,7 +126,7 @@ services:
       - TZ=Asia/Taipei
       - MEILI_HOST=http://meilisearch-sandbox:7700
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-ci-placeholder-insecure-do-not-use}
-      - KNOWLEDGE_ALLOWED_ROOTS=${KNOWLEDGE_ALLOWED_ROOTS:-/Volumes,/Users,/mnt,/data}
+      - KNOWLEDGE_ALLOWED_ROOTS=${KNOWLEDGE_ALLOWED_ROOTS:-/Volumes,/data}
       - FAL_API_KEY=  # sandbox 不接 Fal · 避免測試亂花錢
     ports:
       - "8081:8000"  # 對外 8081 · 直接 curl /admin/* 不用 nginx

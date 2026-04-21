@@ -206,6 +206,7 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
     docs_batch: list[dict] = []
     file_count = 0
     errors = 0
+    meili_any_failed = False  # Codex R2.1 · 任一 batch 失敗 · 整輪 search 進度不動
     skipped_excluded = 0
     skipped_unchanged = 0
     skipped_too_big = 0
@@ -275,11 +276,13 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             file_count += 1
 
             # 批次送 Meili · 避免單次 payload 太大
-            # Codex Round 10.5 fix · add_documents 只是 enqueue · 要 wait_for_task 才算真入
+            # Codex Round 10.5 R1 · add_documents 只是 enqueue · 要 wait_for_task 才算真入
+            # Codex Round 10.5 R2 · 任一批失敗 sticky meili_any_failed=True · last_search 不前進
             if index and len(docs_batch) >= 200:
                 task_ok = _submit_and_wait(index, docs_batch, meili_client)
                 if not task_ok:
                     errors += len(docs_batch)
+                    meili_any_failed = True
                 docs_batch = []
 
     # flush 最後一批
@@ -287,13 +290,19 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
         task_ok = _submit_and_wait(index, docs_batch, meili_client)
         if not task_ok:
             errors += len(docs_batch)
+            meili_any_failed = True
 
     # Q4 · 三種情境:
     # (a) 沒給 meili_client(cron / 測試沒配)· 不計搜尋進度 · 但 scanned 仍前進
     # (b) 給了但 _ensure_index fail(key 錯 / Meili down)· scanned 前進但 search 不進
     # (c) 正常 · 兩個都前進
+    # Codex R2.1 · 「部分成功」不算成功 · 任一 batch failed → last_search 不前進
+    #   否則失敗批的檔永不補 · 下次 cron 以 scanned 時間為基準 skip 掉
     meili_configured = meili_client is not None
-    meili_succeeded = bool(index) and (file_count == 0 or errors < file_count)
+    meili_succeeded = bool(index) and file_count > 0 and not meili_any_failed
+    # file_count == 0 時沒 batch 送 · 視為 no-op success
+    if bool(index) and file_count == 0:
+        meili_succeeded = True
 
     stats = {
         "ok": True,

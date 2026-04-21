@@ -29,10 +29,23 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # ------------------ 備份 MongoDB(對話 + 會計 + 專案 + 回饋)------------------
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 開始 MongoDB 備份..."
 
+# Codex R2.3 · 若 GPG key 可用 · 直接 pipe 到加密 · 不留明文中間檔
 ARCHIVE="${DAILY_DIR}/chengfu-${DATE}.archive.gz"
-docker exec chengfu-mongo mongodump \
-    --archive --db chengfu --quiet \
-    2>/dev/null | gzip -9 > "$ARCHIVE"
+if command -v gpg > /dev/null 2>&1 && gpg --list-keys chengfu > /dev/null 2>&1; then
+    # GPG 可用 · 一條 pipeline · 磁碟上永遠不落明文
+    ARCHIVE="${DAILY_DIR}/chengfu-${DATE}.archive.gz.gpg"
+    docker exec chengfu-mongo mongodump --archive --db chengfu --quiet 2>/dev/null \
+        | gzip -9 \
+        | gpg --batch --yes --encrypt --recipient chengfu --output "$ARCHIVE"
+    echo "  🔐 Mongo pipeline 直接加密: $ARCHIVE"
+    GPG_AVAILABLE=1
+else
+    # 無 GPG key · 退回明文本機(但異機不會上傳)
+    docker exec chengfu-mongo mongodump --archive --db chengfu --quiet 2>/dev/null \
+        | gzip -9 > "$ARCHIVE"
+    echo "  ⚠ 無 GPG · Mongo 本機明文 $ARCHIVE · 異機傳輸會 skip"
+    GPG_AVAILABLE=0
+fi
 
 # ------------------ 備份 Meilisearch 索引(Round 9 暗示 + Codex Round 10.5 紅)----------------
 # Codex 抓到兩個假安全感:
@@ -42,20 +55,25 @@ docker exec chengfu-mongo mongodump \
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 備份 Meilisearch 索引..."
 MEILI_DUMP="${DAILY_DIR}/chengfu-meili-${DATE}.tar.gz"
 MEILI_KEY=$(docker exec chengfu-accounting printenv MEILI_MASTER_KEY 2>/dev/null || echo "")
+# Codex R2.3 · jq 必裝 · 不用脆弱 sed(若無則 skip Meili backup · 不擋整支)
+if ! command -v jq > /dev/null 2>&1; then
+    echo "  ⚠ jq 未裝(brew install jq)· 跳過 Meili 備份(非 fatal)"
+    MEILI_KEY=""
+fi
 if [[ -n "$MEILI_KEY" ]]; then
-    # Trigger dump · 拿 task uid
+    # Trigger dump · 拿 task uid(`|| echo ""` 避免網路抖動退出整支 backup)
     DUMP_RESP=$(docker exec chengfu-meili wget -qO- \
         --header="Authorization: Bearer ${MEILI_KEY}" \
         --post-data='' http://localhost:7700/dumps 2>/dev/null || echo "")
-    TASK_UID=$(echo "$DUMP_RESP" | sed -n 's/.*"taskUid":\([0-9]*\).*/\1/p')
-    if [[ -n "$TASK_UID" ]]; then
-        # Poll task status 最多 120 秒(50k 檔實測約 30-90 秒)
+    TASK_UID=$(echo "$DUMP_RESP" | jq -r '.taskUid // empty' 2>/dev/null || echo "")
+    if [[ -n "$TASK_UID" && "$TASK_UID" != "null" ]]; then
+        # Poll task status 最多 120 秒
         MEILI_STATUS=""
         for i in $(seq 1 24); do
             TASK_JSON=$(docker exec chengfu-meili wget -qO- \
                 --header="Authorization: Bearer ${MEILI_KEY}" \
-                http://localhost:7700/tasks/${TASK_UID} 2>/dev/null)
-            MEILI_STATUS=$(echo "$TASK_JSON" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')
+                http://localhost:7700/tasks/${TASK_UID} 2>/dev/null || echo "")
+            MEILI_STATUS=$(echo "$TASK_JSON" | jq -r '.status // empty' 2>/dev/null || echo "")
             if [[ "$MEILI_STATUS" == "succeeded" ]]; then
                 break
             elif [[ "$MEILI_STATUS" == "failed" || "$MEILI_STATUS" == "canceled" ]]; then
@@ -66,12 +84,34 @@ if [[ -n "$MEILI_KEY" ]]; then
         done
 
         if [[ "$MEILI_STATUS" == "succeeded" ]]; then
+            # Codex R2.3 · Meili dump 也 pipe 直接加密
             if [[ -d "${PROJECT_DIR}/config-templates/data/meili/dumps" ]]; then
-                tar czf "$MEILI_DUMP" -C "${PROJECT_DIR}/config-templates/data/meili" dumps/ 2>/dev/null
-                MEILI_SIZE=$(du -h "$MEILI_DUMP" 2>/dev/null | cut -f1)
-                echo "  ✅ Meili dump: $MEILI_DUMP ($MEILI_SIZE) · task_uid=$TASK_UID"
-                find "${PROJECT_DIR}/config-templates/data/meili/dumps" \
-                    -name "*.dump" -mtime +7 -delete 2>/dev/null || true
+                # Codex R2.4 · 只打包本輪的 dump · 用 taskUid 找對應 file
+                # Meili dump 檔名格式 <hash>.dump · 從 task result 讀 dumpUid
+                TASK_JSON2=$(docker exec chengfu-meili wget -qO- \
+                    --header="Authorization: Bearer ${MEILI_KEY}" \
+                    http://localhost:7700/tasks/${TASK_UID} 2>/dev/null || echo "")
+                DUMP_UID=$(echo "$TASK_JSON2" | jq -r '.details.dumpUid // empty' 2>/dev/null || echo "")
+                DUMP_FILE_PATTERN="${PROJECT_DIR}/config-templates/data/meili/dumps/${DUMP_UID}.dump"
+                if [[ -n "$DUMP_UID" && -f "$DUMP_FILE_PATTERN" ]]; then
+                    if [[ "$GPG_AVAILABLE" == "1" ]]; then
+                        MEILI_DUMP="${DAILY_DIR}/chengfu-meili-${DATE}.dump.gpg"
+                        gpg --batch --yes --encrypt --recipient chengfu \
+                            --output "$MEILI_DUMP" "$DUMP_FILE_PATTERN"
+                        echo "  🔐 Meili dump 加密: $MEILI_DUMP(uid=$DUMP_UID)"
+                    else
+                        MEILI_DUMP="${DAILY_DIR}/chengfu-meili-${DATE}.dump"
+                        cp "$DUMP_FILE_PATTERN" "$MEILI_DUMP"
+                        echo "  ⚠ Meili 本機明文(無 GPG): $MEILI_DUMP"
+                    fi
+                    MEILI_SIZE=$(du -h "$MEILI_DUMP" 2>/dev/null | cut -f1)
+                    echo "     size: $MEILI_SIZE · task_uid=$TASK_UID"
+                    find "${PROJECT_DIR}/config-templates/data/meili/dumps" \
+                        -name "*.dump" -mtime +7 -delete 2>/dev/null || true
+                else
+                    echo "  ⚠ 無法定位 dump file(uid=$DUMP_UID)· skip"
+                    MEILI_DUMP=""
+                fi
             else
                 echo "  ⚠ Meili dumps 目錄不存在 · skip"
                 MEILI_DUMP=""
@@ -91,20 +131,38 @@ fi
 
 # ------------------ 備份 knowledge-base + config + frontend ------------------
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 備份 knowledge-base + config..."
-KB_ARCHIVE="${DAILY_DIR}/chengfu-kb-${DATE}.tar.gz"
-tar czf "$KB_ARCHIVE" \
-    -C "$PROJECT_DIR" \
-    knowledge-base/ \
-    config-templates/librechat.yaml \
-    config-templates/docker-compose.yml \
-    config-templates/actions/ \
-    config-templates/presets/ \
-    frontend/launcher/ \
-    frontend/custom/ \
-    frontend/nginx/ \
-    2>/dev/null
+# Codex R2.3 · 有 GPG 就 pipe 直接加密 · 不落明文
+if [[ "$GPG_AVAILABLE" == "1" ]]; then
+    KB_ARCHIVE="${DAILY_DIR}/chengfu-kb-${DATE}.tar.gz.gpg"
+    tar czf - -C "$PROJECT_DIR" \
+        knowledge-base/ \
+        config-templates/librechat.yaml \
+        config-templates/docker-compose.yml \
+        config-templates/actions/ \
+        config-templates/presets/ \
+        frontend/launcher/ \
+        frontend/custom/ \
+        frontend/nginx/ \
+        2>/dev/null \
+        | gpg --batch --yes --encrypt --recipient chengfu --output "$KB_ARCHIVE"
+    echo "  🔐 KB pipeline 直接加密: $KB_ARCHIVE"
+else
+    KB_ARCHIVE="${DAILY_DIR}/chengfu-kb-${DATE}.tar.gz"
+    tar czf "$KB_ARCHIVE" \
+        -C "$PROJECT_DIR" \
+        knowledge-base/ \
+        config-templates/librechat.yaml \
+        config-templates/docker-compose.yml \
+        config-templates/actions/ \
+        config-templates/presets/ \
+        frontend/launcher/ \
+        frontend/custom/ \
+        frontend/nginx/ \
+        2>/dev/null
+    echo "  ⚠ KB 本機明文: $KB_ARCHIVE(異機不傳)"
+fi
 KB_SIZE=$(du -h "$KB_ARCHIVE" 2>/dev/null | cut -f1)
-echo "  ✅ knowledge-base + config: $KB_ARCHIVE ($KB_SIZE)"
+echo "     size: $KB_SIZE"
 
 # ------------------ Keychain 項目清單(只記 key names,不 dump 值)------------------
 # 真正機密存 Keychain · 遺失則從該機 Keychain 重新匯出
@@ -115,30 +173,12 @@ echo "  ✅ Keychain 項目清單: $KEYCHAIN_LIST"
 SIZE=$(du -h "$ARCHIVE" | cut -f1)
 echo "  ✅ 備份完成: $ARCHIVE ($SIZE)"
 
-# ------------------ GPG 加密(Codex Round 10.5 · KB + Meili 也一律加密)------------------
-if command -v gpg > /dev/null 2>&1 && gpg --list-keys chengfu > /dev/null 2>&1; then
-    # Mongo archive
-    gpg --batch --yes --encrypt --recipient chengfu --output "${ARCHIVE}.gpg" "$ARCHIVE"
-    rm "$ARCHIVE"
-    ARCHIVE="${ARCHIVE}.gpg"
-    echo "  🔐 Mongo 已 GPG 加密: $ARCHIVE"
-    # KB archive(可能含客戶名 / 建議書片段 · 原本明文上雲是漏洞)
-    if [[ -n "${KB_ARCHIVE:-}" && -f "$KB_ARCHIVE" ]]; then
-        gpg --batch --yes --encrypt --recipient chengfu --output "${KB_ARCHIVE}.gpg" "$KB_ARCHIVE"
-        rm "$KB_ARCHIVE"
-        KB_ARCHIVE="${KB_ARCHIVE}.gpg"
-        echo "  🔐 KB 已 GPG 加密: $KB_ARCHIVE"
-    fi
-    # Meili dump(索引內容含文件預覽 2000 字 · 含客戶案例)
-    if [[ -n "${MEILI_DUMP:-}" && -f "$MEILI_DUMP" ]]; then
-        gpg --batch --yes --encrypt --recipient chengfu --output "${MEILI_DUMP}.gpg" "$MEILI_DUMP"
-        rm "$MEILI_DUMP"
-        MEILI_DUMP="${MEILI_DUMP}.gpg"
-        echo "  🔐 Meili 已 GPG 加密: $MEILI_DUMP"
-    fi
+# Codex R2.3 · 加密已在 pipeline 內完成 · 這裡只確認與告警
+if [[ "$GPG_AVAILABLE" == "1" ]]; then
+    echo "  ✅ 所有檔案以 pipeline 加密 · 磁碟上無明文中間檔"
 else
-    echo "  ⚠ 未設定 GPG key 'chengfu' · 所有備份未加密 · 異機上傳會被跳過"
-    echo "  ⚠ 見 docs/05-SECURITY.md 「GPG key 設定」· 此為強制 · 不設就沒異機備份"
+    echo "  ⚠ 未設定 GPG key 'chengfu' · 所有備份明文 · 異機上傳會被跳過"
+    echo "  ⚠ 見 docs/05-SECURITY.md 「GPG key 設定」· 異機備份強制需要"
 fi
 
 # ------------------ 週備份(每週日)------------------
