@@ -48,41 +48,53 @@ git clone https://github.com/Sterio068/chengfu-ai.git && cd chengfu-ai
 
 ---
 
-## 🧭 已做過的 3 輪內部審查結論(reviewer 進來前先讀 · 避免重複指出)
+## 🧭 已做過的 4 輪外部/內部審查結論(reviewer 進來前先讀 · 避免重複指出)
 
-### Round 1(技術正確性)· **已修 8 條紅線**
+> 每一輪都經過真實執行:18 pytest 全過、11 smoke pass、實際 commit 到 <https://github.com/Sterio068/chengfu-ai>
+
+### Round 1(技術正確性 · 內部 3 agent)· **已修 8 條紅線**
 - FE · chat.js SSE `pop() ?? ""`、chat.js `.chat-messages` → `#chat-messages`、auth.js 401 auto-refresh retry + Web Locks + SessionExpiredError
 - BE · `import json` 修 NameError、email regex injection 修掉、RequestIDMiddleware 500 也帶 header、刪 assert_not_l3 雙源
 - Ops · backup.sh 加 rclone off-site、start.sh CI 護欄 + accounting image stale guard、smoke-librechat 補 SSE/convos、LibreChat upgrade checklist 加 agent `_id` dump
 
-### Round 2(產品 / UX / 業務 / 教材)· **已修 10 條**
+### Round 2(產品 / UX / 業務 / 教材 · 內部 3 agent)· **已修 10 條**
 - Onboarding 從 10 步 → **3 步任務型**(對齊老闆 top 3:設計/投標/廠商)· L3 警語整段刪(老闆:先不考慮 L3)
 - 術語中文化 · Agent → 助手、Workspace → 工作區、Skill → 範本、Preset → 模板
 - 「找不到 Agent」文案友善化 · 技術指令只給 admin
 - 新增:QUICKSTART / CASES/01 / HANDBOOK×4 / NAS-SPEC / LINE-SPEC / README 第一屏改為使用者場景
 
-### Round 3(交付準備度 / 整合 regression / 財務 ROI)· **已修 4 條 · 揭露 3 個部署紅線**
+### Round 3(交付準備度 / 整合 regression / 財務 ROI · 內部 3 agent)· **已修 4 條**
 - **修掉** accounting image 未 rebuild 導致 RBAC 未生效(致命 · 在內網裸奔)
 - **修掉** onboarding tour-step-total 寫死 4 的破綻
 - **加** 3 個 ROI 儀表:`/admin/budget-status` / `/admin/top-users` / `/admin/tender-funnel`
 - **加** Dashboard ROI row(本月 AI 費用進度條 + 標案漏斗 + 本週完成任務)
-- **揭露(非程式碼問題 · 交付前手動落地):**
-  - 🔴 Mac mini 尚未上架 + Cloudflare Tunnel 未設(DoD 20%)
-  - 🔴 `knowledge-base/samples/` 空 · 承富真實建議書 0% 已灌
-  - 🔴 10 帳號 / 密碼 reset SOP / 2 場教育訓練皆 0%
-  - 詳見 `docs/PRE-DELIVERY-CHECKLIST.md` 逐日打勾清單
+- **揭露 3 個部署紅線**(非程式碼問題 · 交付前手動落地 · 寫進 `docs/PRE-DELIVERY-CHECKLIST.md`)
 
-### 因此 · reviewer 請**不要再審以下項**(已在上述 3 輪處理)
-- SSE pop 邊界、tenders listener 疊加、auth 401 retry、CORS whitelist、admin RBAC
-- onboarding 步數、L3 警語、術語中文化
-- ROI baseline 缺失、per-user quota 缺失、標案漏斗視覺化、accounting image 是否 rebuild
-- 異機備份腳本骨架、LibreChat 升版 checklist
+### Round 4(第一位外部 AI reviewer · 2026-04-21 凌晨 2:57 報告)· **已修全部 P0 + P1 關鍵**
+- **P0 對話續接斷鏈**(app.js / chat.js)· `?convo` 參數真的讀了、history modal 真的 reopen
+- **P0 UI overpromise**(6 處)· 專案文案、搜尋 placeholder、預算 email、直接 re-use 段落 — 全改誠實版 · 未做的寫「v1.1」
+- **P0 Day 0 驗收**改為「登入 + **至少 7 人完成角色 first-win 截圖**」硬條件
+- **P0 Backend split-brain**· `routers/` + `auth.py` + `rate_limit.py` + `errors.py` 歸檔到 `_unused_scaffold/`(main.py 為唯一真相)
+- **P1 errors.js**· 前台改可恢復話術 + request id · `SessionExpiredError` 不重複 toast
+- **P1 LibreChat 私有 schema adapter**· `_lc_tx_probe()` + `_lc_tx_normalize()` + `/admin/librechat-contract` endpoint
+- **P1 create-agents.py** 共享失敗 hard fail(原只 warn)
+- **P1 librechat.yaml** 註解「29 個 Agent」改「10 個助手」
 
-### 建議 reviewer 本輪**新聚焦的問題**(我們還沒問過):
-- 系統有什麼**還沒列入** PRE-DELIVERY-CHECKLIST 的落地盲點?
-- ROI 3 儀表夠嗎 · 6 個月後真能答辯「值 NT$ 88,000」嗎?
-- 教學手冊對**抗拒型資深同仁**夠嗎 · 有沒有更好的「first-win」策略?
-- 以你的專業 · 這個系統**最可能在上線後第 2 週**怎麼死(usage 崩掉 / 同仁放棄 / 老闆不付錢)?
+### 因此 · reviewer 請**不要再審以下項**(已在 4 輪處理)
+- FE:SSE pop 邊界、tenders listener 疊加、auth 401 retry、chat.js `.chat-messages` selector、對話續接 `?convo`、history modal reopen、onboarding 步數、L3 警語、術語中文化、errors toast 曝內部
+- BE:CORS whitelist、13 個 /admin/* 全 RBAC、email regex injection、`import json`、Request-ID 500、Mongo index、LibreChat transactions schema probe
+- Ops:異機備份腳本 (rclone 已接)、LibreChat 升版 checklist、accounting image stale guard、CI 護欄、SSE smoke
+- UI:overpromise 文案(專案跟對話 / ⌘K 搜對話 / 超預算自動 email / PM 直接 re-use 段落)
+- UX:onboarding 10→3 步、Day 0 first-win 驗收硬條件
+- 文件:docs/HANDBOOK 4 份、docs/CASES/01 海廢案、docs/QUICKSTART、NAS + LINE SPEC、PRE-DELIVERY-CHECKLIST、BASELINE、LIBRECHAT-UPGRADE-CHECKLIST
+- 架構:backend split-brain(已歸檔 scaffold)、ROI 3 儀表、PRICE_VERSION 標示
+
+### 建議 reviewer 本輪**新聚焦的問題**(Round 4 之後仍未解):
+1. **Day 0 當天 10 人真坐下來用 · 最可能卡在哪 3 個畫面?**(不是 bug · 是體驗卡點)
+2. **設計師第一次拿 Launcher · 有真正會出圖的 happy path 嗎?**(目前只產 prompt · Fal.ai 沒串)
+3. **70 頁招標 PDF 複製貼上的痛** · reviewer 建議「本地 PDF 文字抽取 + 頁碼保留 + 分段貼入」· 優先做嗎?
+4. **T0 Baseline fallback(抽最近 5 案 + 1 週工時日誌)** · 這個 fallback 機制該怎麼落地?Champion 能用多久收齊?
+5. **上線第 2 週最可能的死法**:usage 崩掉 / 同仁放棄 / 老闆不付錢 · 你最擔心哪個?
 
 ---
 
@@ -216,9 +228,9 @@ uptime (3001) ──── 服務監控
 
 ---
 
-## 4. 當前狀態(DoD 視角 · v4.3 · 2026-04-21)
+## 4. 當前狀態(DoD 視角 · v4.4 · 2026-04-21)
 
-### ✅ 程式碼完成度:**95%**(已通過 3 輪內部審查)
+### ✅ 程式碼完成度:**96%**(已通過 3 輪內部審查 + 1 輪外部 AI 審查)
 - 6 容器全 healthy · 10 Agent 全建立 + 共享 `instance` global project
 - 前端 v4.3 · ES Modules · 無 build step · 單檔 CSS · Path A 內建 chat
 - UX:3 步 onboarding(對齊老闆 top 3)· 術語全中文化 · 5 狀態卡 · banner · focus visible
@@ -245,6 +257,15 @@ uptime (3001) ──── 服務監控
 
 **= 系統已經寫完 · 但沒人能用 · 6 個月後無法證明 ROI。**
 **這是交付經理(Sterio)要在交付前 1 週手動落地的事,不是再改程式碼。**
+
+### 📅 Round 4 reviewer 給的路線圖(2 週 + v1.1/v1.2)
+
+| 階段 | 目標 | 關鍵行動 | 預估工時 | 已做? |
+|---|---|---|---|---|
+| **P0 本週** | 消除承諾落差 | `?convo` 續接 + history reopen + 文案誠實化 + Day 0 first-win 驗收 + split-brain 收束 | 12-18h | ✅ **全做完** |
+| **P1 2 週內** | 補最有感閉環 | 預算 80% alert job · 2 個角色案例 · PDF 文字抽取 MVP · main.py/routers 唯一真相 | 20-30h | 🟡 部分(split-brain ✅ · adapter ✅ · 案例 ⏳ · alert ⏳) |
+| **P2 v1.1** | 強化 top 3 任務 | Fal.ai Recraft v3 最小串 · CSV 廠商比價信 · 交棒卡 · spend snapshot adapter | 24-36h | ⏳ v1.1 排程 |
+| **P3 v1.2+** | 穩定擴張 | conversations/NAS 搜尋 · Company Memory · 每月 restore 驗證 | 20-28h | ⏳ |
 
 ### ⚠️ 明確延後到 v1.1 的項目
 - Google Drive MCP(老闆實際在 NAS + LINE · 優先級降)
@@ -408,10 +429,12 @@ uptime (3001) ──── 服務監控
 
 ### 已做的量化成果(你引用這些當對比基礎)
 - 10 Agent 建立成功(MongoDB 驗證 10 筆 · 全 `projectIds: [instance._id]`)
-- 18 pytest / 11 smoke 全 pass
-- `backend/accounting/main.py` 從 46953 bytes → 52700 bytes(加 CORS + RBAC + request_id + ROI endpoints + index)
-- `frontend/launcher/app.js` 從 2064 行單檔 → 493 行 orchestrator + 19 個 modules
-- `docs/` 從 9 個檔 → 19 個檔(加 QUICKSTART/CASES/HANDBOOK×4/2 SPEC/PRE-DELIVERY/BASELINE/UPGRADE/ROADMAP-v4.2)
+- **18 pytest / 11 smoke 全 pass**(每輪審查後再驗一次)
+- `backend/accounting/main.py` 從 46953 bytes → 55480 bytes(CORS + RBAC + request_id + ROI 3 endpoints + LibreChat schema adapter + Mongo index)
+- `frontend/launcher/app.js` 從 2064 行單檔 → 539 行 orchestrator + 20 個 modules
+- `backend/accounting/_unused_scaffold/` 把未掛載的 routers/auth/rate_limit/errors 歸檔(避免 split-brain 接手者修錯檔)
+- `docs/` 從 9 個檔 → 21 個檔(加 QUICKSTART/CASES/HANDBOOK×4/2 SPEC/PRE-DELIVERY/BASELINE/UPGRADE/ROADMAP-v4.2/EXTERNAL-REVIEW-PROMPT/Day1-FAQ template)
+- 6 commit 已 push:`bedf413` Round1 → `7451def` Round2 → `57c6c57` Round3 → `cb421aa` 提示詞 → `0bfc359` 路徑 → `5b5859c` Round4
 - GitHub repo:<https://github.com/Sterio068/chengfu-ai>(public · 免認證可讀)
 
 ---
@@ -442,7 +465,8 @@ uptime (3001) ──── 服務監控
 ### 這份文件被審查的歷史:
 - **v1:** 原版 · 被一個外部 reviewer 審了 1 次(紅線:附件假成功 / admin 裸奔 / Workflow alert / Token 過期)
 - **v2:** 修完 v1 紅線後,跑了**內部 3 輪多代理審查**(每輪 3-4 agent)· 又修了 22 條
-- **你(v3):** 現在讀這份 · 預期你找到新的 · **不要重複指出已修的**
+- **v3:** 第一位**外部 AI reviewer**(Round 4 · 2026-04-21 凌晨)· 給「程式碼像產品 · 但承諾落差會吃信任」的總評 · P0+P1 紅線全修(對話續接、文案誠實化、Day 0 first-win 驗收硬條件、split-brain 收束、errors 可恢復話術、LibreChat schema adapter)
+- **你(v4):** 現在讀這份 · 預期你找到新的視角(體驗卡點 / 真實落地痛點 / 上線第 2 週死法)· **不要重複指出已修的**
 
 ---
 
