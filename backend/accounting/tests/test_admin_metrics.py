@@ -112,10 +112,20 @@ def test_quota_check_off_mode(db, users_col):
     assert r["allowed"] is True
 
 
-def test_quota_check_no_email(db, users_col):
-    """沒帶 email 給過 · 避免擋 anonymous"""
-    r = admin_metrics.quota_check(db, users_col, None, mode="hard_stop")
+def test_quota_check_no_email_soft_warn_passes(db, users_col):
+    """沒帶 email · soft_warn 模式放行 + 警告"""
+    r = admin_metrics.quota_check(db, users_col, None, mode="soft_warn")
     assert r["allowed"] is True
+    assert "warning" in r
+
+
+def test_quota_check_no_email_hard_stop_blocks(db, users_col):
+    """Codex Round 10.5 黃 5 · 沒帶 email + hard_stop 必須擋
+    否則匿名呼叫繞過預算"""
+    r = admin_metrics.quota_check(db, users_col, None, mode="hard_stop")
+    assert r["allowed"] is False
+    assert r.get("fail_safe") is True
+    assert "email" in r["reason"].lower() or "重登入" in r["reason"]
 
 
 def test_quota_check_override_admin(db, users_col):

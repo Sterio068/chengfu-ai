@@ -734,6 +734,37 @@ def test_source_realpath_resolves_symlink_before_whitelist_check(client, tmp_sou
 # ============================================================
 # Codex Round 10.5 · audit fail-closed
 # ============================================================
+# ============================================================
+# Codex Round 10.5 黃 6 · /admin/adoption 支撐 BOSS ROI
+# ============================================================
+def test_admin_adoption_endpoint(client):
+    """adoption endpoint 回應必有 active_users / handoff / fal / satisfaction"""
+    r = client.get("/admin/adoption", headers=ADMIN_HEADERS)
+    assert r.status_code == 200
+    body = r.json()
+    assert "period_days" in body
+    assert body["period_days"] == 7  # default
+    assert "active_users" in body  # 可能是 0 或 None · 但 key 要在
+    assert "handoff" in body
+    assert "completion_rate" in body["handoff"]
+    assert "fal" in body
+    assert "cost_ntd" in body["fal"]
+    assert "satisfaction" in body
+
+
+def test_admin_adoption_requires_admin(client):
+    """一般同仁看不到 adoption · 必須 admin header"""
+    r = client.get("/admin/adoption")
+    assert r.status_code == 403
+
+
+def test_admin_adoption_custom_days(client):
+    """可指定 days 參數"""
+    r = client.get("/admin/adoption?days=30", headers=ADMIN_HEADERS)
+    assert r.status_code == 200
+    assert r.json()["period_days"] == 30
+
+
 def test_knowledge_read_fails_closed_when_audit_broken(client, tmp_source_dir, monkeypatch):
     """Audit log 寫不進去時 · 讀取必須 503 · 不能留無痕讀取"""
     r = client.post("/admin/sources",

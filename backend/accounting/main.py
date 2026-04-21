@@ -98,6 +98,13 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     logger.info("indexes ensured · app ready")
+    # Codex Round 10.5 · 啟動時主動探 OCR · /healthz 立刻看得到真狀態
+    try:
+        from services.knowledge_extract import probe_ocr_startup
+        ocr = probe_ocr_startup()
+        logger.info("OCR probe · available=%s · langs=%s", ocr.get("available"), ocr.get("langs"))
+    except Exception as e:
+        logger.warning("OCR startup probe fail: %s", e)
     yield
     # Shutdown
     logger.info("app shutting down")
@@ -1098,6 +1105,19 @@ QUOTA_OVERRIDE_EMAILS = {e.strip().lower() for e in os.getenv("QUOTA_OVERRIDE_EM
 def cost_summary(days: int = 30, _admin: str = Depends(require_admin)):
     """粗估 API cost by model"""
     return admin_metrics.cost_by_model(db, days)
+
+
+@app.get("/admin/adoption")
+def adoption_summary(days: int = 7, _admin: str = Depends(require_admin)):
+    """Codex Round 10.5 黃 6 · 支撐 BOSS-VIEW ROI 公式的 adoption 數字
+
+    回:active_users / calls_distribution / handoff 填寫率 / Fal 本期成本 / 滿意度
+    Champion 週報 + Day +3 / Day +14 里程碑量測
+    """
+    return admin_metrics.adoption_metrics(
+        db, _users_col, projects_col, feedback_col,
+        days=days, usd_to_ntd=_USD_TO_NTD,
+    )
 
 
 @app.get("/admin/librechat-contract")

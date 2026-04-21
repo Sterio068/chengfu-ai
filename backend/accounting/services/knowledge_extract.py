@@ -69,17 +69,100 @@ def _lazy_image():
 # Extractor · 每格式一個函式 · 失敗交由外層 extract() catch
 # ------------------------------------------------------------
 # Round 9 · OCR 環境探測 · 第一次 fail 後 cache · 之後 metric 看得到
+# Codex Round 10.5 · 加 startup probe · 不再 lazy
 _OCR_AVAILABLE = None
 _OCR_LAST_ERROR = None
+_OCR_LANGS = []
+
+
+def probe_ocr_startup() -> dict:
+    """Codex Round 10.5 紅 4 · 啟動時主動探測 OCR · 不再 lazy
+
+    做 3 件事:
+    1. 呼叫 tesseract --list-langs · 確認 binary 存在 + 知道哪些語言包
+    2. 產生一張極小 image-only PDF · 跑 OCR 確認真的能解
+    3. 結果寫進 _OCR_AVAILABLE · /healthz 立刻看得到真狀態
+    """
+    global _OCR_AVAILABLE, _OCR_LAST_ERROR, _OCR_LANGS
+    import subprocess
+
+    # Step 1 · list-langs
+    try:
+        result = subprocess.run(
+            ["tesseract", "--list-langs"],
+            capture_output=True, text=True, timeout=5,
+        )
+        # tesseract --list-langs 輸出到 stderr(非錯誤 · 是設計)· 某版到 stdout
+        raw = (result.stderr or "") + (result.stdout or "")
+        lines = [l.strip() for l in raw.split("\n") if l.strip() and not l.startswith("List")]
+        _OCR_LANGS = lines
+        if result.returncode != 0:
+            _OCR_AVAILABLE = False
+            _OCR_LAST_ERROR = f"tesseract --list-langs exit {result.returncode}"
+            logger.warning("[ocr] probe step 1 fail · %s", _OCR_LAST_ERROR)
+            return ocr_status()
+    except FileNotFoundError:
+        _OCR_AVAILABLE = False
+        _OCR_LAST_ERROR = "tesseract 未安裝 · Dockerfile 應裝 tesseract-ocr + tesseract-ocr-chi-tra"
+        logger.error("[ocr] probe %s", _OCR_LAST_ERROR)
+        return ocr_status()
+    except Exception as e:
+        _OCR_AVAILABLE = False
+        _OCR_LAST_ERROR = f"list-langs {type(e).__name__}: {e}"
+        return ocr_status()
+
+    # Step 2 · 確認必要語言包
+    if "chi_tra" not in _OCR_LANGS:
+        _OCR_AVAILABLE = False
+        _OCR_LAST_ERROR = f"缺 chi_tra 語言包 · 現有:{_OCR_LANGS}"
+        logger.error("[ocr] probe %s", _OCR_LAST_ERROR)
+        return ocr_status()
+
+    # Step 3 · PyMuPDF OCR 實測(用 1 個字的 image PDF)
+    try:
+        fitz = _lazy_fitz()
+        # 建一個非常小的 PDF · 全白 · 不會真的跑 OCR · 但會走 textpage_ocr 路徑一次
+        # 若 tesseract binding 有問題 · 這裡會立刻抛
+        import tempfile, os as _os
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            tmp_pdf = f.name
+        try:
+            doc = fitz.open()
+            page = doc.new_page(width=100, height=100)
+            page.insert_text((10, 50), "OK", fontsize=16)
+            doc.save(tmp_pdf)
+            doc.close()
+            # 再打開 + 嘗試 OCR textpage
+            doc = fitz.open(tmp_pdf)
+            page = doc[0]
+            tp = page.get_textpage_ocr(language="chi_tra+eng")
+            text = page.get_text(textpage=tp)
+            doc.close()
+            _OCR_AVAILABLE = True
+            _OCR_LAST_ERROR = None
+            logger.info("[ocr] probe OK · 語言=%s · probe result=%r", _OCR_LANGS, text.strip()[:20])
+        finally:
+            try:
+                _os.unlink(tmp_pdf)
+            except Exception:
+                pass
+    except Exception as e:
+        _OCR_AVAILABLE = False
+        _OCR_LAST_ERROR = f"probe OCR call fail · {type(e).__name__}: {str(e)[:120]}"
+        logger.error("[ocr] probe step 3 %s", _OCR_LAST_ERROR)
+    return ocr_status()
 
 
 def ocr_status() -> dict:
     """給 health endpoint 用 · 報告 OCR 是否可用"""
     return {
         "available": _OCR_AVAILABLE,
+        "langs": _OCR_LANGS,
         "last_error": _OCR_LAST_ERROR,
         "note": "False = tesseract 未裝 · OCR fallback 不會跑 · 掃描 PDF 內容會空"
-                if _OCR_AVAILABLE is False else None,
+                if _OCR_AVAILABLE is False else
+                ("未探測 · startup 時自動跑 · 若長期 None 表示 lifespan 沒呼叫 probe_ocr_startup()"
+                 if _OCR_AVAILABLE is None else None),
     }
 
 

@@ -265,6 +265,117 @@ def cost_by_model(db, days: int = 30) -> dict:
         return {"error": str(e), "note": "需 LibreChat transactions collection 存在"}
 
 
+def adoption_metrics(db, users_col, projects_col, feedback_col,
+                     days: int = 7,
+                     usd_to_ntd: float = 32.5) -> dict:
+    """Codex Round 10.5 黃 6 · 支撐 BOSS-VIEW §2 ROI 數字的 endpoint
+
+    Champion 週報 + Day +3 里程碑看這個
+    - 週活躍人數(有 ≥ 1 次對話)
+    - 每人對話數中位數 / 分布
+    - handoff 填寫率(Projects 有 handoff.goal 者 / 總 Projects)
+    - Fal 本期成本(design_jobs count × n_images × USD 0.04 × 32.5)
+    - first-win 標記(至少 1 次對話即視為已試)
+    """
+    now = datetime.utcnow()
+    from_dt = now - timedelta(days=days)
+    result = {
+        "period_days": days,
+        "from": from_dt.isoformat(),
+        "to": now.isoformat(),
+    }
+
+    # 1. 活躍使用者(去 users 撈有寫 LibreChat conversations 的)
+    try:
+        active_user_ids = db.transactions.distinct(
+            "user", {"createdAt": {"$gte": from_dt}}
+        )
+        result["active_users"] = len(active_user_ids)
+        result["active_user_emails"] = []
+        for uid in active_user_ids[:20]:  # 安全上限
+            try:
+                u = users_col.find_one({"_id": uid}, {"email": 1})
+                if u and u.get("email"):
+                    result["active_user_emails"].append(u["email"])
+            except Exception:
+                pass
+    except Exception as e:
+        result["active_users_error"] = str(e)
+        result["active_users"] = None
+
+    # 2. 每人對話數(從 transactions count by user)
+    try:
+        calls_by_user = list(db.transactions.aggregate([
+            {"$match": {"createdAt": {"$gte": from_dt}}},
+            {"$group": {"_id": "$user", "n": {"$sum": 1}}},
+            {"$sort": {"n": -1}},
+        ]))
+        calls = [u["n"] for u in calls_by_user]
+        result["calls_total"] = sum(calls)
+        result["calls_distribution"] = {
+            "median": calls[len(calls)//2] if calls else 0,
+            "min": min(calls) if calls else 0,
+            "max": max(calls) if calls else 0,
+            # first-win 硬門檻:≥ 1 次對話
+            "users_with_ge1_call": sum(1 for c in calls if c >= 1),
+            # 活躍門檻:≥ 3 次(Day +3 目標)
+            "users_with_ge3_calls": sum(1 for c in calls if c >= 3),
+        }
+    except Exception as e:
+        result["calls_error"] = str(e)
+
+    # 3. Handoff 填寫率
+    try:
+        total_projects = projects_col.count_documents({})
+        with_handoff = projects_col.count_documents({"handoff.goal": {"$exists": True, "$ne": ""}})
+        result["handoff"] = {
+            "total_projects": total_projects,
+            "with_handoff_filled": with_handoff,
+            "completion_rate": round(with_handoff / total_projects * 100, 1) if total_projects else 0,
+        }
+    except Exception as e:
+        result["handoff_error"] = str(e)
+
+    # 4. Fal.ai 生圖成本
+    try:
+        design_count = db.design_jobs.count_documents({"created_at": {"$gte": from_dt}})
+        done_stats = list(db.design_jobs.aggregate([
+            {"$match": {"created_at": {"$gte": from_dt}, "status": "done"}},
+            {"$group": {"_id": None, "total_images": {"$sum": "$n_images"}}},
+        ]))
+        total_images = (done_stats[0]["total_images"] if done_stats else 0) or 0
+        # Recraft v3 · USD 0.04 / 張(可能調價 · 用 env 覆蓋)
+        per_image_usd = float(os.getenv("FAL_PER_IMAGE_USD", "0.04"))
+        cost_ntd = round(total_images * per_image_usd * usd_to_ntd, 0)
+        result["fal"] = {
+            "jobs_count": design_count,
+            "images_generated": total_images,
+            "cost_ntd": cost_ntd,
+            "cost_usd": round(total_images * per_image_usd, 2),
+        }
+    except Exception as e:
+        result["fal_error"] = str(e)
+
+    # 5. 👍 / 👎 率
+    try:
+        fb = list(feedback_col.aggregate([
+            {"$match": {"created_at": {"$gte": from_dt}}},
+            {"$group": {"_id": "$verdict", "n": {"$sum": 1}}},
+        ]))
+        ups = sum(f["n"] for f in fb if f["_id"] == "up")
+        downs = sum(f["n"] for f in fb if f["_id"] == "down")
+        total = ups + downs
+        result["satisfaction"] = {
+            "up": ups,
+            "down": downs,
+            "rate": round(ups / total * 100, 1) if total else None,
+        }
+    except Exception as e:
+        result["satisfaction_error"] = str(e)
+
+    return result
+
+
 def librechat_contract(db) -> dict:
     """升版後第一件事:驗 LibreChat 私有 schema 是否還相容"""
     schema = probe_tx_schema(db)
@@ -302,8 +413,18 @@ def quota_check(db, users_col, email: Optional[str],
 
     if mode == "off":
         return {"allowed": True, "mode": "off"}
+    # Codex Round 10.5 黃 5 · no-email 不應直接放行 hard_stop
+    # email header 可被遺漏(例如匿名 API 試打)· 若系統設 hard_stop 必須 fail-closed
     if not email:
-        return {"allowed": True, "mode": mode, "warning": "未識別使用者"}
+        if mode == "hard_stop":
+            return {
+                "allowed": False,
+                "mode": mode,
+                "reason": "未帶 X-User-Email · hard_stop 模式要求 email 識別 · 請重登入",
+                "fail_safe": True,
+            }
+        # soft_warn / off 維持放行但提醒
+        return {"allowed": True, "mode": mode, "warning": "未識別使用者 · 已記錄到 audit"}
     if email in override_emails or email in admin_allowlist:
         return {"allowed": True, "mode": mode, "override": True}
 

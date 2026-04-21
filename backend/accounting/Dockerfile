@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
+# Codex Round 10.5 · PyMuPDF textpage_ocr 需要 TESSDATA_PREFIX 指向 tessdata 目錄
+# Debian apt 裝的 tesseract 5.x 路徑在 /usr/share/tesseract-ocr/5/tessdata/
+# 沒設會失敗 · 且錯誤只在 OCR probe 才看得到
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata/
+
 # 安裝依賴
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

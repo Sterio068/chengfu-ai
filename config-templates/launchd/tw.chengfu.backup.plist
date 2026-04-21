@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  承富 AI · 每日 02:00 備份(Mongo + Meili + KB · 全部 GPG 加密 · 異機同步)
+
+  安裝:
+    ./scripts/install-launchd.sh
+  或手動:
+    cp config-templates/launchd/tw.chengfu.backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/tw.chengfu.backup.plist
+
+  卸載:
+    launchctl unload ~/Library/LaunchAgents/tw.chengfu.backup.plist
+    rm ~/Library/LaunchAgents/tw.chengfu.backup.plist
+
+  驗證:
+    launchctl list | grep tw.chengfu
+    tail -f ~/Library/Logs/chengfu-backup.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>tw.chengfu.backup</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <!-- 注意:launchd 不繼承 user PATH · 明確指定 homebrew path -->
+        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "$HOME/Workspace/ChengFu" &amp;&amp; ./scripts/backup.sh</string>
+    </array>
+
+    <!-- 每日 02:00 跑 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- stderr / stdout · 給 Sterio debug · 也給 Champion 看有沒有跑 -->
+    <key>StandardOutPath</key>
+    <string>/Users/USERNAME/Library/Logs/chengfu-backup.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/USERNAME/Library/Logs/chengfu-backup.err.log</string>
+
+    <!-- 跑完就退 · 不要常駐 -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- 失敗不要一直重啟 · 隔天再跑 -->
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

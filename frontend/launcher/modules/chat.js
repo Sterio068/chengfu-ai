@@ -164,8 +164,13 @@ export const chat = {
     const text = input.value.trim();
     if (!text) return;
 
-    // v4.6 · request-time quota check(Round 6 reviewer 紅線)
-    // 送對話前先打 /api-accounting/quota/check · hard_stop 模式且超 100% 直接擋
+    // v4.6 · request-time quota check(Round 6 紅線 + Codex Round 10.5 收緊)
+    // 策略:
+    //   · qr.ok + allowed=false → 擋(原本就有)
+    //   · qr.ok + allowed=true → 放行 · 顯示 warning
+    //   · qr.ok=false(HTTP 非 2xx) → 按 hard_stop 預期 fail-closed · 擋
+    //   · 網路錯 / quota service 完全掛 → hard_stop 擋 · soft_warn 放(後端決定)
+    // 注意:真正的 quota enforcement 應在後端 /api/ask/agents gateway · 這裡只是第一道
     try {
       const qr = await authFetch("/api-accounting/quota/check");
       if (qr.ok) {
@@ -177,8 +182,18 @@ export const chat = {
         if (q.warning) {
           toast.warn(q.warning);
         }
+      } else {
+        // HTTP 500/503 · 後端明確告訴我們擋 · 就擋
+        // (後端 hard_stop 模式會回 allowed=false + 200 · 走上面路徑;
+        //  這裡只剩 endpoint 本身掛掉的情況)
+        toast.error("⚠ 預算服務暫時無回應 · 為安全先暫停送出 · 請找 Champion 或稍後重試");
+        return;
       }
-    } catch { /* quota service 離線不擋 · 後端 cron 仍會收 */ }
+    } catch (e) {
+      // 網路錯(fetch 直接 throw)· 保守擋 · 老闆 Q1 選 C
+      toast.error("⚠ 預算服務連不上 · 為安全暫停送出 · 請找 Champion");
+      return;
+    }
 
     document.querySelector("#chat-messages .chat-welcome")?.remove();
     this.appendMessage("user", text);
