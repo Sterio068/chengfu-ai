@@ -95,8 +95,8 @@ async def lifespan(app: FastAPI):
         logger.warning("[ttl] design_jobs TTL index: %s", e)
     try:
         db.conversations.create_index([("chengfu_summarized_at", -1)])
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("[index] conversations.chengfu_summarized_at skip: %s", e)
     logger.info("indexes ensured · app ready")
     # Codex Round 10.5 · 啟動時主動探 OCR · /healthz 立刻看得到真狀態
     try:
@@ -118,7 +118,31 @@ app = FastAPI(
     description="承富 AI 系統 · 內建會計模組",
     version="1.0.0",
     lifespan=lifespan,
+    # Audit · sec F-1 + tech-debt #2 · 關閉 prod /docs · 防 schema 洩漏
+    # 內網開發要看 docs · 設 ECC_DOCS_ENABLED=1
+    docs_url="/docs" if os.getenv("ECC_DOCS_ENABLED") == "1" else None,
+    openapi_url="/openapi.json" if os.getenv("ECC_DOCS_ENABLED") == "1" else None,
+    redoc_url=None,
 )
+
+# ============================================================
+# Rate limiting · slowapi(Audit · sec F-1)
+# 預設按 remote IP 限速 · 高敏 endpoint 加 @limiter.limit("N/minute")
+# 注意:單 worker 才用 in-memory · 多 worker 要 Redis backend
+# ============================================================
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+_limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[os.getenv("RATE_LIMIT_DEFAULT", "120/minute")],
+    storage_uri="memory://",  # v1.2 改 Redis 才能多 worker
+)
+app.state.limiter = _limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # ============================================================
 # CORS · 白名單(env CORS_ORIGINS 逗號分隔覆寫)
@@ -177,11 +201,16 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RequestIDMiddleware)
 
 # Orchestrator(v2.0 · 主管家跨 Agent 呼叫)
+# Audit fix · tech-debt #1 · 不再 silent · ImportError 必 log + 顯示哪邊壞
 try:
     from orchestrator import router as orchestrator_router
     app.include_router(orchestrator_router)
-except ImportError:
-    pass  # httpx 未裝時不啟用
+    logger.info("orchestrator router loaded · D-010 主管家上線")
+except ImportError as e:
+    logger.warning(
+        "orchestrator 未載入 · D-010/D-011 主管家功能 OFF · 原因: %s",
+        e,
+    )
 
 # ============================================================
 # Helpers
@@ -236,7 +265,9 @@ def _verify_librechat_cookie(request: Request) -> Optional[str]:
                 email = (payload.get("email") or "").strip().lower()
                 if email:
                     return email
-            except Exception:
+            except _jwt.InvalidTokenError as e:
+                # 預期 · 試下個 secret · 不 log warn 級別(避免 noise)
+                logger.debug("[auth] try next secret · %s", e)
                 continue
         return None
     except Exception as e:
@@ -305,8 +336,8 @@ def require_admin(request: Request,
         u = _users_col.find_one({"email": email})
         if u and (u.get("role") or "").upper() == "ADMIN":
             return email
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("[auth] users.find_one fail email=%s · %s", email, e)
     raise HTTPException(403, f"需要管理員權限 · {email} 不在白名單內")
 
 
@@ -568,12 +599,20 @@ def list_quotes(status: Optional[str] = None):
 # ============================================================
 # Endpoints · 專案財務
 # ============================================================
+def _account_type_map() -> dict:
+    """Audit perf #1+#2 · 一次撈所有 account.type 進 dict
+    Mongo accounts ~30 列 + 不常變 · 替代 N+1 find_one
+    每次 _update_project_finance / pnl_report 共用"""
+    return {a["code"]: a.get("type") for a in accounts_col.find({}, {"code": 1, "type": 1, "_id": 0})}
+
+
 def _update_project_finance(project_id: str):
     txs = list(transactions_col.find({"project_id": project_id}))
+    type_map = _account_type_map()
     income = sum(tx["amount"] for tx in txs
-                 if accounts_col.find_one({"code": tx["credit_account"]}, {"type": 1, "_id": 0}).get("type") == "income")
+                 if type_map.get(tx["credit_account"]) == "income")
     expense = sum(tx["amount"] for tx in txs
-                  if accounts_col.find_one({"code": tx["debit_account"]}, {"type": 1, "_id": 0}).get("type") == "expense")
+                  if type_map.get(tx["debit_account"]) == "expense")
     margin = income - expense
     margin_rate = (margin / income * 100) if income > 0 else 0
     projects_finance_col.update_one(
@@ -602,12 +641,13 @@ def get_project_finance(project_id: str):
 # ============================================================
 @app.get("/reports/pnl")
 def pnl_report(date_from: str, date_to: str):
-    """損益表(收入 - 費用)。"""
+    """損益表(收入 - 費用)。Audit perf #2 · 一次撈 accounts dict 取代 find_one 迴圈"""
     txs = list(transactions_col.find({"date": {"$gte": date_from, "$lte": date_to}}))
+    accounts_map = {a["code"]: a for a in accounts_col.find({})}  # code -> doc
     by_account = {}
     for tx in txs:
         for code, amount in [(tx["debit_account"], tx["amount"]), (tx["credit_account"], -tx["amount"])]:
-            acc = accounts_col.find_one({"code": code})
+            acc = accounts_map.get(code)
             if not acc:
                 continue
             key = (acc["code"], acc["name"], acc["type"])
@@ -675,7 +715,7 @@ def create_project(p: Project):
 
 @app.put("/projects/{project_id}")
 def update_project(project_id: str, p: Project):
-    data = p.dict(exclude_unset=True)
+    data = p.model_dump(exclude_unset=True)  # py-review #1 · pydantic v2 一致
     data["updated_at"] = datetime.utcnow()
     r = projects_col.update_one({"_id": ObjectId(project_id)}, {"$set": data})
     return {"updated": r.modified_count}
@@ -960,7 +1000,9 @@ class EmailNotification(BaseModel):
 
 
 @app.post("/admin/email/send")
-def send_email(msg: EmailNotification, _admin: str = Depends(require_admin)):
+@_limiter.limit("20/hour")  # Audit sec F-1 · 防 SMTP 帳號濫用 · 月報 + 警告夠用
+def send_email(msg: EmailNotification, request: Request,
+               _admin: str = Depends(require_admin)):
     """透過 SMTP 寄 Email(使用 .env 的 EMAIL_* 設定)。
 
     主要用途:月報自動寄給 admin · 異常告警 · 使用者密碼重設。
@@ -1050,11 +1092,18 @@ def list_tender_alerts(status: Optional[str] = None, keyword: Optional[str] = No
 
 
 @app.put("/tender-alerts/{tender_key}")
-def update_tender_alert(tender_key: str, status: str):
-    """標記標案狀態(new / reviewing / interested / skipped)。"""
+def update_tender_alert(
+    tender_key: str,
+    status: Literal["new", "reviewing", "interested", "skipped"],
+    caller: Optional[str] = Depends(current_user_email),
+):
+    """標記標案狀態 · Audit sec F-3 · 加 status 白名單 + 必登入"""
+    if not caller:
+        raise HTTPException(403, "未識別呼叫者 · 請從 launcher 進入")
     r = db.tender_alerts.update_one(
         {"tender_key": tender_key},
-        {"$set": {"status": status, "reviewed_at": datetime.utcnow()}}
+        {"$set": {"status": status, "reviewed_at": datetime.utcnow(),
+                  "reviewed_by": caller}}
     )
     return {"updated": r.modified_count}
 
@@ -1274,6 +1323,7 @@ def _log_design_job(req_id: str, email: Optional[str], req: RecraftRequest,
 
 
 @app.post("/design/recraft")
+@_limiter.limit("10/minute")  # Audit sec F-1 · 防爆預算 · 每張 USD 0.04 × 3
 async def design_recraft(req: RecraftRequest, request: Request):
     """生圖主端點 · Q2 決議每次 3 張。
 
@@ -1459,7 +1509,8 @@ class ContentCheck(BaseModel):
 
 
 @app.post("/safety/classify")
-def classify_level(payload: ContentCheck):
+@_limiter.limit("60/minute")  # Audit sec F-1 · 防大字串 DoS
+def classify_level(payload: ContentCheck, request: Request):
     """Level 03 keyword classifier · 在 Agent 處理前預掃。"""
     import re
     hits = []
@@ -1565,9 +1616,21 @@ class UserPreference(BaseModel):
     confidence: float = 1.0  # 0-1
 
 
+def _require_self_or_admin(user_email: str, caller: Optional[str]) -> str:
+    """Audit · sec F-2 · 同人或 admin 才可改/讀偏好"""
+    if not caller:
+        raise HTTPException(403, "未識別呼叫者 · 請從 launcher 進入")
+    caller_lc = caller.lower()
+    if caller_lc == user_email.lower() or caller_lc in _admin_allowlist:
+        return caller_lc
+    raise HTTPException(403, f"只能讀/改自己的偏好(您:{caller_lc} · 對象:{user_email})")
+
+
 @app.get("/users/{user_email}/preferences")
-def get_user_prefs(user_email: str):
-    """取使用者所有偏好 · Agent 對話開始會呼叫。"""
+def get_user_prefs(user_email: str,
+                   caller: Optional[str] = Depends(current_user_email)):
+    """取使用者偏好 · Audit sec F-2 · 同人或 admin 才可"""
+    _require_self_or_admin(user_email, caller)
     prefs = list(db.user_preferences.find({"user_email": user_email}))
     return {
         "user_email": user_email,
@@ -1577,8 +1640,10 @@ def get_user_prefs(user_email: str):
 
 
 @app.post("/users/{user_email}/preferences")
-def save_user_pref(user_email: str, pref: UserPreference):
-    """記使用者偏好 · 可由 Agent 主動呼叫(「記住 user 偏好正式語氣」)。"""
+def save_user_pref(user_email: str, pref: UserPreference,
+                   caller: Optional[str] = Depends(current_user_email)):
+    """記使用者偏好 · Audit sec F-2 · 不可改別人的"""
+    _require_self_or_admin(user_email, caller)
     db.user_preferences.update_one(
         {"user_email": user_email, "key": pref.key},
         {"$set": {
@@ -1595,7 +1660,10 @@ def save_user_pref(user_email: str, pref: UserPreference):
 
 
 @app.delete("/users/{user_email}/preferences/{key}")
-def delete_user_pref(user_email: str, key: str):
+def delete_user_pref(user_email: str, key: str,
+                     caller: Optional[str] = Depends(current_user_email)):
+    """Audit sec F-2"""
+    _require_self_or_admin(user_email, caller)
     r = db.user_preferences.delete_one({"user_email": user_email, "key": key})
     return {"deleted": r.deleted_count}
 

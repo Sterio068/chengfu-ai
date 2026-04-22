@@ -367,12 +367,14 @@ def reindex_all(knowledge_sources_col, meili_client=None) -> dict:
 
 
 def delete_source_from_index(source_id: str, meili_client) -> dict:
-    """source 被刪時 · 從 Meili 清掉所有該 source 的文件"""
+    """source 被刪時 · 從 Meili 清掉所有該 source 的文件
+    Audit sec F-6 · source_id 必白名單(MongoDB ObjectId hex)· 防 filter 注入"""
     if not meili_client:
         return {"ok": False, "reason": "meili not configured"}
+    if not _is_safe_filter_value(source_id):
+        return {"ok": False, "reason": f"unsafe source_id: {source_id!r}"}
     try:
         index = meili_client.index(MEILI_INDEX_NAME)
-        # Meili 支援 delete_documents(filter="...")
         task = index.delete_documents(filter=f'source_id = "{source_id}"')
         return {"ok": True, "task_uid": getattr(task, "task_uid", None)}
     except Exception as e:
@@ -380,17 +382,42 @@ def delete_source_from_index(source_id: str, meili_client) -> dict:
         return {"ok": False, "reason": str(e)}
 
 
+# Audit sec F-6 · 嚴格白名單 · 防 Meili filter DSL 注入
+# source_id 是 ObjectId hex(24 chars)· project 是中文 + 字母 + 數字 + 常見符號
+import re as _re
+_SAFE_OBJECTID_RE = _re.compile(r"^[a-f0-9]{24}$")
+_SAFE_PROJECT_RE = _re.compile(r"^[\u4e00-\u9fffA-Za-z0-9 _\-./]{1,80}$")
+
+
+def _is_safe_filter_value(v) -> bool:
+    """白名單字符 · 否則拒絕(回 False · 上層丟 422 或 empty result)"""
+    return isinstance(v, str) and bool(_SAFE_OBJECTID_RE.match(v))
+
+
+def _is_safe_project(v) -> bool:
+    return isinstance(v, str) and bool(_SAFE_PROJECT_RE.match(v))
+
+
 def search(meili_client, q: str, source_id: str = None, project: str = None,
            limit: int = 20) -> dict:
-    """給 main.py /knowledge/search 用的包裝"""
+    """給 main.py /knowledge/search 用的包裝
+    Audit sec F-6 · 過濾值白名單 · 注入字符直接視為 invalid · 回 empty"""
     if not meili_client:
         return {"hits": [], "estimatedTotalHits": 0,
                 "message": "Meili 未配置"}
     filters = []
     if source_id:
+        if not _is_safe_filter_value(source_id):
+            return {"hits": [], "estimatedTotalHits": 0,
+                    "message": f"source_id 格式不合(必為 ObjectId hex)"}
         filters.append(f'source_id = "{source_id}"')
     if project:
-        filters.append(f'project = "{project}"')
+        if not _is_safe_project(project):
+            return {"hits": [], "estimatedTotalHits": 0,
+                    "message": "project 含不安全字符"}
+        # 二次轉義 quote(雖然白名單已擋多數 · 多一層保險)
+        safe_project = project.replace('"', '').replace("\\", "")
+        filters.append(f'project = "{safe_project}"')
     try:
         index = meili_client.index(MEILI_INDEX_NAME)
         return index.search(q, {

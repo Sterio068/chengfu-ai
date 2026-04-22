@@ -288,3 +288,75 @@ Week 11+ · v2.0(長遠)
 - **建議:** v1.2 vendor DOMPurify(20KB)· 取代自刻 `_sanitizeRenderedHtml`
 - **工時:** 2h
 
+---
+
+## 11. 🔵 v1.1 待補(2026-04-22 6 個 skill audit 抓到 · 已修立刻可用 + 待修)
+
+> 6 個 skill 並行 audit 共抓 45 項 · 本批 commit 修了 10 項 · 剩下 35 項列下方造冊
+> 修了的:Dockerfile orchestrator / .dict() / uptime-kuma digest / pymupdf 1.25 / N+1 cache /
+> preferences auth / tender-alerts auth / slowapi rate limit / Meili filter 注入 / except logger
+
+### 11.1 main.py 拆 routers/(senior-architect 建議 1 · 8-12h)
+- 現 2380 行 / 70 endpoints · domain 跨 accounts/projects/crm/admin/knowledge/design
+- 按 FastAPI APIRouter 拆 5-6 個 router · main.py 目標 < 200 行
+- 前置 v1.2 ROADMAP §10.1-10.3 所有 auth 重構
+
+### 11.2 launcher state/project-store.js(senior-architect 建議 4 · 6-8h)
+- chat.js 555 行成上帝物件 · cross-module 抓 currentProject 散處
+- 用 vanilla EventTarget + Map(< 100 行)· 不引 Redux
+- v1.2 Project-first shell 的前置
+
+### 11.3 design_jobs async queue(senior-architect 建議 5 · 4-6h)
+- Fal.ai 5-30s · 同步等會 timeout
+- 已有 `pending → poll → done` 但 enqueue 仍同步
+- 改 asyncio.create_task 入 Mongo job queue · 前端輪詢 status endpoint
+
+### 11.4 NAS reindex 平行化(performance #3 · 3-4h)
+- 50k 檔 + Tesseract OCR sequential 估 6-10h
+- ProcessPoolExecutor(max_workers=4) + max_ocr_pages=20
+
+### 11.5 Knowledge sources cache + adoption stale(perf #4/#6 · 1.5h)
+- 5min TTL in-memory cache for forbidden source_ids
+- /admin/sources/health Uptime Kuma 每分鐘叫一次的 NAS round-trip
+
+### 11.6 Chrome Ext `?pending=` 加 modal 確認(senior-security F-7 · 3h)
+- 反射 XSS / prompt 投送風險
+- launcher 收到 `?pending` 必先 modal 確認再送
+
+### 11.7 librechat.yaml modelSpecs 啟用 OR 文件改(tech-debt #5 · 1h)
+- 文件聲稱 5 Workspace 透過 modelSpecs 入口 · 實際 yaml 仍註解
+- 跑 create-agents 拿 ID + 啟用 · 或文件註明「Workspace 只在 Launcher」
+
+### 11.8 daily-digest / tender-monitor 真部署(tech-debt #3 · 2h)
+- script 存在但 cron 沒 plist · admin 認證也缺
+- 加 plist + 加 internal token · install-launchd.sh 自動裝
+
+### 11.9 死端點清理(tech-debt #4 · 1h or 4h)
+- /admin/audit-log / /admin/agent-prompts / 部分 user_preferences 0 前端 use
+- 選砍或補 UI
+
+### 11.10 anthropic SDK 升級 0.39 → 0.49(dep #6 · 1h)
+- 缺 Opus 4.7 1M context / prompt caching v2 / new thinking API
+- 跑 regression 測試
+
+### 11.11 _update_project_finance/_log_design_job/monthly_report log redaction(security F-4 · 2h)
+- prompt log 改 SHA256 hash + 前 50 字
+- email body 過 L3 classifier · 預設開 redact
+
+### 11.12 _verify_librechat_cookie type=access 嚴格(security F-5 · 2h)
+- 拆 access vs refresh secret · payload.type=="access" 才接受
+- 啟動時 jwt_configured==False 直接 exit(避免 fallback 路徑)
+
+### 11.13 Playwright 真 assert + CI 跑 sandbox smoke(codex R3.8 · 2-4h)
+- 目前 lint-only · L3 測試也只建 dialogPromise 不 await
+- PR 時自動跑 sandbox
+
+### 11.14 backup 用 streaming · /admin/export 不全 list memory(perf #5 · 2h)
+- 一年 transactions 數十 MB JSON · 序列化期間 worker 凍結
+- StreamingResponse + tar.gz 分檔
+
+### 11.15 全 endpoint async + asyncio.to_thread 重 I/O(perf #8 · 2h)
+- /knowledge/* 與 reports 改 async + to_thread
+- workers 設 2(M4 24GB 夠)
+- 高並發場景必修
+

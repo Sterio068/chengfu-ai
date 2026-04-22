@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 應用
 COPY main.py .
+COPY orchestrator.py .
 COPY services/ ./services/
 
 # 健康檢查

@@ -164,7 +164,8 @@ services:
   # 承富系統健康儀表 · 失敗推 Slack/Email
   # 首次進 http://localhost:3001 建管理帳號 + 加監控目標(見 docs/04-OPERATIONS.md)
   uptime-kuma:
-    image: louislam/uptime-kuma:1
+    # Audit fix · dep #2 · digest pin(2026-04-22 驗證)
+    image: louislam/uptime-kuma:1@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9
     container_name: chengfu-uptime
     restart: unless-stopped
     ports:
