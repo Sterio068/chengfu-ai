@@ -58,9 +58,14 @@ def summarize_conversation(req: SummarizeRequest):
     if not to_summarize:
         return {"summarized": False, "reason": "無可摘要訊息"}
 
-    # 用 Anthropic Haiku 摘要
+    # R13#3 · ImportError 應回 503(服務未配置)· 而非 500(內部錯誤)
     try:
         import anthropic
+    except ImportError:
+        raise HTTPException(503, "Anthropic SDK 未安裝 · 請 pip install anthropic")
+
+    # 用 Anthropic Haiku 摘要
+    try:
         client = anthropic.Anthropic()
 
         dialogue = "\n\n".join([

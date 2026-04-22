@@ -19,9 +19,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from bson import ObjectId
+from bson.errors import InvalidId
 
 
 router = APIRouter(tags=["crm"])
@@ -82,23 +83,49 @@ def create_lead(lead: Lead):
 
 @router.put("/crm/leads/{lead_id}")
 def update_lead(lead_id: str, updates: dict):
-    """部分更新 · 支援拖動 Kanban(只改 stage)或完整編輯"""
+    """部分更新 · 支援拖動 Kanban(只改 stage)或完整編輯
+
+    R13#1 修:
+    - lead_id 格式錯 → 400(原本 raw ObjectId 會 raise 500)
+    - lead 不存在 → 404(原本還是先寫 stage_history)
+    - stage 非法值 → 400(原本任意字串都進 DB)
+    - stage 真改變才寫 history(原本只要有 stage key 就寫)
+    """
     from main import db
     allowed = {"title", "client", "stage", "source", "budget", "deadline",
                "owner", "description", "probability", "notes"}
     update = {k: v for k, v in updates.items() if k in allowed}
+
+    # R13#1 · stage 必走 LeadStage enum 驗證
+    if "stage" in update:
+        try:
+            update["stage"] = LeadStage(update["stage"]).value
+        except ValueError:
+            raise HTTPException(400, f"stage '{update['stage']}' 不在合法集合內")
+
     update["updated_at"] = datetime.utcnow()
 
-    # 若改到 stage · 記錄變動歷史
-    if "stage" in update:
+    try:
+        oid = ObjectId(lead_id)
+    except (InvalidId, TypeError):
+        raise HTTPException(400, "lead_id 格式錯誤")
+
+    old = db.crm_leads.find_one({"_id": oid}, {"stage": 1})
+    if not old:
+        raise HTTPException(404, "lead 不存在")
+
+    r = db.crm_leads.update_one({"_id": oid}, {"$set": update})
+
+    # R13#1 · stage 真有改變才寫 stage_history(原本不必變也寫)
+    if "stage" in update and old.get("stage") != update["stage"]:
         db.crm_stage_history.insert_one({
             "lead_id": lead_id,
+            "old_stage": old.get("stage"),
             "new_stage": update["stage"],
             "changed_at": datetime.utcnow(),
             "changed_by": updates.get("_by"),
         })
 
-    r = db.crm_leads.update_one({"_id": ObjectId(lead_id)}, {"$set": update})
     return {"updated": r.modified_count}
 
 

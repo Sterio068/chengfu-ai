@@ -6,7 +6,7 @@ Projects router · v1.3 §11.1 B-10 · 從 main.py 抽出
 - /projects/{id}/handoff GET/PUT(B2 · 4 格卡 跨人 / 跨日交棒 artifact)
 
 依賴:
-- routers/_deps.py · _serialize / get_db
+- main.py(lazy)· projects_col / serialize
 - 跟 routers/accounting.py 的 /projects/{id}/finance 共用 projects collection · 不衝突
 
 注意:V1.1-SPEC §C handoff endpoint 獨立於 PUT /projects/{id} · 不全量更新
@@ -18,10 +18,21 @@ from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from bson import ObjectId
+from bson.errors import InvalidId
 
 
 router = APIRouter(tags=["projects"])
 logger = logging.getLogger("chengfu")
+
+
+def _project_oid(project_id: str) -> ObjectId:
+    """R13#2 · ObjectId 解析統一處理 · 不誤吞 Mongo 寫入錯誤
+    原 except Exception 太寬 · update_one 失敗也會誤回 400 'project_id 格式錯誤'
+    """
+    try:
+        return ObjectId(project_id)
+    except (InvalidId, TypeError):
+        raise HTTPException(400, "project_id 格式錯誤")
 
 
 # ============================================================
@@ -102,13 +113,11 @@ def update_handoff(project_id: str, card: HandoffCard, request: Request):
         "updated_by": email,
         "updated_at": datetime.utcnow(),
     }
-    try:
-        r = projects_col.update_one(
-            {"_id": ObjectId(project_id)},
-            {"$set": {"handoff": payload, "updated_at": datetime.utcnow()}},
-        )
-    except Exception:
-        raise HTTPException(400, "project_id 格式錯誤")
+    # R13#2 · _project_oid raise 400 為唯一 · update_one 失敗 → 真 500(Mongo 異常)
+    r = projects_col.update_one(
+        {"_id": _project_oid(project_id)},
+        {"$set": {"handoff": payload, "updated_at": datetime.utcnow()}},
+    )
     if r.matched_count == 0:
         raise HTTPException(404, "專案不存在")
     return {"ok": True, "updated_at": payload["updated_at"].isoformat()}
@@ -117,12 +126,9 @@ def update_handoff(project_id: str, card: HandoffCard, request: Request):
 @router.get("/projects/{project_id}/handoff")
 def get_handoff(project_id: str):
     from main import projects_col
-    try:
-        doc = projects_col.find_one(
-            {"_id": ObjectId(project_id)}, {"handoff": 1, "name": 1}
-        )
-    except Exception:
-        raise HTTPException(400, "project_id 格式錯誤")
+    doc = projects_col.find_one(
+        {"_id": _project_oid(project_id)}, {"handoff": 1, "name": 1}
+    )
     if not doc:
         raise HTTPException(404, "專案不存在")
     h = doc.get("handoff") or {}
