@@ -41,6 +41,7 @@ import { accounting } from "./modules/accounting.js";
 import { admin } from "./modules/admin.js";
 import { knowledge } from "./modules/knowledge.js";
 import { design } from "./modules/design.js";
+import { help } from "./modules/help.js";
 // ROADMAP §11.2 · single source of truth · 取代 cross-module currentProject 散處
 import { projectStore, KEYS as STATE_KEYS } from "./modules/state/project-store.js";
 import { tenders } from "./modules/tenders.js";
@@ -217,6 +218,11 @@ export const app = {
     // V1.1 §E-3 · 切到 knowledge 自動載入
     if (view === "knowledge") knowledge.loadBrowser();
     if (view === "admin") knowledge.loadAdmin();
+    // 使用教學 · 切過去就 init(admin 才載 secrets)
+    if (view === "help") {
+      const isAdmin = this.user?.role === "ADMIN";
+      help.init(isAdmin);
+    }
   },
 
   openCreateSource() { knowledge.openCreateModal(); },

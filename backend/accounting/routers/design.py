@@ -27,7 +27,20 @@ logger = logging.getLogger("chengfu")
 
 FAL_QUEUE_URL = "https://queue.fal.run/fal-ai/recraft-v3"
 def _fal_key() -> str:
-    """每次讀 env · test 用 monkeypatch.setenv 可控制 · production 啟動後固定"""
+    """前端 admin UI 可改 · 先試 Mongo system_settings(frontend-writable)· fallback env
+
+    優先順序:
+    1. Mongo system_settings.{FAL_API_KEY}(admin 前端改 · 不用重啟)
+    2. os.getenv("FAL_API_KEY")(install 時 .env 寫死)
+    3. 空字串 → design router 回 503
+    """
+    try:
+        from main import db
+        doc = db.system_settings.find_one({"name": "FAL_API_KEY"})
+        if doc and doc.get("value"):
+            return doc["value"].strip()
+    except Exception:
+        pass
     return os.getenv("FAL_API_KEY", "").strip()
 FAL_POLL_MAX_SECONDS = int(os.getenv("FAL_POLL_MAX_SECONDS", "12"))
 FAL_POLL_INTERVAL = float(os.getenv("FAL_POLL_INTERVAL", "1.0"))

@@ -561,3 +561,159 @@ def revert_agent_prompt(agent_num: str, _admin: str = require_admin_dep()):
     from main import db
     r = db.agent_overrides.delete_one({"agent_num": agent_num})
     return {"reverted": r.deleted_count > 0}
+
+
+# ============================================================
+# Secrets 管理 · 前端 Admin UI 設 API key(寫 Mongo system_settings)
+# ============================================================
+# 每個 secret 的 metadata(顯示 / 申請連結 / 能否前端寫)
+SECRETS_META = {
+    "ANTHROPIC_API_KEY": {
+        "label": "Anthropic API Key",
+        "desc": "Claude 模型 · 必須 · Tier 2 預存 USD $50",
+        "console_url": "https://console.anthropic.com/settings/keys",
+        "frontend_writable": False,  # LibreChat 讀 .env · 改 Keychain 才生效
+        "source": ".env + macOS Keychain",
+        "required": True,
+    },
+    "OPENAI_API_KEY": {
+        "label": "OpenAI API Key",
+        "desc": "STT 語音轉文字(選配)· 未來 embedding 用",
+        "console_url": "https://platform.openai.com/api-keys",
+        "frontend_writable": False,
+        "source": ".env + macOS Keychain",
+        "required": False,
+    },
+    "FAL_API_KEY": {
+        "label": "Fal.ai API Key",
+        "desc": "設計助手生圖(Recraft v3)· 承富 Q7 一次 3 張",
+        "console_url": "https://fal.ai/dashboard/keys",
+        "frontend_writable": True,  # 存 Mongo · design router 讀取
+        "source": "Mongo system_settings(可前端改)",
+        "required": False,
+    },
+    "EMAIL_USERNAME": {
+        "label": "SMTP Username",
+        "desc": "月報自動寄信用(選配)",
+        "console_url": "",
+        "frontend_writable": False,
+        "source": ".env",
+        "required": False,
+    },
+    "EMAIL_PASSWORD": {
+        "label": "SMTP Password",
+        "desc": "SMTP 密碼 · Gmail 用 App Password · 不是本密碼",
+        "console_url": "https://myaccount.google.com/apppasswords",
+        "frontend_writable": False,
+        "source": ".env + macOS Keychain",
+        "required": False,
+    },
+    "JWT_REFRESH_SECRET": {
+        "label": "JWT Refresh Secret",
+        "desc": "認證 cookie 用 · prod 必設 · 跟 LibreChat .env 同步",
+        "console_url": "",
+        "frontend_writable": False,
+        "source": "macOS Keychain(install 時自動產)",
+        "required": True,
+    },
+    "ECC_INTERNAL_TOKEN": {
+        "label": "ECC Internal Token",
+        "desc": "cron → accounting admin endpoint 用 · prod 必設",
+        "console_url": "",
+        "frontend_writable": False,
+        "source": "macOS Keychain(install 時自動產)",
+        "required": True,
+    },
+    "MEILI_MASTER_KEY": {
+        "label": "Meilisearch Master Key",
+        "desc": "全文搜尋 index 管理 · 承富 Day 0 後不該改",
+        "console_url": "",
+        "frontend_writable": False,
+        "source": "macOS Keychain(install 時自動產)",
+        "required": True,
+    },
+}
+
+
+def _get_secret_value(name: str) -> Optional[str]:
+    """先試 Mongo system_settings · 再 fallback env(LibreChat / launch 來的)"""
+    from main import db
+    try:
+        doc = db.system_settings.find_one({"name": name})
+        if doc and doc.get("value"):
+            return doc["value"]
+    except Exception:
+        pass
+    return os.getenv(name, "") or None
+
+
+@router.get("/admin/secrets/status")
+def secrets_status(_admin: str = require_admin_dep()):
+    """回所有 secret 的狀態 · 不回值(只看有沒設)"""
+    result = []
+    for name, meta in SECRETS_META.items():
+        value = _get_secret_value(name)
+        is_set = bool(value and not value.startswith("<"))
+        result.append({
+            "name": name,
+            "label": meta["label"],
+            "desc": meta["desc"],
+            "console_url": meta["console_url"],
+            "frontend_writable": meta["frontend_writable"],
+            "source": meta["source"],
+            "required": meta["required"],
+            "is_set": is_set,
+            "preview": (value[:8] + "..." + value[-4:]) if (is_set and len(value) > 12) else ("(已設)" if is_set else "(未設)"),
+        })
+    return {"secrets": result, "total": len(result), "set_count": sum(1 for s in result if s["is_set"])}
+
+
+class SecretUpdate(BaseModel):
+    value: str
+
+
+@router.post("/admin/secrets/{name}")
+def update_secret(name: str, payload: SecretUpdate, _admin: str = require_admin_dep()):
+    """只允許前端改 FAL_API_KEY 等 frontend_writable · 其他走 Keychain
+
+    寫入 Mongo system_settings · design router 下次 request lazy 讀
+    """
+    from main import db, audit_col
+    meta = SECRETS_META.get(name)
+    if not meta:
+        raise HTTPException(404, f"未知的 secret:{name}")
+    if not meta["frontend_writable"]:
+        raise HTTPException(
+            403,
+            f"{name} 不能前端改 · 需走 macOS Keychain + 重啟容器 · "
+            f"見 {meta.get('source', '...')}"
+        )
+    value = (payload.value or "").strip()
+    if not value:
+        # 空值 → 刪除
+        db.system_settings.delete_one({"name": name})
+        audit_col.insert_one({
+            "action": "secret_clear",
+            "user": _admin,
+            "resource": name,
+            "created_at": datetime.utcnow(),
+        })
+        return {"cleared": True, "name": name}
+    db.system_settings.update_one(
+        {"name": name},
+        {"$set": {
+            "name": name,
+            "value": value,
+            "updated_at": datetime.utcnow(),
+            "updated_by": _admin,
+        }},
+        upsert=True,
+    )
+    audit_col.insert_one({
+        "action": "secret_update",
+        "user": _admin,
+        "resource": name,
+        "details": {"length": len(value)},
+        "created_at": datetime.utcnow(),
+    })
+    return {"updated": True, "name": name, "note": "下次 request 生效(不用重啟容器)"}
