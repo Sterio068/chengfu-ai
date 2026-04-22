@@ -19,11 +19,11 @@ Collection · scheduled_posts:
 }
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 from bson.errors import InvalidId
 
@@ -37,6 +37,23 @@ logger = logging.getLogger("chengfu")
 MAX_RETRIES = 3
 PLATFORMS = ("facebook", "instagram", "linkedin")
 
+# R22#1 · publishing lease 上限 · 超過視為孤兒可重 dispatch
+PUBLISHING_LEASE_MINUTES = 5
+
+# R22#3 · timezone 處理 · naive 視為 Asia/Taipei
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+
+def _to_utc(dt: datetime) -> datetime:
+    """R22#3 · 接收 datetime · 統一轉 UTC naive
+    - aware datetime → astimezone UTC + 去掉 tz info(Mongo 存 naive UTC)
+    - naive datetime → 視為台灣時間 + 換成 UTC
+    """
+    if dt.tzinfo is None:
+        # 視為台灣時間
+        return (dt.replace(tzinfo=TAIPEI_TZ).astimezone(timezone.utc)).replace(tzinfo=None)
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
 
 def _oid(post_id: str) -> ObjectId:
     try:
@@ -48,7 +65,7 @@ def _oid(post_id: str) -> ObjectId:
 class ScheduledPost(BaseModel):
     platform: Literal["facebook", "instagram", "linkedin"]
     content: str = Field(min_length=1, max_length=3000)
-    schedule_at: datetime  # UTC
+    schedule_at: datetime  # 接受 ISO · naive 視為 Asia/Taipei · 內部存 UTC
     image_url: Optional[str] = None
 
 
@@ -67,7 +84,9 @@ def create_post(p: ScheduledPost, email: str = require_user_dep()):
 
     if p.platform == "instagram" and not p.image_url:
         raise HTTPException(400, "Instagram 需要 image_url(IG 硬規定)")
-    if p.schedule_at < datetime.utcnow() - timedelta(minutes=5):
+    # R22#3 · timezone normalize · 不論前端送 naive(視為 TW)或 aware · 統一轉 UTC naive
+    schedule_utc = _to_utc(p.schedule_at)
+    if schedule_utc < datetime.utcnow() - timedelta(minutes=5):
         raise HTTPException(400, "schedule_at 不能在過去")
 
     doc = {
@@ -75,7 +94,7 @@ def create_post(p: ScheduledPost, email: str = require_user_dep()):
         "platform": p.platform,
         "content": p.content,
         "image_url": p.image_url,
-        "schedule_at": p.schedule_at,
+        "schedule_at": schedule_utc,
         "status": "queued",
         "attempts": 0,
         "created_at": datetime.utcnow(),
@@ -120,44 +139,58 @@ def get_post(post_id: str, email: str = require_user_dep()):
 
 @router.put("/social/posts/{post_id}")
 def update_post(post_id: str, p: ScheduledPostPatch, email: str = require_user_dep()):
-    """只能改 queued 狀態 · 已 publish 過不能改"""
+    """只能改 queued 狀態 · 已 publish 過不能改
+
+    R22#2 · CAS update · 用 _id+author+status:queued 條件 · 防 dispatcher 中間 claim
+    """
     from main import db
     oid = _oid(post_id)
-    existing = db.scheduled_posts.find_one({"_id": oid})
-    if not existing:
-        raise HTTPException(404, "貼文不存在")
-    if existing["author"] != email:
-        raise HTTPException(403, "只能改自己的貼文")
-    if existing["status"] != "queued":
-        raise HTTPException(409, f"狀態 {existing['status']} 不能改 · 只有 queued 可改")
-
     updates = {k: v for k, v in p.model_dump(exclude_unset=True).items() if v is not None}
     if not updates:
         raise HTTPException(400, "沒有可更新欄位")
-    if "schedule_at" in updates and updates["schedule_at"] < datetime.utcnow():
-        raise HTTPException(400, "schedule_at 不能在過去")
+    if "schedule_at" in updates:
+        schedule_utc = _to_utc(updates["schedule_at"])
+        if schedule_utc < datetime.utcnow():
+            raise HTTPException(400, "schedule_at 不能在過去")
+        updates["schedule_at"] = schedule_utc
     updates["updated_at"] = datetime.utcnow()
-    db.scheduled_posts.update_one({"_id": oid}, {"$set": updates})
+
+    # CAS · 必須 status=queued + author 是 self
+    r = db.scheduled_posts.update_one(
+        {"_id": oid, "author": email, "status": "queued"},
+        {"$set": updates},
+    )
+    if r.matched_count == 0:
+        # 排錯 · 是不存在 / 非 owner / 已被 dispatcher claim?
+        existing = db.scheduled_posts.find_one({"_id": oid})
+        if not existing:
+            raise HTTPException(404, "貼文不存在")
+        if existing.get("author") != email:
+            raise HTTPException(403, "只能改自己的貼文")
+        raise HTTPException(409, f"狀態 {existing['status']} 不能改 · dispatcher 已開始或已完成")
     return {"updated": True}
 
 
 @router.delete("/social/posts/{post_id}")
 def cancel_post(post_id: str, email: str = require_user_dep()):
-    """軟刪 · status=cancelled · 已 publish 過不給刪"""
+    """軟刪 · status=cancelled · 已 publish 或 publishing 中不給刪
+
+    R22#2 · CAS · 防 dispatcher 中間 publish 後使用者來不及看到 status 變
+    """
     from main import db
     oid = _oid(post_id)
-    existing = db.scheduled_posts.find_one({"_id": oid})
-    if not existing:
-        raise HTTPException(404, "貼文不存在")
-    if existing["author"] != email:
-        raise HTTPException(403, "只能改自己的貼文")
-    if existing["status"] == "published":
-        raise HTTPException(409, "已發出 · 不能 cancel · 到 FB/IG/LinkedIn 自行刪")
-
-    db.scheduled_posts.update_one(
-        {"_id": oid},
+    # CAS · 只准 queued / failed 狀態 cancel
+    r = db.scheduled_posts.update_one(
+        {"_id": oid, "author": email, "status": {"$in": ["queued", "failed"]}},
         {"$set": {"status": "cancelled", "updated_at": datetime.utcnow()}},
     )
+    if r.matched_count == 0:
+        existing = db.scheduled_posts.find_one({"_id": oid})
+        if not existing:
+            raise HTTPException(404, "貼文不存在")
+        if existing.get("author") != email:
+            raise HTTPException(403, "只能改自己的貼文")
+        raise HTTPException(409, f"狀態 {existing['status']} 不能 cancel · 已發或處理中")
     return {"cancelled": True}
 
 
@@ -181,17 +214,34 @@ def publish_now(post_id: str, email: str = require_user_dep()):
 # Dispatcher(cron 呼 admin endpoint · 掃 queue)
 # ============================================================
 def _dispatch_one(oid: ObjectId, doc: dict) -> dict:
-    """把一筆 post 送去 provider · 更新 status · 失敗重排"""
+    """把一筆 post 送去 provider · 更新 status · 失敗重排
+
+    R22#1 · publishing_until lease(5 分)· 超過視為孤兒 · 下次 run_queue 重 claim
+    R22#2 · CAS atomic claim · 防 race
+    """
     from main import db
 
-    # Atomic claim · 防兩個 worker 同時 dispatch 同筆
+    # R22#1 · Atomic claim · 加 publishing_until lease
+    now = datetime.utcnow()
+    lease_until = now + timedelta(minutes=PUBLISHING_LEASE_MINUTES)
     r = db.scheduled_posts.update_one(
-        {"_id": oid, "status": {"$in": ["queued", "failed"]}},
-        {"$set": {"status": "publishing", "dispatched_at": datetime.utcnow(),
-                  "updated_at": datetime.utcnow()}},
+        {
+            "_id": oid,
+            "$or": [
+                {"status": {"$in": ["queued", "failed"]}},
+                # R22#1 · 也搶過期 publishing(孤兒)
+                {"status": "publishing", "publishing_until": {"$lt": now}},
+            ],
+        },
+        {"$set": {
+            "status": "publishing",
+            "dispatched_at": now,
+            "publishing_until": lease_until,
+            "updated_at": now,
+        }},
     )
     if r.modified_count == 0:
-        return {"skipped": "already dispatched by another worker"}
+        return {"skipped": "already dispatched by another worker (or still in lease)"}
 
     try:
         result = publish(doc["platform"], doc["content"], doc.get("image_url"))
@@ -204,10 +254,13 @@ def _dispatch_one(oid: ObjectId, doc: dict) -> dict:
                 "published_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "last_error": None,
-            }},
+            },
+             "$unset": {"publishing_until": ""}},  # R22#1 · 清 lease
         )
         return {"published": True, **result}
-    except PublishError as e:
+    except Exception as e:
+        # R22#1 · 不只 PublishError · 任何 exception(network / provider SDK bug)都 retry
+        is_known = isinstance(e, PublishError)
         attempts = doc.get("attempts", 0) + 1
         new_status = "failed" if attempts >= MAX_RETRIES else "queued"
         # Retry 間隔 · exp backoff 寫進 schedule_at
@@ -215,15 +268,17 @@ def _dispatch_one(oid: ObjectId, doc: dict) -> dict:
             next_try = datetime.utcnow() + timedelta(minutes=2 ** attempts)
         else:
             next_try = doc["schedule_at"]
+        err_msg = ("PublishError: " if is_known else "Exception: ") + str(e)[:280]
         db.scheduled_posts.update_one(
             {"_id": oid},
             {"$set": {
                 "status": new_status,
                 "attempts": attempts,
-                "last_error": str(e)[:300],
+                "last_error": err_msg,
                 "schedule_at": next_try,
                 "updated_at": datetime.utcnow(),
-            }},
+            },
+             "$unset": {"publishing_until": ""}},  # R22#1 · 清 lease
         )
         # final fail 通知 admin(audit log)
         if new_status == "failed":
@@ -259,10 +314,16 @@ def run_queue(
 
     from main import db
     now = datetime.utcnow()
+    # R22#1 · 也撈 publishing 過期的孤兒(container kill / 真 timeout)
     to_dispatch = list(db.scheduled_posts.find(
-        {"status": {"$in": ["queued", "failed"]},
-         "schedule_at": {"$lte": now},
-         "attempts": {"$lt": MAX_RETRIES}},
+        {"$or": [
+            {"status": {"$in": ["queued", "failed"]},
+             "schedule_at": {"$lte": now},
+             "attempts": {"$lt": MAX_RETRIES}},
+            # publishing 但 lease 過期 = 孤兒
+            {"status": "publishing",
+             "publishing_until": {"$lt": now}},
+        ]},
         sort=[("schedule_at", 1)],
         limit=limit,
     ))

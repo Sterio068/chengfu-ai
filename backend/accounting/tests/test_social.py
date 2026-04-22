@@ -1,7 +1,7 @@
 """Feature #5 · 社群排程 tests"""
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 import mongomock
@@ -27,13 +27,13 @@ def client(monkeypatch):
 def test_create_post_requires_user(client):
     r = client.post("/social/posts", json={
         "platform": "facebook", "content": "測試",
-        "schedule_at": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+        "schedule_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
     })
     assert r.status_code == 403
 
 
 def test_create_and_list(client):
-    future = (datetime.utcnow() + timedelta(hours=2)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
     r = client.post("/social/posts",
         json={"platform": "facebook", "content": "中秋活動預告 · 下週四",
               "schedule_at": future},
@@ -48,7 +48,7 @@ def test_create_and_list(client):
 
 
 def test_ig_requires_image(client):
-    future = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     r = client.post("/social/posts",
         json={"platform": "instagram", "content": "IG 測試沒圖",
               "schedule_at": future},
@@ -57,7 +57,7 @@ def test_ig_requires_image(client):
 
 
 def test_past_schedule_rejected(client):
-    past = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     r = client.post("/social/posts",
         json={"platform": "facebook", "content": "test", "schedule_at": past},
         headers=USER)
@@ -65,7 +65,7 @@ def test_past_schedule_rejected(client):
 
 
 def test_publish_now_mock(client):
-    future = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     r = client.post("/social/posts",
         json={"platform": "linkedin", "content": "立刻發",
               "schedule_at": future},
@@ -81,7 +81,7 @@ def test_publish_now_mock(client):
 
 def test_publish_now_fail_retry(client):
     """content 含 fail_test · mock 丟 PublishError · attempts 遞增"""
-    future = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     r = client.post("/social/posts",
         json={"platform": "facebook", "content": "發文內含 fail_test 測試失敗",
               "schedule_at": future},
@@ -105,7 +105,7 @@ def test_publish_now_fail_retry(client):
 def test_delete_published_409(client):
     """published 不能 cancel"""
     import main
-    future = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     r = client.post("/social/posts",
         json={"platform": "facebook", "content": "已發", "schedule_at": future},
         headers=USER)
@@ -132,7 +132,7 @@ def test_run_queue_requires_internal_token(client):
 def test_run_queue_dispatches(client):
     """set 1 筆 schedule_at=now-1h · internal token 呼 · 應 dispatch"""
     import main
-    past = datetime.utcnow() - timedelta(hours=1)
+    past = datetime.now(timezone.utc) - timedelta(hours=1)
     main.db.scheduled_posts.insert_one({
         "author": "pm@chengfu.local",
         "platform": "linkedin",
