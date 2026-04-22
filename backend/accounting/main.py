@@ -145,10 +145,27 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+
+def _user_or_ip(request: Request) -> str:
+    """Codex R5#7 · 限速 key 優先用 trusted user · IP fallback
+    nginx/Cloudflare 後 IP 可能全員共用 · trusted email 才能精準擋濫用者"""
+    # Cookie 驗過的 trusted user 優先
+    trusted = getattr(request.state, "email_trusted", False) if hasattr(request, "state") else False
+    if trusted:
+        email = (request.headers.get("X-User-Email") or "").strip().lower()
+        if email:
+            return f"u:{email}"
+    # Internal token(cron)
+    if request.headers.get("X-Internal-Token"):
+        return "u:internal"
+    # Fallback · IP(nginx X-Forwarded-For 已被 chengfu-proxy.conf 設)
+    return f"ip:{get_remote_address(request)}"
+
+
 _limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=_user_or_ip,
     default_limits=[os.getenv("RATE_LIMIT_DEFAULT", "120/minute")],
-    storage_uri="memory://",  # v1.2 改 Redis 才能多 worker
+    storage_uri="memory://",  # v1.2 改 Redis 才能多 worker 一致
 )
 app.state.limiter = _limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -250,40 +267,33 @@ _admin_allowlist = {e.strip().lower() for e in (
 
 
 def _verify_librechat_cookie(request: Request) -> Optional[str]:
-    """ROADMAP §11.12 · 嚴格驗 LibreChat token cookie 取 email
+    """ROADMAP §11.12 + Codex R5#1 · 只接 access token cookie
 
-    改進:
-    1. `token` cookie 用 JWT_SECRET 驗(access)· `refreshToken` 用 JWT_REFRESH_SECRET
-       不再 for-loop 兩個 secret 試 · 避免 refresh token 當 access 用的繞過
-    2. payload 必含 `email` + token 必為非過期(jwt.decode 預設驗 exp)
-    3. 不擋 type 欄位(LibreChat 沒一致放 · 容錯)
+    Codex R5 抓:原本 refreshToken 也接 · 等同長效 token 可打 admin
+    現在:
+    1. 只驗 `token` cookie(LibreChat access · 短效 15min)
+    2. `refreshToken` 完全拒絕(只給 LibreChat /api/auth/refresh 用)
+    3. 失敗 → None · 走 X-User-Email legacy(若 JWT_SECRET 未設)
     """
     try:
         import jwt as _jwt
-        # 拆兩 cookie · 各用對應 secret 驗(嚴格化)
         access_token = request.cookies.get("token")
-        refresh_token = request.cookies.get("refreshToken")
-
-        for cookie_val, sec_env in (
-            (access_token, "JWT_SECRET"),
-            (refresh_token, "JWT_REFRESH_SECRET"),
-        ):
-            if not cookie_val:
-                continue
-            sec = os.getenv(sec_env, "")
-            if not sec or sec.startswith("<GENERATE"):
-                continue
-            try:
-                payload = _jwt.decode(cookie_val, sec, algorithms=["HS256"])
-                email = (payload.get("email") or "").strip().lower()
-                if email:
-                    return email
-            except _jwt.ExpiredSignatureError:
-                logger.debug("[auth] %s expired", sec_env)
-                continue
-            except _jwt.InvalidTokenError as e:
-                logger.debug("[auth] %s invalid · %s", sec_env, e)
-                continue
+        if not access_token:
+            return None
+        sec = os.getenv("JWT_SECRET", "")
+        if not sec or sec.startswith("<GENERATE"):
+            return None
+        try:
+            payload = _jwt.decode(access_token, sec, algorithms=["HS256"])
+            email = (payload.get("email") or "").strip().lower()
+            if email:
+                return email
+        except _jwt.ExpiredSignatureError:
+            logger.debug("[auth] access token expired · client should /api/auth/refresh")
+            return None
+        except _jwt.InvalidTokenError as e:
+            logger.debug("[auth] access token invalid · %s", e)
+            return None
         return None
     except Exception as e:
         logger.debug("[auth] cookie verify outer fail: %s", e)
@@ -314,27 +324,26 @@ def require_admin(request: Request,
                   email: Optional[str] = Depends(current_user_email)) -> str:
     """硬權限 · 用在所有 /admin/* 與敏感端點。
 
-    Codex R3.2 · 要求 email 必須是 cookie 驗過的(trusted)
-    X-User-Email header 可被 curl 偽造 · admin 操作不能只靠 header
-    策略:
-      · production(JWT_SECRET 有設) → 強制 cookie 驗過才算 admin
-      · 測試 / JWT_SECRET 未設 → fallback 舊行為(向後相容)
-    判斷:
-      1. cookie-trusted email + ADMIN_EMAILS 白名單 ✓
-      2. cookie-trusted + MongoDB users.role == "ADMIN" ✓
-      3. X-User-Email header + 白名單 + JWT_SECRET 未設(相容) ✓
-      · 其他 → 403
+    Codex R3.2 / R5#2 · 三道路徑:
+    1. Cookie-trusted email + 白名單 / users.role == ADMIN(嚴格 · production)
+    2. X-Internal-Token header(cron / 內部 service · ECC_INTERNAL_TOKEN env)
+    3. X-User-Email + 白名單 + JWT_SECRET 未設(legacy 測試模式 · production 不接受)
     """
+    # ============ Codex R5#2 · 內部 service token(daily-digest cron 用) ============
+    internal_token_expected = os.getenv("ECC_INTERNAL_TOKEN", "").strip()
+    if internal_token_expected:
+        provided = (request.headers.get("X-Internal-Token") or "").strip()
+        if provided and provided == internal_token_expected:
+            return "internal:cron"
+
     if not email:
         raise HTTPException(403, "未識別使用者 · 請從 launcher 進入登入")
 
-    # Cookie 驗過 · 走嚴格路徑
     trusted = getattr(request.state, "email_trusted", False)
     jwt_configured = bool(os.getenv("JWT_SECRET", "")) and \
                      not os.getenv("JWT_SECRET", "").startswith("<GENERATE")
 
     if not trusted and jwt_configured:
-        # Production · JWT 已設 · 但 cookie 沒驗過 → 偽造可能
         logger.warning(
             "[auth] admin endpoint %s 被非 cookie 路徑呼叫(email=%s)· 擋",
             request.url.path, email,
@@ -342,7 +351,7 @@ def require_admin(request: Request,
         raise HTTPException(
             403,
             "Admin 操作需從 launcher 登入(含 LibreChat cookie)· "
-            "X-User-Email header 單獨不足以授權"
+            "X-User-Email header 單獨不足以授權 · 或設 X-Internal-Token"
         )
 
     if email in _admin_allowlist:
@@ -1501,9 +1510,23 @@ async def design_recraft_status(job_id: str):
             st = s.json().get("status", "UNKNOWN")
             if st == "COMPLETED":
                 r = await client.get(f"{FAL_QUEUE_URL}/requests/{job_id}", headers=headers)
+                images = r.json().get("images", []) if r.status_code == 200 else []
+                # Codex R5#5 · status 查到 done 時 update DB · /design/history 才回得到圖
+                try:
+                    db.design_jobs.update_one(
+                        {"request_id": job_id},
+                        {"$set": {
+                            "status": "done",
+                            "n_images": len(images),
+                            "images": images,
+                            "completed_at": datetime.utcnow(),
+                        }},
+                    )
+                except Exception as e:
+                    logger.warning("[design] status update DB fail rid=%s · %s", job_id, e)
                 return {
                     "job_id": job_id, "status": "done",
-                    "images": r.json().get("images", []) if r.status_code == 200 else [],
+                    "images": images,
                 }
             return {"job_id": job_id, "status": "pending",
                     "friendly_message": "仍在生成中 · 再等幾秒"}
@@ -1514,18 +1537,40 @@ async def design_recraft_status(job_id: str):
 @app.get("/design/history")
 def design_history(request: Request, limit: int = 20):
     """設計助手歷史 · 給前端列「我最近 5 張可以重生」的 dropdown
-    ROADMAP §11.11 · prompt 已 hash · 改回傳 prompt_preview(50 字)+ prompt_hash"""
+    ROADMAP §11.11 · prompt 已 hash · 改回傳 prompt_preview(50 字)+ prompt_hash
+    Codex R5#5 · 補 status/images + 舊 doc fallback(prompt 欄位) + auto-backfill"""
     email = (request.headers.get("X-User-Email") or "").strip().lower() or None
     q = {"user": email} if email else {}
     docs = list(db.design_jobs.find(
         q,
-        {"_id": 0, "request_id": 1, "prompt_preview": 1, "prompt_hash": 1,
+        {"_id": 0, "request_id": 1, "prompt": 1, "prompt_preview": 1, "prompt_hash": 1,
          "prompt_len": 1, "status": 1, "image_size": 1, "style": 1,
-         "n_images": 1, "created_at": 1},
+         "n_images": 1, "images": 1, "created_at": 1},
     ).sort("created_at", -1).limit(min(100, max(1, limit))))
+    import hashlib
     for d in docs:
         if isinstance(d.get("created_at"), datetime):
             d["created_at"] = d["created_at"].isoformat()
+        # Codex R5#5 · 舊 doc 有 prompt 但缺 hash/preview · backfill 一次
+        if d.get("prompt") and not d.get("prompt_hash"):
+            old_prompt = d["prompt"] or ""
+            d["prompt_hash"] = hashlib.sha256(old_prompt.encode()).hexdigest()[:16]
+            d["prompt_preview"] = old_prompt[:50] + ("…" if len(old_prompt) > 50 else "")
+            d["prompt_len"] = len(old_prompt)
+            # 寫回 mongo · 下次不用再 backfill
+            try:
+                db.design_jobs.update_one(
+                    {"request_id": d["request_id"]},
+                    {"$set": {
+                        "prompt_hash": d["prompt_hash"],
+                        "prompt_preview": d["prompt_preview"],
+                        "prompt_len": d["prompt_len"],
+                    }, "$unset": {"prompt": ""}},  # 順便清舊欄位
+                )
+            except Exception as e:
+                logger.warning("[design] backfill fail rid=%s · %s", d.get("request_id"), e)
+        # Response 不洩 raw prompt
+        d.pop("prompt", None)
     return {"history": docs, "count": len(docs)}
 
 
@@ -2428,20 +2473,40 @@ def knowledge_read(
     }
 
 
-_AGENT_FORBIDDEN_CACHE: dict = {"data": {}, "ts": 0.0}
+_AGENT_FORBIDDEN_CACHE: dict = {"data": {}, "ts": 0.0, "version": None}
 _AGENT_FORBIDDEN_TTL = 300.0  # 5 分鐘
 
 
+def _sources_max_updated_at() -> Optional[datetime]:
+    """Codex R5#3 · 取所有 sources 最大 updated_at · 給 cache version 用
+    workers=2 後 module-level cache 各 worker 獨立 · 改 Mongo-driven 版號
+    任一 worker 改 source · 其他 worker 下次 search 看到 max(updated_at) 變 → invalidate"""
+    try:
+        doc = knowledge_sources_col.find_one(
+            {}, sort=[("updated_at", -1)], projection={"updated_at": 1}
+        )
+        return doc.get("updated_at") if doc else None
+    except Exception:
+        return None
+
+
 def _agent_forbidden_sources(agent_num: Optional[str]) -> set:
-    """ROADMAP §11.5 · TTL cache · 算「此 agent 無法讀的 source_id 集合」
-    agent_access 不常變(admin 才能改)· 5 分鐘內 cache 內查"""
+    """ROADMAP §11.5 + Codex R5#3 · cache 用 updated_at 跨 worker 一致
+
+    每次呼叫先輕量查 max(updated_at)(< 1ms · 已建 index)· 變了就 rebuild
+    比 5min TTL 安全 · admin 改 agent_access 後立即生效
+    """
     import time
     now = time.time()
     cache = _AGENT_FORBIDDEN_CACHE
-    if (now - cache["ts"]) > _AGENT_FORBIDDEN_TTL:
-        # rebuild · 結構為 {agent_num_or_None: set(forbidden_source_ids)}
+
+    # R5#3 · 比 Mongo updated_at 版本 · 而非純 TTL
+    current_version = _sources_max_updated_at()
+    if cache["version"] != current_version or (now - cache["ts"]) > _AGENT_FORBIDDEN_TTL:
         cache["data"] = {}
         cache["ts"] = now
+        cache["version"] = current_version
+
     key = agent_num or "__none__"
     if key not in cache["data"]:
         forbidden = set()
@@ -2456,9 +2521,10 @@ def _agent_forbidden_sources(agent_num: Optional[str]) -> set:
 
 
 def _invalidate_sources_cache():
-    """source CRUD 後呼叫 · 強制下次 search 重算"""
+    """source CRUD 後呼叫 · 本 worker 立即清(其他 worker 下次自動偵測 version 變)"""
     _AGENT_FORBIDDEN_CACHE["ts"] = 0.0
     _AGENT_FORBIDDEN_CACHE["data"] = {}
+    _AGENT_FORBIDDEN_CACHE["version"] = None
 
 
 @app.get("/knowledge/search")

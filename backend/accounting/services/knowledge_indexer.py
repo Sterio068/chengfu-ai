@@ -255,8 +255,10 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             to_process.append((path, rel))
 
     # 並行 extract · workers 4 預設(env REINDEX_WORKERS 可調)
-    from concurrent.futures import ThreadPoolExecutor
+    # Codex R5#4 · 每檔 per-file timeout · 防 corrupt PDF / OCR hang 卡整批
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout, as_completed
     workers = int(os.getenv("REINDEX_WORKERS", "4"))
+    per_file_timeout = int(os.getenv("REINDEX_FILE_TIMEOUT_SEC", "120"))
 
     def _extract_one(item):
         path, rel = item
@@ -267,9 +269,23 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             return None, rel, "error"
         return doc, rel, doc.get("type", "ok")
 
+    results = []
     if workers > 1 and len(to_process) > 10:
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            results = list(pool.map(_extract_one, to_process))
+            futures = {pool.submit(_extract_one, item): item for item in to_process}
+            for fut in as_completed(futures):
+                item = futures[fut]
+                try:
+                    results.append(fut.result(timeout=per_file_timeout))
+                except _FutTimeout:
+                    logger.error(
+                        "[indexer] %s timeout > %ds · skip · 列入 errors",
+                        item[0], per_file_timeout,
+                    )
+                    results.append((None, item[1], "timeout"))
+                except Exception as e:
+                    logger.error("[indexer] %s future error: %s", item[0], e)
+                    results.append((None, item[1], "error"))
     else:
         results = [_extract_one(item) for item in to_process]
 

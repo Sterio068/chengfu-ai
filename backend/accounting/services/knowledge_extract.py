@@ -225,16 +225,12 @@ def _extract_pdf(path: str) -> dict:
                         tp = page.get_textpage_ocr(language="chi_tra+eng")
                         text = page.get_text(textpage=tp).strip()
                         ocr_triggered += 1
-                        _OCR_AVAILABLE = True
+                        # Codex R5#4 · 不再寫 _OCR_AVAILABLE = True · 全憑 startup probe 結果
+                        # 避免多 thread 在 reindex 同時讀寫 race
                     except Exception as e:
-                        if _OCR_AVAILABLE is None:
-                            _OCR_AVAILABLE = False
-                            _OCR_LAST_ERROR = f"{type(e).__name__}: {str(e)[:120]}"
-                            logger.warning(
-                                "[ocr] 第一次 fallback 失敗 · 後續 PDF OCR 不再嘗試 · 錯誤=%s · "
-                                "檢查 Dockerfile 是否裝 tesseract-ocr-chi-tra",
-                                _OCR_LAST_ERROR,
-                            )
+                        # Codex R5#4 · per-file OCR 錯不寫 global state
+                        # 只當這檔 OCR 失敗 · _OCR_AVAILABLE 由 probe_ocr_startup 決定
+                        logger.debug("[ocr] this page OCR fail · skip page · %s", str(e)[:80])
                         ocr_skipped_no_engine += 1
             pages.append(text)
     finally:

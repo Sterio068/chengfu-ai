@@ -152,8 +152,18 @@ def send_digest_email(activity, priorities, advice):
 </p>
 </body></html>"""
 
-    # ROADMAP §11.8 · 加 X-User-Email · 通過 require_admin
-    # ADMIN_EMAIL 預設 sterio068@gmail.com · env 可覆蓋
+    # Codex R5#2 · 用 X-Internal-Token 走內部 service 路徑(不靠 X-User-Email)
+    # JWT_SECRET 開後 X-User-Email 會被擋 · cron 必須用 internal token
+    # ECC_INTERNAL_TOKEN env 在啟動 script + cron 環境都要有
+    headers = {"Content-Type": "application/json"}
+    internal_token = os.getenv("ECC_INTERNAL_TOKEN", "")
+    if internal_token:
+        headers["X-Internal-Token"] = internal_token
+    else:
+        # fallback · 老闆 email 走 legacy(只在 JWT_SECRET 未設時可)
+        headers["X-User-Email"] = ADMIN_EMAIL
+        print("⚠ ECC_INTERNAL_TOKEN 未設 · fallback X-User-Email · production 必設 token")
+
     req = urllib.request.Request(
         f"{ACCOUNTING_BASE}/admin/email/send",
         data=json.dumps({
@@ -162,10 +172,7 @@ def send_digest_email(activity, priorities, advice):
             "body": body,
             "body_type": "html",
         }).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "X-User-Email": ADMIN_EMAIL,  # cron 走 admin 身分
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
