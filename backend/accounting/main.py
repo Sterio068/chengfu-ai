@@ -98,6 +98,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.debug("[index] conversations.chengfu_summarized_at skip: %s", e)
     logger.info("indexes ensured · app ready")
+    # ROADMAP §11.12 · JWT secret 啟動檢查 · 沒設明示警告(production 必要)
+    _jwt_set = os.getenv("JWT_SECRET", "")
+    if not _jwt_set or _jwt_set.startswith("<GENERATE"):
+        logger.warning(
+            "[auth] JWT_SECRET 未設或為 placeholder · "
+            "Cookie 驗 OFF · admin endpoint 走 X-User-Email 相容路徑(可被偽造)· "
+            "production 必設 · 見 docs/05-SECURITY.md"
+        )
+    else:
+        logger.info("[auth] JWT_SECRET 已設 · cookie 驗 ON · admin 強制 trusted")
     # Codex Round 10.5 · 啟動時主動探 OCR · /healthz 立刻看得到真狀態
     try:
         from services.knowledge_extract import probe_ocr_startup
@@ -240,38 +250,43 @@ _admin_allowlist = {e.strip().lower() for e in (
 
 
 def _verify_librechat_cookie(request: Request) -> Optional[str]:
-    """Codex R3.2 · 從 LibreChat refreshToken / token cookie 驗 JWT 取 email
+    """ROADMAP §11.12 · 嚴格驗 LibreChat token cookie 取 email
 
-    LibreChat 用 JWT_SECRET 簽 token · 我們共用同 secret · 可 verify
-    若驗過 · 回 email;否則 None(fallback 到 X-User-Email legacy path)
+    改進:
+    1. `token` cookie 用 JWT_SECRET 驗(access)· `refreshToken` 用 JWT_REFRESH_SECRET
+       不再 for-loop 兩個 secret 試 · 避免 refresh token 當 access 用的繞過
+    2. payload 必含 `email` + token 必為非過期(jwt.decode 預設驗 exp)
+    3. 不擋 type 欄位(LibreChat 沒一致放 · 容錯)
     """
     try:
-        # LibreChat httpOnly cookies · 在 proxy_pass 時會隨 request 帶進來
-        token = request.cookies.get("token") or request.cookies.get("refreshToken")
-        if not token:
-            return None
         import jwt as _jwt
-        secret = os.getenv("JWT_SECRET", "")
-        if not secret or secret.startswith("<GENERATE"):
-            return None  # secret 沒設 · 無法驗 · fallback
-        # LibreChat access token 用 JWT_SECRET · refreshToken 用 JWT_REFRESH_SECRET
-        # 先試 access · 失敗再試 refresh
-        for sec_env in ("JWT_SECRET", "JWT_REFRESH_SECRET"):
+        # 拆兩 cookie · 各用對應 secret 驗(嚴格化)
+        access_token = request.cookies.get("token")
+        refresh_token = request.cookies.get("refreshToken")
+
+        for cookie_val, sec_env in (
+            (access_token, "JWT_SECRET"),
+            (refresh_token, "JWT_REFRESH_SECRET"),
+        ):
+            if not cookie_val:
+                continue
             sec = os.getenv(sec_env, "")
             if not sec or sec.startswith("<GENERATE"):
                 continue
             try:
-                payload = _jwt.decode(token, sec, algorithms=["HS256"])
+                payload = _jwt.decode(cookie_val, sec, algorithms=["HS256"])
                 email = (payload.get("email") or "").strip().lower()
                 if email:
                     return email
+            except _jwt.ExpiredSignatureError:
+                logger.debug("[auth] %s expired", sec_env)
+                continue
             except _jwt.InvalidTokenError as e:
-                # 預期 · 試下個 secret · 不 log warn 級別(避免 noise)
-                logger.debug("[auth] try next secret · %s", e)
+                logger.debug("[auth] %s invalid · %s", sec_env, e)
                 continue
         return None
     except Exception as e:
-        logger.debug("[auth] cookie verify fail: %s", e)
+        logger.debug("[auth] cookie verify outer fail: %s", e)
         return None
 
 
@@ -910,27 +925,47 @@ def clear_demo_data(_admin: str = Depends(require_admin)):
 # ============================================================
 @app.get("/admin/export")
 def export_all_data(_admin: str = Depends(require_admin)):
-    """一鍵匯出承富所有資料(JSON · for 合規稽核 / 遷移 / 備份)。"""
-    return {
-        "exported_at": datetime.utcnow().isoformat(),
-        "version": "v1.0",
-        "accounts": serialize(list(accounts_col.find())),
-        "transactions": serialize(list(transactions_col.find())),
-        "invoices": serialize(list(invoices_col.find())),
-        "quotes": serialize(list(quotes_col.find())),
-        "projects": serialize(list(projects_col.find())),
-        "feedback": serialize(list(feedback_col.find())),
-        "tender_alerts": serialize(list(db.tender_alerts.find())),
-        "counts": {
-            "accounts": accounts_col.count_documents({}),
-            "transactions": transactions_col.count_documents({}),
-            "invoices": invoices_col.count_documents({}),
-            "quotes": quotes_col.count_documents({}),
-            "projects": projects_col.count_documents({}),
-            "feedback": feedback_col.count_documents({}),
-            "tender_alerts": db.tender_alerts.count_documents({}),
-        },
-    }
+    """一鍵匯出 · ROADMAP §11.14 · streaming JSON 不全 list memory
+    對一年 transactions(數十 MB)· 原 list() 序列化期間 worker 凍結
+    改 StreamingResponse · 逐 collection yield · memory 平穩"""
+    from fastapi.responses import StreamingResponse
+
+    def _stream():
+        yield '{"exported_at":"' + datetime.utcnow().isoformat() + '",'
+        yield '"version":"v1.0","collections":{'
+        first_col = True
+        cols = [
+            ("accounts", accounts_col),
+            ("transactions", transactions_col),
+            ("invoices", invoices_col),
+            ("quotes", quotes_col),
+            ("projects", projects_col),
+            ("feedback", feedback_col),
+            ("tender_alerts", db.tender_alerts),
+        ]
+        for name, col in cols:
+            if not first_col:
+                yield ","
+            first_col = False
+            yield f'"{name}":['
+            first_doc = True
+            for doc in col.find():
+                if not first_doc:
+                    yield ","
+                first_doc = False
+                # 逐 doc serialize · 一次只一個進 memory
+                yield json.dumps(serialize(doc), ensure_ascii=False, default=str)
+            yield "]"
+        yield "},"
+        yield '"counts":' + json.dumps({
+            name: col.count_documents({}) for name, col in cols
+        }) + "}"
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=chengfu-export-{datetime.utcnow().strftime('%Y%m%d')}.json"},
+    )
 
 
 class ImportData(BaseModel):
@@ -1308,13 +1343,21 @@ class RecraftRequest(BaseModel):
 
 def _log_design_job(req_id: str, email: Optional[str], req: RecraftRequest,
                     status: str, n_images: int = 0):
-    """記到 design_jobs collection · 不存圖檔(留在 Fal CDN)。"""
+    """記到 design_jobs collection · 不存圖檔(留在 Fal CDN)。
+    ROADMAP §11.11 · prompt 改 SHA256 + 前 50 字摘要 · 避免客戶名 / 機敏暴露
+    完整 prompt 仍在 Fal API 端有 trace · 我方 log 只夠定位"""
+    import hashlib
+    full_prompt = req.prompt or ""
+    prompt_hash = hashlib.sha256(full_prompt.encode("utf-8")).hexdigest()[:16]
+    prompt_preview = full_prompt[:50] + ("…" if len(full_prompt) > 50 else "")
     try:
         db.design_jobs.insert_one({
             "request_id": req_id,
             "user": email,
             "project_id": req.project_id,
-            "prompt": req.prompt[:500],  # 太長 truncate · 避免 Mongo index 負擔
+            "prompt_hash": prompt_hash,        # 給 dedup / 重生 lookup 用
+            "prompt_preview": prompt_preview,  # 給 admin debug 用 · 不洩
+            "prompt_len": len(full_prompt),
             "image_size": req.image_size,
             "style": req.style,
             "regenerate_of": req.regenerate_of,
@@ -1356,15 +1399,15 @@ async def design_recraft(req: RecraftRequest, request: Request):
         "num_images": 3,  # 老闆 Q2 · 一次 3 張挑方向
     }
     # Round 9 implicit · regenerate_of 從 dead code 變實作
-    # 若使用者按「重生」· 帶上次 job_id · 我們從歷史撈 prompt 補強 + 給 Fal 種子提示
+    # ROADMAP §11.11 · 改 prompt_hash 後 · 不再從歷史撈完整 prompt
+    # · 使用者重生時必須**自己重打 prompt**(req.prompt 已是新的) · 我們只沿用 size/style
+    # · 「Variation hint」仍加 · 但 prompt 完全靠新 req.prompt 不再拼舊
     if req.regenerate_of:
         prev = db.design_jobs.find_one(
             {"request_id": req.regenerate_of},
-            {"prompt": 1, "image_size": 1, "style": 1},
+            {"image_size": 1, "style": 1},  # 不撈 prompt(已 hashed)
         )
         if prev:
-            # Fal Recraft v3 不直接吃 seed · 但可在 prompt 加 nuance 提示「換構圖」
-            # 同時把 image_size / style 沿用上次(若使用者沒覆蓋)
             payload["prompt"] = (
                 f"{req.prompt}\n[Variation of previous concept · "
                 f"keep brand spirit but try a different composition · seed change]"
@@ -1471,21 +1514,18 @@ async def design_recraft_status(job_id: str):
 @app.get("/design/history")
 def design_history(request: Request, limit: int = 20):
     """設計助手歷史 · 給前端列「我最近 5 張可以重生」的 dropdown
-    Round 9 implicit · regenerate_of 不再 dead code · 配合 history 給 UI 用
-    """
+    ROADMAP §11.11 · prompt 已 hash · 改回傳 prompt_preview(50 字)+ prompt_hash"""
     email = (request.headers.get("X-User-Email") or "").strip().lower() or None
     q = {"user": email} if email else {}
     docs = list(db.design_jobs.find(
         q,
-        {"_id": 0, "request_id": 1, "prompt": 1, "status": 1,
-         "image_size": 1, "style": 1, "n_images": 1, "created_at": 1},
+        {"_id": 0, "request_id": 1, "prompt_preview": 1, "prompt_hash": 1,
+         "prompt_len": 1, "status": 1, "image_size": 1, "style": 1,
+         "n_images": 1, "created_at": 1},
     ).sort("created_at", -1).limit(min(100, max(1, limit))))
     for d in docs:
         if isinstance(d.get("created_at"), datetime):
             d["created_at"] = d["created_at"].isoformat()
-        # 截短 prompt 給 dropdown 用
-        if d.get("prompt"):
-            d["prompt_short"] = d["prompt"][:60] + ("…" if len(d["prompt"]) > 60 else "")
     return {"history": docs, "count": len(docs)}
 
 
