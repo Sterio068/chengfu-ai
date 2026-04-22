@@ -1085,31 +1085,9 @@ def send_monthly_report_to_admin(_admin: str = Depends(require_admin)):
     return {"sent": True, "to": admin_email, "month": report["month"]}
 
 
-@app.get("/tender-alerts")
-def list_tender_alerts(status: Optional[str] = None, keyword: Optional[str] = None, limit: int = 50):
-    """列出採購網監測抓到的標案(Launcher 專用)。"""
-    q = {}
-    if status:  q["status"] = status
-    if keyword: q["keyword"] = keyword
-    alerts = db.tender_alerts
-    return serialize(list(alerts.find(q).sort("discovered_at", -1).limit(limit)))
-
-
-@app.put("/tender-alerts/{tender_key}")
-def update_tender_alert(
-    tender_key: str,
-    status: Literal["new", "reviewing", "interested", "skipped"],
-    caller: Optional[str] = Depends(current_user_email),
-):
-    """標記標案狀態 · Audit sec F-3 · 加 status 白名單 + 必登入"""
-    if not caller:
-        raise HTTPException(403, "未識別呼叫者 · 請從 launcher 進入")
-    r = db.tender_alerts.update_one(
-        {"tender_key": tender_key},
-        {"$set": {"status": status, "reviewed_at": datetime.utcnow(),
-                  "reviewed_by": caller}}
-    )
-    return {"updated": r.modified_count}
+# Tenders · ROADMAP §11.1 已抽到 routers/tenders.py
+from routers import tenders as _tenders_router
+app.include_router(_tenders_router.router)
 
 
 @app.get("/admin/monthly-report")
