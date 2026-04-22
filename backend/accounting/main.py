@@ -124,15 +124,29 @@ async def lifespan(app: FastAPI):
     knowledge_audit_col.create_index([("user", 1), ("source_id", 1)])
     # Round 9 implicit · log TTL 防無限長(估 10 人 × 50 read/day × 365 ≈ 182k doc/年)
     # PDPA 留 90 天 audit 已綽綽有餘 · admin 想看歷史另存 export
+    # R14#4 · 原本 try/except 靜默過 · 若 index 選項不同(TTL) 會留舊的 · TTL 沒生效 · 月 +4GB
+    # 修:檢查現有 index · 不符就 drop 再 recreate · fail-loud 確保 TTL 真生效
+    _ttl_name = "ttl_90d"
+    _ttl_expected = 90 * 24 * 3600
     try:
+        _existing = knowledge_audit_col.index_information()
+        _wrong = False
+        for _n, _info in _existing.items():
+            if _n == _ttl_name and _info.get("expireAfterSeconds") != _ttl_expected:
+                _wrong = True
+                break
+        if _wrong:
+            knowledge_audit_col.drop_index(_ttl_name)
+            logger.info("[ttl] knowledge_audit · drop stale TTL · will recreate")
         knowledge_audit_col.create_index(
             [("created_at", 1)],
-            expireAfterSeconds=90 * 24 * 3600,
-            name="ttl_90d",
+            expireAfterSeconds=_ttl_expected,
+            name=_ttl_name,
         )
+        logger.info("[ttl] knowledge_audit · TTL 90d ensured")
     except Exception as e:
-        # 如果 index 已存在 + TTL 不同 · 不擋啟動
-        logger.warning("[ttl] knowledge_audit TTL index: %s", e)
+        # 真正意外(非 IndexSame)· 要 loud 警告 · 不能靜默
+        logger.error("[ttl] knowledge_audit TTL failed · data bloat risk: %s", e)
     # design_jobs 同樣加 TTL · 圖檔留 Fal CDN · log 純查詢 ROI 用 · 留 180 天
     try:
         db.design_jobs.create_index(

@@ -185,6 +185,32 @@ def send_digest_email(activity, priorities, advice):
         print(body)
 
 
+def _record_cron_success():
+    """R14#14 · cron 成功也要 notify · 寫進 db.cron_runs · admin 可查
+    · 原本只 print + 失敗寄 email · 成功沒人知(漏跑找不出)
+    """
+    try:
+        from pymongo import MongoClient
+        client = MongoClient(MONGO_URI)
+        db = client.get_default_database()
+        db.cron_runs.insert_one({
+            "script": "daily-digest",
+            "status": "success",
+            "at": datetime.utcnow(),
+        })
+        # TTL 30 天自動清
+        try:
+            db.cron_runs.create_index(
+                [("at", 1)],
+                expireAfterSeconds=30 * 24 * 3600,
+                name="ttl_30d",
+            )
+        except Exception:
+            pass  # index 已存在 · 不擋
+    except Exception as e:
+        print(f"⚠ cron_runs 紀錄失敗(非致命): {e}")
+
+
 def main():
     print(f"[{datetime.now():%Y-%m-%d %H:%M}] 承富 AI 今日 digest 產生中...")
     client = MongoClient(MONGO_URI)
@@ -200,6 +226,8 @@ def main():
     print()
 
     send_digest_email(activity, priorities, advice)
+    # R14#14 · 成功後記 cron_runs · Admin 可看「昨天 digest 有跑?」
+    _record_cron_success()
 
 
 if __name__ == "__main__":

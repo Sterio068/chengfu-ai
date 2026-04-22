@@ -26,7 +26,7 @@ import pathlib
 from datetime import datetime, date, timedelta
 from typing import Optional, Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -230,16 +230,59 @@ def import_data(payload: ImportData, _admin: str = require_admin_dep()):
 # ============================================================
 # Audit log · ROADMAP §11.9
 # ============================================================
+@router.get("/admin/cron-runs")
+def list_cron_runs(
+    script: Optional[str] = None,
+    limit: int = Query(default=30, ge=1, le=200),
+    _admin: str = require_admin_dep(),
+):
+    """R14#14 · admin 看 cron 成功紀錄 · 「昨天 digest 有跑?」一眼看
+
+    產自 scripts/daily-digest.py 的 _record_cron_success()
+    TTL 30 天自動清
+    """
+    from main import db, serialize
+    q = {}
+    if script: q["script"] = script
+    cursor = db.cron_runs.find(q).sort("at", -1).limit(limit)
+    items = serialize(list(cursor))
+    return {"items": items, "count": len(items)}
+
+
 @router.get("/admin/audit-log")
-def audit_log(action: Optional[str] = None,
+def audit_log(
+    action: Optional[str] = None,
     user: Optional[str] = None,
-    limit: int = 100, _admin: str = require_admin_dep()):
-    """查 audit_log · 給 admin 維運期手動 curl 用"""
+    limit: int = Query(default=50, ge=1, le=500),  # R14#5 · 封頂 500
+    skip: int = Query(default=0, ge=0),
+    start_date: Optional[str] = None,  # YYYY-MM-DD
+    end_date: Optional[str] = None,
+    _admin: str = require_admin_dep(),
+):
+    """查 audit_log · admin 維運期
+    R14#5 · 加 pagination + date range filter · 防一年百萬條全撈
+    """
     from main import audit_col, serialize
     q = {}
     if action: q["action"] = action
     if user:   q["user"] = user
-    return serialize(list(audit_col.find(q).sort("created_at", -1).limit(limit)))
+    # date range · 用 ISO 字串比(created_at 是 datetime · 需轉)
+    if start_date or end_date:
+        q["created_at"] = {}
+        if start_date:
+            q["created_at"]["$gte"] = datetime.fromisoformat(f"{start_date}T00:00:00")
+        if end_date:
+            q["created_at"]["$lte"] = datetime.fromisoformat(f"{end_date}T23:59:59")
+    cursor = audit_col.find(q).sort("created_at", -1).skip(skip).limit(limit)
+    items = serialize(list(cursor))
+    total = audit_col.count_documents(q)
+    return {
+        "items": items,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": (skip + len(items)) < total,
+    }
 
 
 @router.post("/admin/audit-log")
