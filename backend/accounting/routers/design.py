@@ -26,24 +26,55 @@ logger = logging.getLogger("chengfu")
 
 
 FAL_QUEUE_URL = "https://queue.fal.run/fal-ai/recraft-v3"
-def _fal_key() -> str:
-    """前端 admin UI 可改 · 先試 Mongo system_settings(frontend-writable)· fallback env
+OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations"
+OPENAI_IMAGE_MODEL = "gpt-image-2"  # 2026-04-21 release · 取代 gpt-image-1
 
-    優先順序:
-    1. Mongo system_settings.{FAL_API_KEY}(admin 前端改 · 不用重啟)
-    2. os.getenv("FAL_API_KEY")(install 時 .env 寫死)
-    3. 空字串 → design router 回 503
-    """
+
+def _mongo_setting(name: str) -> Optional[str]:
+    """讀 Mongo system_settings · 避免每 fn 重複同樣 lazy import"""
     try:
         from main import db
-        doc = db.system_settings.find_one({"name": "FAL_API_KEY"})
+        doc = db.system_settings.find_one({"name": name})
         if doc and doc.get("value"):
             return doc["value"].strip()
     except Exception:
         pass
-    return os.getenv("FAL_API_KEY", "").strip()
+    return None
+
+
+def _fal_key() -> str:
+    """Fal.ai API Key · 先 Mongo · fallback env"""
+    v = _mongo_setting("FAL_API_KEY")
+    return v or os.getenv("FAL_API_KEY", "").strip()
+
+
+def _openai_key() -> str:
+    """OpenAI API Key(給 image generation 用 · 不影響 LibreChat STT)
+    先 Mongo · fallback env · admin UI 可改 · 跟 FAL 同 pattern"""
+    v = _mongo_setting("OPENAI_API_KEY")
+    return v or os.getenv("OPENAI_API_KEY", "").strip()
+
+
+def _image_provider() -> str:
+    """選哪個 provider · 'fal' (Recraft v3) 或 'openai' (gpt-image-2)
+    · Mongo `IMAGE_PROVIDER` · fallback env · 預設 fal(backwards-compat)"""
+    v = _mongo_setting("IMAGE_PROVIDER")
+    if v and v.lower() in ("fal", "openai"):
+        return v.lower()
+    env_v = os.getenv("IMAGE_PROVIDER", "fal").strip().lower()
+    return env_v if env_v in ("fal", "openai") else "fal"
+
+
 FAL_POLL_MAX_SECONDS = int(os.getenv("FAL_POLL_MAX_SECONDS", "12"))
 FAL_POLL_INTERVAL = float(os.getenv("FAL_POLL_INTERVAL", "1.0"))
+
+
+# OpenAI gpt-image-2 size map · 對應 Fal image_size option(UI 語意一致)
+_OPENAI_SIZE_MAP = {
+    "square_hd": "1024x1024",
+    "portrait_16_9": "1024x1792",  # portrait 大圖
+    "landscape_16_9": "1792x1024",  # landscape 大圖
+}
 
 
 class RecraftRequest(BaseModel):
@@ -80,6 +111,99 @@ def _log_design_job(req_id: str, email: Optional[str], req: RecraftRequest,
         logger.warning("[design] log fail: %s", e)
 
 
+async def _openai_generate(req: "RecraftRequest", email: str) -> dict:
+    """OpenAI gpt-image-2 · /v1/images/generations 同步回(不 queue)
+
+    OpenAI 端 n=3 一次 · 不需 polling · 5-30 秒內回
+    `b64_json` 格式 · 前端要轉 data URL(或 accounting 存本機 / S3)
+
+    回 contract 跟 Fal 一致:done / rejected / service_error
+    regenerate_of 把 prev prompt 連起(跟 Fal 同策略)
+    """
+    openai_key = _openai_key()
+    if not openai_key:
+        raise HTTPException(503, detail={
+            "friendly_message": "OpenAI 生圖未設定 · 請管理員在「使用教學 → API Key 管理」設 OPENAI_API_KEY",
+            "status": "unconfigured",
+        })
+
+    db = get_db()
+    full_prompt = req.prompt
+    if req.regenerate_of:
+        prev = db.design_jobs.find_one(
+            {"request_id": req.regenerate_of},
+            {"image_size": 1, "style": 1},
+        )
+        if prev:
+            full_prompt = (
+                f"{req.prompt}\n[Variation of previous concept · "
+                f"keep brand spirit but try a different composition]"
+            )
+
+    payload = {
+        "model": OPENAI_IMAGE_MODEL,
+        "prompt": full_prompt,
+        "n": 3,  # Q7 承富一次 3 張
+        "size": _OPENAI_SIZE_MAP.get(req.image_size, "1024x1024"),
+        "quality": "high",  # standard / high / auto · 承富選高品質
+        # response_format 在 gpt-image-2 預設 b64_json · 不用顯設
+    }
+    headers = {
+        "Authorization": f"Bearer {openai_key}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=90.0) as client:  # OpenAI 生圖較慢 · 給 90s
+        try:
+            r = await client.post(OPENAI_IMAGES_URL, headers=headers, json=payload)
+            if r.status_code == 401:
+                logger.error("[design] OPENAI_API_KEY 無效")
+                raise HTTPException(503, detail={
+                    "friendly_message": "OpenAI 金鑰失效 · 請管理員檢查",
+                    "status": "auth_error",
+                })
+            if r.status_code in (400, 422):
+                # moderation / input 錯 · 視同 Fal rejected
+                logger.info("[design] OpenAI 拒絕 · %s", r.text[:200])
+                _log_design_job("(openai_moderation)", email, req, "rejected")
+                return {"status": "rejected",
+                        "friendly_message": "描述太像真人、官方標誌或敏感文字 · 請改成抽象視覺描述"}
+            if r.status_code != 200:
+                _log_design_job("(openai_http)", email, req, f"http_{r.status_code}")
+                raise HTTPException(502, detail={
+                    "friendly_message": f"OpenAI 生圖失敗(HTTP {r.status_code})· 請稍後重試",
+                    "status": "service_error",
+                })
+            data = r.json()
+            images_raw = data.get("data", [])
+            # OpenAI 回 b64 · 轉成 data URL 給前端直接 <img src>
+            images = []
+            for img in images_raw:
+                if img.get("b64_json"):
+                    images.append({
+                        "url": f"data:image/png;base64,{img['b64_json']}",
+                        "b64": True,
+                    })
+                elif img.get("url"):
+                    images.append({"url": img["url"], "b64": False})
+            # OpenAI 無 request_id · 我們自產一個 placeholder(跟 Fal 欄位對齊)
+            req_id = f"openai-{data.get('created', int(datetime.utcnow().timestamp()))}"
+            _log_design_job(req_id, email, req, "done", n_images=len(images))
+            return {
+                "job_id": req_id,
+                "status": "done",
+                "images": images,
+                "provider": "openai",
+                "friendly_message": None,
+            }
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError):
+            _log_design_job("(openai_timeout)", email, req, "connect_timeout")
+            raise HTTPException(502, detail={
+                "friendly_message": "OpenAI 連線逾時 · 請稍後重試",
+                "status": "timeout",
+            })
+
+
 @router.post("/recraft")
 async def design_recraft(req: RecraftRequest, request: Request,
                          email: str = require_user_dep()):
@@ -87,7 +211,14 @@ async def design_recraft(req: RecraftRequest, request: Request,
     rate limit 由 main.py app 級別 limiter 套用(SlowAPIMiddleware)
     Codex R6#3 · 必須登入 · 防匿名爆 Fal 預算
     v1.2 §11.1 B-1.5 · 用 require_user_dep · email 由 dep 保證 non-None
+    v1.2 多 provider · IMAGE_PROVIDER=fal(Recraft v3)或 openai(gpt-image-2)
     """
+    # 選 provider · OpenAI 走同步 · Fal 走 queue polling
+    provider = _image_provider()
+    if provider == "openai":
+        return await _openai_generate(req, email)
+
+    # ---- Fal.ai Recraft v3(原路徑)----
     db = get_db()
 
     fal_key = _fal_key()
@@ -163,7 +294,7 @@ async def design_recraft(req: RecraftRequest, request: Request,
                     r = await client.get(result_url, headers=headers)
                     images = r.json().get("images", []) if r.status_code == 200 else []
                     _log_design_job(req_id, email, req, "done", n_images=len(images))
-                    return {"job_id": req_id, "status": "done", "images": images, "friendly_message": None}
+                    return {"job_id": req_id, "status": "done", "images": images, "provider": "fal", "friendly_message": None}
             except (httpx.TimeoutException, httpx.ConnectError):
                 pass
             await asyncio.sleep(FAL_POLL_INTERVAL)

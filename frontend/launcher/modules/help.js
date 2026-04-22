@@ -350,8 +350,32 @@ export const help = {
             </ol>
           </div>
 
+          <div class="help-secret-item help-secret-featured">
+            <h4>🎨 生圖 Provider(承富可選兩家 · 切換 IMAGE_PROVIDER)</h4>
+            <table class="help-provider-compare">
+              <thead><tr><th>Provider</th><th>模型</th><th>價格 / 3 張</th><th>速度</th><th>特色</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><b>Fal.ai</b><br><code>IMAGE_PROVIDER=fal</code></td>
+                  <td>Recraft v3</td>
+                  <td>約 NT$ 4</td>
+                  <td>12s 平均</td>
+                  <td>繁中文字佳 · 品牌視覺<br>Queue 模式 · 支援 pending</td>
+                </tr>
+                <tr>
+                  <td><b>OpenAI</b><br><code>IMAGE_PROVIDER=openai</code></td>
+                  <td>gpt-image-2<br>(2026-04-21)</td>
+                  <td>約 NT$ 20</td>
+                  <td>15-30s</td>
+                  <td>整體品質最高 · 複雜場景<br>同步回 · 無 pending</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>承富預設 <b>fal</b>(成本低 5 倍)· admin 可在上方 table 切到 <b>openai</b> 需要較高品質時用。</p>
+          </div>
+
           <div class="help-secret-item">
-            <h4>Fal.ai API Key(設計助手生圖 · 可前端改)</h4>
+            <h4>Fal.ai API Key(Recraft v3 · 可前端改)</h4>
             <ol>
               <li>去 <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a></li>
               <li>註冊 → Dashboard → API Keys → Add new key</li>
@@ -361,11 +385,13 @@ export const help = {
           </div>
 
           <div class="help-secret-item">
-            <h4>OpenAI API Key(STT 語音轉文字 · 選配)</h4>
+            <h4>OpenAI API Key(gpt-image-2 + STT · 可前端改)</h4>
             <ol>
               <li>去 <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a></li>
-              <li>Create secret key</li>
-              <li>Whisper STT ~ USD $0.006 / 分鐘</li>
+              <li>Create secret key · Tier 1 一般就夠</li>
+              <li>gpt-image-2(高品質)~ USD $0.21 / 張 · 3 張 ~ NT$ 20</li>
+              <li>Whisper STT ~ USD $0.006 / 分鐘(LibreChat 另讀 .env)</li>
+              <li>可在此 admin UI 直接設 · 不用重啟容器</li>
             </ol>
           </div>
 

@@ -375,6 +375,81 @@ def test_design_recraft_success_mocked(client, monkeypatch):
     assert body["status"] == "done"
     assert body["job_id"] == "req_fake_123"
     assert len(body["images"]) == 3  # Q2 · 老闆要 3 張
+    assert body.get("provider") == "fal"  # v1.2 多 provider · Fal 路徑
+
+
+def test_design_openai_provider_success(client, monkeypatch):
+    """v1.2 · IMAGE_PROVIDER=openai · gpt-image-2 同步路徑(不 queue)"""
+    import main as main_mod
+
+    class FakeResp:
+        def __init__(self, status_code, data):
+            self.status_code = status_code
+            self._data = data
+            self.text = str(data)
+        def json(self): return self._data
+
+    class FakeClient:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def post(self, url, **kw):
+            # OpenAI /v1/images/generations
+            assert "images/generations" in url
+            payload = kw.get("json", {})
+            assert payload.get("model") == "gpt-image-2"
+            assert payload.get("n") == 3
+            return FakeResp(200, {
+                "created": 1745400000,
+                "data": [
+                    {"b64_json": "iVBORw0KGgo="},
+                    {"b64_json": "iVBORw0KGgo="},
+                    {"b64_json": "iVBORw0KGgo="},
+                ],
+            })
+        async def get(self, *a, **kw): raise AssertionError("OpenAI 路徑不該 GET")
+
+    import routers.design as design_mod
+    # Mongo settings IMAGE_PROVIDER=openai · OPENAI_API_KEY=fake
+    main_mod.db.system_settings.delete_many({})
+    main_mod.db.system_settings.insert_many([
+        {"name": "IMAGE_PROVIDER", "value": "openai"},
+        {"name": "OPENAI_API_KEY", "value": "sk-fake-openai"},
+    ])
+    monkeypatch.setattr(design_mod.httpx, "AsyncClient", FakeClient)
+
+    r = client.post("/design/recraft",
+        json={"prompt": "中秋節品牌主視覺 橘黃調", "image_size": "square_hd"},
+        headers={"X-User-Email": "user@chengfu.local"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "done"
+    assert body.get("provider") == "openai"
+    assert len(body["images"]) == 3  # Q7 · 3 張
+    # OpenAI 回 b64 · design router 轉 data URL
+    assert body["images"][0]["url"].startswith("data:image/png;base64,")
+    assert body["images"][0]["b64"] is True
+
+    # 清 Mongo 不影響其他 test
+    main_mod.db.system_settings.delete_many({})
+
+
+def test_design_openai_no_key_503(client, monkeypatch):
+    """v1.2 · IMAGE_PROVIDER=openai 但 OPENAI_API_KEY 未設 → 503"""
+    import main as main_mod
+    main_mod.db.system_settings.delete_many({})
+    main_mod.db.system_settings.insert_one({"name": "IMAGE_PROVIDER", "value": "openai"})
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    r = client.post("/design/recraft",
+        json={"prompt": "test openai no key", "image_size": "square_hd"},
+        headers={"X-User-Email": "user@chengfu.local"},
+    )
+    assert r.status_code == 503
+    detail = r.json().get("detail", {})
+    assert "OPENAI_API_KEY" in detail.get("friendly_message", "") or "未設定" in detail.get("friendly_message", "")
+    main_mod.db.system_settings.delete_many({})
 
 
 # ============================================================

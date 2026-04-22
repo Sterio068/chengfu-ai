@@ -578,10 +578,10 @@ SECRETS_META = {
     },
     "OPENAI_API_KEY": {
         "label": "OpenAI API Key",
-        "desc": "STT 語音轉文字(選配)· 未來 embedding 用",
+        "desc": "設計助手生圖(gpt-image-2)+ STT 語音轉文字(選配)",
         "console_url": "https://platform.openai.com/api-keys",
-        "frontend_writable": False,
-        "source": ".env + macOS Keychain",
+        "frontend_writable": True,  # v1.2 加 · accounting design router 用 · 不影響 LibreChat .env STT
+        "source": "Mongo system_settings(可前端改)· STT 另走 .env",
         "required": False,
     },
     "FAL_API_KEY": {
@@ -590,6 +590,14 @@ SECRETS_META = {
         "console_url": "https://fal.ai/dashboard/keys",
         "frontend_writable": True,  # 存 Mongo · design router 讀取
         "source": "Mongo system_settings(可前端改)",
+        "required": False,
+    },
+    "IMAGE_PROVIDER": {
+        "label": "生圖 Provider",
+        "desc": "選 'fal'(Recraft v3 · NT$ 4 / 3 張)或 'openai'(gpt-image-2 · NT$ 20 / 3 張)",
+        "console_url": "",
+        "frontend_writable": True,  # admin 可切換
+        "source": "Mongo system_settings(可前端改)· 預設 fal",
         "required": False,
     },
     "EMAIL_USERNAME": {
