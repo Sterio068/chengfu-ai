@@ -158,6 +158,12 @@ async def lifespan(app: FastAPI):
         )
     except Exception as e:
         logger.warning("[ttl] meetings TTL: %s", e)
+    # Feature #5 · scheduled_posts index(cron 掃 queue 主 key)
+    try:
+        db.scheduled_posts.create_index([("status", 1), ("schedule_at", 1)])
+        db.scheduled_posts.create_index([("author", 1), ("created_at", -1)])
+    except Exception as e:
+        logger.warning("[index] scheduled_posts: %s", e)
     # Feature #6 · media_contacts email unique(R21#4 · partial 排除空字串)
     try:
         db.media_contacts.create_index(
@@ -750,6 +756,12 @@ app.include_router(_crm_router.router)
 # ============================================================
 from routers import media as _media_router
 app.include_router(_media_router.router)
+
+# ============================================================
+# Social scheduler · v1.2 Feature #5 · FB/IG/LinkedIn 貼文排程
+# ============================================================
+from routers import social as _social_router
+app.include_router(_social_router.router)
 
 # ============================================================
 # G · 多來源知識庫 · ROADMAP §11.1 B-6 已抽到 routers/knowledge.py
