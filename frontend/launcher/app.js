@@ -41,6 +41,8 @@ import { accounting } from "./modules/accounting.js";
 import { admin } from "./modules/admin.js";
 import { knowledge } from "./modules/knowledge.js";
 import { design } from "./modules/design.js";
+// ROADMAP §11.2 · single source of truth · 取代 cross-module currentProject 散處
+import { projectStore, KEYS as STATE_KEYS } from "./modules/state/project-store.js";
 import { tenders } from "./modules/tenders.js";
 import { workflows } from "./modules/workflows.js";
 import { crm } from "./modules/crm.js";
@@ -608,6 +610,9 @@ export const app = {
     const p = Projects.get(id);
     if (!p) return;
     this.drawerProjectId = id;
+    // ROADMAP §11.2 · 寫進 store · 其他 module 訂閱即時感知
+    // chat / crm / knowledge 之後可 projectStore.subscribe(KEYS.CURRENT_PROJECT, ...)
+    projectStore.set(STATE_KEYS.CURRENT_PROJECT, p);
 
     // Round 9 bug fix · 若之前被知識庫模式隱藏 · 這裡復原
     const drawer = document.getElementById("project-drawer");
@@ -701,6 +706,8 @@ export const app = {
     drawer?.classList.remove("open");
     drawer?.setAttribute("aria-hidden", "true");
     this.drawerProjectId = null;
+    // ROADMAP §11.2 · 清 store · 訂閱者收 null 即可清 UI
+    projectStore.set(STATE_KEYS.CURRENT_PROJECT, null);
   },
 
   editProjectFromDrawer() {
