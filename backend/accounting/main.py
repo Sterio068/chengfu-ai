@@ -158,6 +158,13 @@ async def lifespan(app: FastAPI):
         )
     except Exception as e:
         logger.warning("[ttl] meetings TTL: %s", e)
+    # Feature #6 · media_contacts unique email index
+    try:
+        db.media_contacts.create_index([("email", 1)], unique=True, sparse=True)
+        db.media_contacts.create_index([("outlet", 1), ("beats", 1)])
+        db.media_pitch_history.create_index([("contact_id", 1), ("pitched_at", -1)])
+    except Exception as e:
+        logger.warning("[index] media_contacts: %s", e)
     # design_jobs 同樣加 TTL · 圖檔留 Fal CDN · log 純查詢 ROI 用 · 留 180 天
     try:
         db.design_jobs.create_index(
@@ -733,6 +740,12 @@ app.include_router(_users_router.router)
 # ============================================================
 from routers import crm as _crm_router
 app.include_router(_crm_router.router)
+
+# ============================================================
+# Media CRM · v1.2 Feature #6 · 記者資料庫 + 推薦(routers/media.py)
+# ============================================================
+from routers import media as _media_router
+app.include_router(_media_router.router)
 
 # ============================================================
 # G · 多來源知識庫 · ROADMAP §11.1 B-6 已抽到 routers/knowledge.py
