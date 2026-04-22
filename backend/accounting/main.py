@@ -808,55 +808,10 @@ def get_handoff(project_id: str):
 
 
 # ============================================================
-# C · 回饋(👍👎 集中收集)
+# C · 回饋(👍👎)· ROADMAP §11.1 已抽到 routers/feedback.py
 # ============================================================
-class Feedback(BaseModel):
-    message_id: str
-    conversation_id: Optional[str] = None
-    agent_name: Optional[str] = None
-    verdict: Literal["up", "down"]
-    note: Optional[str] = None
-    user_email: Optional[str] = None
-
-
-@app.post("/feedback")
-def create_feedback(fb: Feedback):
-    data = fb.model_dump()
-    data["created_at"] = datetime.utcnow()
-    feedback_col.update_one(
-        {"message_id": fb.message_id, "user_email": fb.user_email},
-        {"$set": data},
-        upsert=True,
-    )
-    return {"ok": True}
-
-
-@app.get("/feedback")
-def list_feedback(verdict: Optional[str] = None, agent: Optional[str] = None, limit: int = 100):
-    q = {}
-    if verdict: q["verdict"] = verdict
-    if agent:   q["agent_name"] = {"$regex": agent, "$options": "i"}
-    return serialize(list(feedback_col.find(q).sort("created_at", -1).limit(limit)))
-
-
-@app.get("/feedback/stats")
-def feedback_stats():
-    """👍 / 👎 比率 by agent。"""
-    pipeline = [
-        {"$group": {
-            "_id": "$agent_name",
-            "up":    {"$sum": {"$cond": [{"$eq": ["$verdict", "up"]}, 1, 0]}},
-            "down":  {"$sum": {"$cond": [{"$eq": ["$verdict", "down"]}, 1, 0]}},
-            "total": {"$sum": 1},
-        }},
-    ]
-    stats = list(feedback_col.aggregate(pipeline))
-    return [
-        {"agent": s["_id"] or "unknown",
-         "up": s["up"], "down": s["down"], "total": s["total"],
-         "score": round(s["up"] / s["total"] * 100, 1) if s["total"] > 0 else 0}
-        for s in stats
-    ]
+from routers import feedback as _feedback_router
+app.include_router(_feedback_router.router)
 
 
 # ============================================================
@@ -876,8 +831,9 @@ def admin_dashboard(_admin: str = Depends(require_admin)):
     active_projects = projects_col.count_documents({"status": "active"})
     total_projects = projects_col.count_documents({})
 
-    # 回饋
-    fb_stats = feedback_stats()
+    # 回饋(ROADMAP §11.1 · feedback router 抽出後改 import)
+    from routers.feedback import feedback_stats as _feedback_stats
+    fb_stats = _feedback_stats()
     total_feedback = feedback_col.count_documents({})
     up_count = feedback_col.count_documents({"verdict": "up"})
 
@@ -1226,7 +1182,7 @@ def monthly_report(month: Optional[str] = None, _admin: str = Depends(require_ad
             "top_complaints": sorted(complaint_keywords.items(), key=lambda x: -x[1])[:5],
             "top_praises": sorted(praise_keywords.items(), key=lambda x: -x[1])[:5],
         },
-        "agents": feedback_stats(),
+        "agents": (lambda: __import__("routers.feedback", fromlist=["feedback_stats"]).feedback_stats())(),
         "action_items": _generate_action_items(month_fb),
     }
 
