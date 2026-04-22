@@ -42,6 +42,7 @@ import { admin } from "./modules/admin.js";
 import { knowledge } from "./modules/knowledge.js";
 import { design } from "./modules/design.js";
 import { help } from "./modules/help.js";
+import { meeting } from "./modules/meeting.js";
 // ROADMAP §11.2 · single source of truth · 取代 cross-module currentProject 散處
 import { projectStore, KEYS as STATE_KEYS } from "./modules/state/project-store.js";
 import { tenders } from "./modules/tenders.js";
@@ -518,6 +519,11 @@ export const app = {
     // Round 9 A · /design → 生圖 modal(有 polling 閉環)
     if (cmd === "/design" || cmd === "/image" || cmd === "/生圖") {
       design.openPromptModal();
+      return;
+    }
+    // Feature #1 · /meet → 會議速記上傳
+    if (cmd === "/meet" || cmd === "/meeting" || cmd === "/會議") {
+      meeting.openUpload();
       return;
     }
     chat.open("00", cmd + " ");

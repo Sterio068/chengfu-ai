@@ -17,6 +17,7 @@ python-pptx==1.0.2        # .pptx
 openpyxl==3.1.5           # .xlsx / .xls
 Pillow==11.0.0            # 圖片 EXIF + 尺寸
 meilisearch==0.33.0       # 全文搜尋 client
+openai==1.55.3            # Feature #1 · Whisper STT(會議速記) + gpt-image-2 SDK(選配 · 目前 design 直接 httpx)
 
 # 測試(選配)
 pytest==8.3.3
