@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY orchestrator.py .
 COPY services/ ./services/
+COPY routers/ ./routers/
 
 # 健康檢查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \

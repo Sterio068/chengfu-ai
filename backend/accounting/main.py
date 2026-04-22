@@ -1575,48 +1575,10 @@ def design_history(request: Request, limit: int = 20):
 
 
 # ============================================================
-# E · 安全 · Level 03 內容分級檢查
+# E · 安全 · Level 03 內容分級檢查 · ROADMAP §11.1 已抽到 routers/safety.py
 # ============================================================
-LEVEL_3_PATTERNS = [
-    # 選情 / 政治
-    r"選情", r"民調", r"政黨內部", r"候選人(策略|規劃)",
-    # 未公告標案
-    r"未公告.{0,10}標", r"內定.{0,5}廠商", r"評審.{0,5}名單",
-    # 個資(強 pattern)
-    r"\b[A-Z]\d{9}\b",  # 身份證
-    r"\b\d{10}\b",      # 手機號
-    r"\b\d{3}-\d{3}-\d{3}\b",
-    # 客戶機敏
-    r"客戶.{0,5}(帳戶|密碼|財務狀況)",
-    # 競爭對手情報
-    r"(對手|競品).{0,5}(內部|機密|計畫)",
-]
-
-
-class ContentCheck(BaseModel):
-    text: str
-
-
-@app.post("/safety/classify")
-@_limiter.limit("60/minute")  # Audit sec F-1 · 防大字串 DoS
-def classify_level(payload: ContentCheck, request: Request):
-    """Level 03 keyword classifier · 在 Agent 處理前預掃。"""
-    import re
-    hits = []
-    for pattern in LEVEL_3_PATTERNS:
-        matches = re.findall(pattern, payload.text)
-        if matches:
-            hits.extend(matches if isinstance(matches[0], str) else [str(m) for m in matches])
-    level = "03" if hits else ("02" if len(payload.text) > 500 else "01")
-    return {
-        "level": level,
-        "triggers": hits[:10],  # 最多回 10 個命中
-        "recommendation": {
-            "01": "可直接處理",
-            "02": "建議去識別化(客戶名/金額)後處理",
-            "03": "❌ 禁止送 AI,請改人工處理或待階段二本地模型",
-        }[level],
-    }
+from routers import safety as _safety_router
+app.include_router(_safety_router.router)
 
 
 # ============================================================
