@@ -1,0 +1,4 @@
+# build.sh 產出 · 不進 repo
+dist/
+*.app/
+*.dmg
