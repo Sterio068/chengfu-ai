@@ -965,12 +965,15 @@ def import_data(payload: ImportData, _admin: str = Depends(require_admin)):
 
 
 # ============================================================
-# Audit log(重要操作紀錄 · admin 可查)
+# Audit log · ROADMAP §11.9 · 目前無前端 caller
+# 用途:Day 0 / 維運期 Sterio curl 直接查 · v1.2 接 admin UI 後會生量
+# 不刪因為 D-009 Level 4 Learning 雛形會用
 # ============================================================
 @app.get("/admin/audit-log")
 def audit_log(action: Optional[str] = None,
     user: Optional[str] = None,
     limit: int = 100, _admin: str = Depends(require_admin)):
+    """查 audit_log · 給 admin 維運期手動 curl 用(無前端 UI · v1.2 補)"""
     q = {}
     if action: q["action"] = action
     if user:   q["user"] = user
@@ -979,6 +982,7 @@ def audit_log(action: Optional[str] = None,
 
 @app.post("/admin/audit-log")
 def log_action(action: str, user: str, resource: Optional[str] = None, details: Optional[dict] = None, _admin: str = Depends(require_admin)):
+    """寫 audit · 給未來 Agent / orchestrator 寫敏感操作(目前 0 caller)"""
     audit_col.insert_one({
         "action": action,
         "user": user,
@@ -2022,6 +2026,7 @@ def create_source(src: KnowledgeSource, admin_email: str = Depends(require_admin
     })
     r = knowledge_sources_col.insert_one(doc)
     sid = str(r.inserted_id)
+    _invalidate_sources_cache()  # ROADMAP §11.5
     logger.info("[knowledge] source created: %s (%s) by %s", sid, abs_path, admin_email)
     return {
         "id": sid,
@@ -2047,6 +2052,7 @@ def update_source(
     r = knowledge_sources_col.update_one({"_id": _id}, {"$set": updates})
     if r.matched_count == 0:
         raise HTTPException(404, "資料源不存在")
+    _invalidate_sources_cache()  # ROADMAP §11.5
     return {"ok": True, "updated": r.modified_count}
 
 
@@ -2060,6 +2066,7 @@ def delete_source(source_id: str, _admin: str = Depends(require_admin)):
     doc = knowledge_sources_col.find_one_and_delete({"_id": _id})
     if not doc:
         raise HTTPException(404, "資料源不存在")
+    _invalidate_sources_cache()  # ROADMAP §11.5
     # 從 Meili 清這個 source 的所有文件
     meili = _get_meili_client()
     cleanup = knowledge_indexer.delete_source_from_index(source_id, meili) \
@@ -2381,6 +2388,39 @@ def knowledge_read(
     }
 
 
+_AGENT_FORBIDDEN_CACHE: dict = {"data": {}, "ts": 0.0}
+_AGENT_FORBIDDEN_TTL = 300.0  # 5 分鐘
+
+
+def _agent_forbidden_sources(agent_num: Optional[str]) -> set:
+    """ROADMAP §11.5 · TTL cache · 算「此 agent 無法讀的 source_id 集合」
+    agent_access 不常變(admin 才能改)· 5 分鐘內 cache 內查"""
+    import time
+    now = time.time()
+    cache = _AGENT_FORBIDDEN_CACHE
+    if (now - cache["ts"]) > _AGENT_FORBIDDEN_TTL:
+        # rebuild · 結構為 {agent_num_or_None: set(forbidden_source_ids)}
+        cache["data"] = {}
+        cache["ts"] = now
+    key = agent_num or "__none__"
+    if key not in cache["data"]:
+        forbidden = set()
+        for src in knowledge_sources_col.find(
+            {"enabled": True, "agent_access": {"$exists": True, "$ne": []}},
+            {"_id": 1, "agent_access": 1},
+        ):
+            if not agent_num or agent_num not in src["agent_access"]:
+                forbidden.add(str(src["_id"]))
+        cache["data"][key] = forbidden
+    return cache["data"][key]
+
+
+def _invalidate_sources_cache():
+    """source CRUD 後呼叫 · 強制下次 search 重算"""
+    _AGENT_FORBIDDEN_CACHE["ts"] = 0.0
+    _AGENT_FORBIDDEN_CACHE["data"] = {}
+
+
 @app.get("/knowledge/search")
 def knowledge_search(
     q: str = Query(min_length=2),
@@ -2404,17 +2444,10 @@ def knowledge_search(
     result = knowledge_indexer.search(meili, q, source_id=source_id, project=project, limit=limit)
 
     # Q3 + Codex R3.3 · 過濾 hit · 無 agent_num 時也要擋 agent_access 限定的 source
+    # ROADMAP §11.5 · 5min TTL cache · 避免每次 search 都掃 sources collection
     agent_num = request.headers.get("X-Agent-Num") if request else None
     if isinstance(result, dict) and result.get("hits"):
-        # 找出此 agent 不能讀的 source_id 黑名單
-        forbidden_ids = set()
-        for src in knowledge_sources_col.find(
-            {"enabled": True, "agent_access": {"$exists": True, "$ne": []}},
-            {"_id": 1, "agent_access": 1},
-        ):
-            # 若未帶 agent_num 或不在白名單 · 都擋(Codex R3.3 新:無 header 預設嚴格)
-            if not agent_num or agent_num not in src["agent_access"]:
-                forbidden_ids.add(str(src["_id"]))
+        forbidden_ids = _agent_forbidden_sources(agent_num)
         if forbidden_ids:
             original = len(result["hits"])
             result["hits"] = [h for h in result["hits"]
