@@ -16,9 +16,28 @@ import { modal } from "./modal.js";
 
 const BASE = "/api-accounting";
 
+// v1.3 · user-guide 完整列表(對應 frontend/launcher/user-guide/*.md)
+const USER_GUIDE_DOCS = [
+  { slug: "quickstart-v1.3",      icon: "🚀", title: "v1.3 快速開始(5 分鐘)" },
+  { slug: "training-v1.3",        icon: "🎓", title: "v1.3 教育訓練(15 分鐘)" },
+  { slug: "error-codes",          icon: "🚨", title: "錯誤訊息對照表" },
+  { slug: "troubleshooting-v1.3", icon: "🔧", title: "v1.3 故障排除" },
+  { slug: "mobile-ios",           icon: "📱", title: "iPhone 完整設定指南" },
+  { slug: "slash-commands",       icon: "⌨️", title: "Slash 命令 + 快捷鍵" },
+  { slug: "handoff-card",         icon: "📋", title: "Handoff 4 格卡 SOP" },
+  { slug: "knowledge-search",     icon: "📚", title: "知識庫搜尋 5 範例" },
+  { slug: "dashboard-metrics",    icon: "📊", title: "Dashboard 指標解讀" },
+  { slug: "audio-note-sop",       icon: "🎙", title: "場勘 audio_note SOP" },
+  { slug: "social-oauth-fallback",icon: "🔌", title: "社群 OAuth 降級方案" },
+  { slug: "admin-permissions",    icon: "🔐", title: "Admin 權限對照表" },
+  { slug: "frontend-endpoints",   icon: "🔌", title: "前端 ↔ 後端 endpoint 對照" },
+];
+
+
 export const help = {
   _isAdmin: false,
   _secrets: [],
+  _markdownCache: {},  // slug → rendered HTML
 
   async init(isAdmin) {
     this._isAdmin = isAdmin;
@@ -40,6 +59,13 @@ export const help = {
           <a href="#help-agents" class="help-nav-item" data-section="agents">🤖 10 個助手</a>
           <a href="#help-shortcuts" class="help-nav-item" data-section="shortcuts">⌨️ 快捷鍵</a>
           <a href="#help-classification" class="help-nav-item" data-section="classification">🔒 資料分級</a>
+
+          <div class="help-nav-section">📖 完整使用手冊(v1.3)</div>
+          ${USER_GUIDE_DOCS.map(d => `
+            <a href="#help-doc-${d.slug}" class="help-nav-item" data-doc="${d.slug}">${d.icon} ${d.title}</a>
+          `).join("")}
+
+          <div class="help-nav-section">🔐 管理</div>
           <a href="#help-secrets" class="help-nav-item" data-section="secrets">🔐 API Key 管理</a>
         </aside>
 
@@ -50,6 +76,11 @@ export const help = {
           ${this._renderAgents()}
           ${this._renderShortcuts()}
           ${this._renderClassification()}
+          ${USER_GUIDE_DOCS.map(d => `
+            <section id="help-doc-${d.slug}" class="help-section help-doc-section" data-doc-slug="${d.slug}">
+              <div class="help-doc-loading">點 sidebar 「${d.icon} ${d.title}」載入</div>
+            </section>
+          `).join("")}
           ${this._renderSecrets()}
         </div>
       </div>
@@ -59,15 +90,46 @@ export const help = {
 
   _bindNav() {
     document.querySelectorAll(".help-nav-item").forEach(el => {
-      el.addEventListener("click", e => {
+      el.addEventListener("click", async e => {
         e.preventDefault();
-        const section = el.dataset.section;
         document.querySelectorAll(".help-nav-item").forEach(x => x.classList.remove("active"));
         el.classList.add("active");
+
+        // user-guide doc · fetch + render
+        const docSlug = el.dataset.doc;
+        if (docSlug) {
+          await this._loadDoc(docSlug);
+          const target = document.getElementById(`help-doc-${docSlug}`);
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+        // 內嵌 section · scroll
+        const section = el.dataset.section;
         const target = document.getElementById(`help-${section}`);
         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
+  },
+
+  async _loadDoc(slug) {
+    const target = document.getElementById(`help-doc-${slug}`);
+    if (!target) return;
+    if (this._markdownCache[slug]) {
+      target.innerHTML = this._markdownCache[slug];
+      return;
+    }
+    target.innerHTML = `<div class="help-doc-loading">⏳ 載入中...</div>`;
+    try {
+      const r = await fetch(`/static/user-guide/${slug}.md`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const md = await r.text();
+      const { marked } = await import("./vendor-marked.js");
+      const html = marked.parse(md);
+      this._markdownCache[slug] = html;
+      target.innerHTML = `<div class="help-doc-rendered">${html}</div>`;
+    } catch (e) {
+      target.innerHTML = `<div class="help-doc-error">❌ 載入失敗:${e.message}<br>檔案 frontend/launcher/user-guide/${slug}.md 是否存在?</div>`;
+    }
   },
 
   // ============================================================

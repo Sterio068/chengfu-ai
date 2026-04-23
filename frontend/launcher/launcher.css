@@ -3134,3 +3134,155 @@ button:focus-visible,
 
 /* Modal2 form select default */
 .modal2-form select { padding:8px; border:1px solid var(--border); border-radius:var(--r-md); width:100%; font-size:14px; }
+
+/* v1.3 user-guide · help.js sidebar 加 user-guide doc list */
+.help-nav-section {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 16px 12px 6px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.help-nav-section:first-of-type {
+  border-top: none;
+  margin-top: 0;
+}
+
+.help-doc-section {
+  padding: 24px;
+  background: var(--surface-1);
+  border-radius: var(--r-md);
+  margin-bottom: 24px;
+}
+
+.help-doc-loading,
+.help-doc-error {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.help-doc-error { color: var(--red); }
+
+.help-doc-rendered {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.help-doc-rendered h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+
+.help-doc-rendered h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 32px 0 12px;
+  color: var(--text-primary);
+}
+
+.help-doc-rendered h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 24px 0 8px;
+  color: var(--text-primary);
+}
+
+.help-doc-rendered h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+
+.help-doc-rendered p { margin: 0 0 12px; }
+
+.help-doc-rendered ul,
+.help-doc-rendered ol {
+  margin: 0 0 16px;
+  padding-left: 24px;
+}
+
+.help-doc-rendered li { margin-bottom: 4px; }
+
+.help-doc-rendered code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SF Mono, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.help-doc-rendered pre {
+  background: var(--surface-2);
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+}
+
+.help-doc-rendered pre code {
+  background: none;
+  padding: 0;
+}
+
+.help-doc-rendered table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.help-doc-rendered table th,
+.help-doc-rendered table td {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.help-doc-rendered table th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.help-doc-rendered blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0 0 16px;
+  padding: 4px 16px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+
+.help-doc-rendered a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.help-doc-rendered a:hover { text-decoration: underline; }
+
+.help-doc-rendered hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+.help-doc-rendered kbd {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  box-shadow: 0 1px 0 var(--border);
+}
+
