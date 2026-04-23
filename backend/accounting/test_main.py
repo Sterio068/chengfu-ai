@@ -1447,3 +1447,119 @@ def test_audit_log_default_days_window(client):
     actions2 = {i["action"] for i in r2.json()["items"]}
     assert "audit_old_only" in actions2, "明確 start_date 應覆寫 default 窗口"
     assert r2.json()["days_window"] is None  # 不顯示 default
+
+
+# ============================================================
+# B5(v1.3)· LibreChat conversation + PDPA 整合
+# ============================================================
+def test_pdpa_librechat_user_not_found(client):
+    """include_librechat=true 但 LibreChat users 沒此 email · status user_not_found"""
+    target = "never-logged-in@chengfu.local"
+    r = client.post(
+        f"/admin/users/{target}/delete-all",
+        json={"confirm_email": target, "dry_run": True, "include_librechat": True},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["librechat"] is not None
+    assert body["librechat"]["status"] == "user_not_found"
+
+
+def test_pdpa_librechat_dry_run_counts(client):
+    """include_librechat=true dry_run · 列各 collection 的 doc 數 · 不真刪"""
+    import main as main_mod
+    from bson import ObjectId
+    target = "alice-lc@chengfu.local"
+    # seed LibreChat user + 對話 + 訊息
+    uid = main_mod.db.users.insert_one({
+        "email": target, "name": "Alice", "role": "USER",
+    }).inserted_id
+    main_mod.db.conversations.insert_one({"user": uid, "title": "test"})
+    main_mod.db.conversations.insert_one({"user": uid, "title": "test2"})
+    main_mod.db.messages.insert_one({"user": uid, "text": "hi"})
+
+    r = client.post(
+        f"/admin/users/{target}/delete-all",
+        json={"confirm_email": target, "dry_run": True, "include_librechat": True},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    lc = r.json()["librechat"]
+    assert lc["status"] == "dry_run"
+    assert lc["counts"]["conversations"] == 2
+    assert lc["counts"]["messages"] == 1
+    # dry_run · 資料應仍在
+    assert main_mod.db.conversations.count_documents({"user": uid}) == 2
+
+
+def test_pdpa_librechat_real_delete_archives_first(client, tmp_path, monkeypatch):
+    """include_librechat=true real · archive 寫到 tmp · 然後刪光"""
+    import main as main_mod
+    from datetime import datetime, timezone
+    target = "bob-lc@chengfu.local"
+    uid = main_mod.db.users.insert_one({"email": target, "name": "Bob", "role": "USER"}).inserted_id
+    main_mod.db.conversations.insert_one({"user": uid, "title": "t1"})
+    main_mod.db.messages.insert_one({"user": uid, "text": "x"})
+    main_mod.db.files.insert_one({"user": uid, "filename": "a.pdf"})
+
+    # patch archive_dir 到 tmp_path · 不污染 ~/chengfu-backups
+    from services import librechat_admin
+    orig_archive = librechat_admin.archive_librechat_data
+    def patched(db, user_id, email, archive_dir=None):
+        return orig_archive(db, user_id, email, archive_dir=str(tmp_path))
+    monkeypatch.setattr(librechat_admin, "archive_librechat_data", patched)
+
+    r = client.post(
+        f"/admin/users/{target}/delete-all",
+        json={"confirm_email": target, "dry_run": False, "include_librechat": True},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200, r.text
+    lc = r.json()["librechat"]
+    assert lc["status"] == "deleted"
+    assert lc["counts"]["conversations"] == 1
+    assert lc["counts"]["messages"] == 1
+    assert lc["counts"]["files"] == 1
+    assert lc["counts"]["users"] == 1  # user 本人也刪
+    # 真刪
+    assert main_mod.db.conversations.count_documents({"user": uid}) == 0
+    assert main_mod.db.messages.count_documents({"user": uid}) == 0
+    assert main_mod.db.users.count_documents({"_id": uid}) == 0
+    # archive 檔存在
+    archive_path = lc["archived_at"]
+    assert archive_path
+    import os
+    assert os.path.exists(archive_path), f"archive 必生成 {archive_path}"
+
+
+def test_pdpa_librechat_default_skipped_when_flag_off(client):
+    """include_librechat=false(default)· LibreChat 不動 · 提示 librechat_warning"""
+    import main as main_mod
+    target = "cathy-lc@chengfu.local"
+    uid = main_mod.db.users.insert_one({"email": target, "name": "Cathy"}).inserted_id
+    main_mod.db.conversations.insert_one({"user": uid, "title": "stay"})
+
+    r = client.post(
+        f"/admin/users/{target}/delete-all",
+        json={"confirm_email": target, "dry_run": False, "include_librechat": False},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["librechat"] is None  # 不 touch
+    assert body["librechat_warning"] is not None
+    assert "include_librechat=true" in body["librechat_warning"]
+    # LibreChat 對話應仍在
+    assert main_mod.db.conversations.count_documents({"user": uid}) == 1
+
+
+def test_librechat_user_id_case_insensitive(client):
+    """find_librechat_user_id · 'Bob@X.com' 應找到 'bob@x.com' user"""
+    import main as main_mod
+    from services import librechat_admin
+    main_mod.db.users.insert_one({"email": "Mixed@Case.Com", "name": "Mix"})
+    uid = librechat_admin.find_librechat_user_id(main_mod.db, "mixed@case.com")
+    assert uid is not None
+    uid2 = librechat_admin.find_librechat_user_id(main_mod.db, "MIXED@CASE.COM")
+    assert uid2 == uid
