@@ -58,3 +58,4 @@ dist/
 build/
 .cache/
 .claude/
+installer-run.command
