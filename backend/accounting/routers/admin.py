@@ -851,6 +851,7 @@ def update_secret(name: str, payload: SecretUpdate, _admin: str = require_admin_
 class PdpaDeleteRequest(BaseModel):
     confirm_email: str  # admin 必須 type 一次完整 email · 防 mis-click
     dry_run: bool = True  # 預設 dry_run · 真刪要 explicit false
+    include_librechat: bool = False  # B5(v1.3)· 同步刪 LibreChat 對話 · 預設關 · 顯式打開
 
 
 @router.post("/admin/users/{user_email}/delete-all")
@@ -987,12 +988,50 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
                 modified += 1
             counts["crm_leads_notes_by_unset"] = modified
 
+    # B5(v1.3)· LibreChat 跨 collection 整合
+    librechat_result = None
+    librechat_archive_path = None
+    if payload.include_librechat:
+        from services import librechat_admin
+        lc_user_id = librechat_admin.find_librechat_user_id(db, target)
+        if lc_user_id is None:
+            librechat_result = {"status": "user_not_found",
+                                "note": f"{target} 在 LibreChat 沒登入過 · 跳過"}
+        elif payload.dry_run:
+            librechat_result = {
+                "status": "dry_run",
+                "user_id": str(lc_user_id),
+                "counts": librechat_admin.count_librechat_data(db, lc_user_id),
+            }
+        else:
+            # 真刪 · 必先 archive(法務保留期內可還)· archive 失敗禁止刪
+            try:
+                librechat_archive_path = librechat_admin.archive_librechat_data(
+                    db, lc_user_id, target,
+                )
+                lc_counts = librechat_admin.delete_librechat_data(db, lc_user_id)
+                librechat_result = {
+                    "status": "deleted",
+                    "user_id": str(lc_user_id),
+                    "archived_at": librechat_archive_path,
+                    "counts": lc_counts,
+                }
+            except Exception as e:
+                librechat_result = {
+                    "status": "archive_failed",
+                    "error": str(e)[:200],
+                    "note": "archive 失敗 · 不執行刪除 · accounting DB 已清",
+                }
+
     # 寫 audit · 不論 dry_run 都記
     audit_col.insert_one({
         "action": "pdpa_delete" if not payload.dry_run else "pdpa_delete_dryrun",
         "user": _admin,
         "resource": target,
-        "details": counts,
+        "details": {
+            "accounting": counts,
+            "librechat": librechat_result,
+        },
         "created_at": datetime.now(timezone.utc),
     })
 
@@ -1003,10 +1042,12 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
         "total": sum(counts.values()),
         "note": ("dry_run · 沒真刪 · 確認後 dry_run=false 重打"
                  if payload.dry_run else "已刪 · 不可恢復 · audit 已紀錄"),
-        # R30 補 · 提醒 LibreChat 對話資料是另一個 DB · 此 endpoint 不碰
+        # B5(v1.3)· 若 include_librechat=True 回 LibreChat 結果
+        "librechat": librechat_result,
+        # R30 + B5 · 提醒
         "librechat_warning": (
-            "此操作不刪 LibreChat 對話紀錄(MongoDB librechat DB)· "
-            "如需清對話 · 走 docs/05-SECURITY.md §人員異動 流程 · "
-            "或 mongo shell:db.conversations.deleteMany({user:'<user_id>'})"
+            "未帶 include_librechat=true · LibreChat 對話未刪 · "
+            "如需清 · POST {confirm_email, dry_run, include_librechat: true}"
+            if not payload.include_librechat else None
         ),
     }
