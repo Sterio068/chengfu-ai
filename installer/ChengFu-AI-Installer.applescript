@@ -14,10 +14,12 @@ on run
 		"執行時間:30-45 分鐘(視網路)" & return & return & ¬
 		"v1.2 4 功能:" & return & ¬
 		"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘 PWA" & return & ¬
-		"v1.3 強化(6 PR · 2026-04-23):" & return & ¬
-		"  📤 媒體 CRM CSV 匯出 · 🎙 場勘音檔 Whisper STT" & return & ¬
-		"  ☁ B2 異機備份 · 🔍 audit-log 過濾 · 🔐 knowledge hash" & return & ¬
-		"  🧪 真 Mongo 整合 test 套件 · 183 tests 全綠" & return & return & ¬
+		"v1.3 強化(13 PR · 2026-04-23):" & return & ¬
+		"  📤 媒體 CSV 匯出 · 🎙 場勘音檔 STT · ☁ B2 異機備份 · 🔍 audit 過濾" & return & ¬
+		"  🔐 knowledge hash · 🧪 真 Mongo test · 💰 Whisper 月成本" & return & ¬
+		"  🗑 LibreChat PDPA 整合 · 🔌 social OAuth 框架" & return & ¬
+		"  📦 admin/dashboard 拆檔 · ⚡ esbuild bundler · 🎨 theme module" & return & ¬
+		"  201 tests + 10 integration · 12/13 ship · B1 真 Meta 留 v1.4" & return & return & ¬
 		"請預先準備:" & return & ¬
 		"  • Anthropic API Key(必須 · Tier 2 預存 USD $50)" & return & ¬
 		"  • OpenAI API Key(會議速記 Whisper 用 · 必須)" & return & ¬
