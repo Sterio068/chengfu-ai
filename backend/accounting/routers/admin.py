@@ -271,11 +271,13 @@ def audit_log(
     skip: int = Query(default=0, ge=0),
     start_date: Optional[str] = None,  # YYYY-MM-DD
     end_date: Optional[str] = None,
+    days: int = Query(default=90, ge=1, le=365),  # R36 · 預設窗 90 天 · 防 admin 全表探勘
     _admin: str = require_admin_dep(),
 ):
     """查 audit_log · admin 維運期
     R14#5 · 加 pagination + date range filter · 防一年百萬條全撈
     C2(v1.3)· action 支援 multi-action 過濾(用 ',' 分隔 · pdpa_delete,pdpa_delete_dryrun)
+    R36(v1.3)· days 預設 90 · 明確 start/end_date 才覆寫 default 窗口
     """
     from main import audit_col, serialize
     q = {}
@@ -287,13 +289,18 @@ def audit_log(
         elif actions:
             q["action"] = {"$in": actions}
     if user:   q["user"] = user
-    # date range · R18 · 容忍 YYYY-MM-DD 或完整 ISO datetime
+    # R36 · date 處理優先順序:
+    #   - start_date/end_date 明確給 → 用該範圍
+    #   - 否則 → 預設 days 窗口(防全表探勘 + 大 count_documents)
     if start_date or end_date:
         q["created_at"] = {}
         if start_date:
             q["created_at"]["$gte"] = _parse_date_boundary(start_date)
         if end_date:
             q["created_at"]["$lte"] = _parse_date_boundary(end_date, end=True)
+    else:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        q["created_at"] = {"$gte": cutoff}
     cursor = audit_col.find(q).sort("created_at", -1).skip(skip).limit(limit)
     items = serialize(list(cursor))
     total = audit_col.count_documents(q)
@@ -303,6 +310,7 @@ def audit_log(
         "skip": skip,
         "limit": limit,
         "has_more": (skip + len(items)) < total,
+        "days_window": days if not (start_date or end_date) else None,  # R36 · 顯示用 default
     }
 
 

@@ -1395,3 +1395,40 @@ def test_audit_log_actions_requires_admin(client):
     """C2 · /admin/audit-log/actions 必須 admin · 不能匿名打"""
     r = client.get("/admin/audit-log/actions", headers={"X-User-Email": ""})
     assert r.status_code == 403
+
+
+def test_audit_log_default_days_window(client):
+    """R36 · /admin/audit-log GET 不帶 start_date/end_date 時 · 預設 90 天窗口
+    · 防 admin 透過 ?skip 探勘全 1 年 audit history"""
+    import main as main_mod
+    from datetime import datetime, timezone, timedelta
+    # seed · 一筆 91 天前 + 一筆今天
+    main_mod.audit_col.insert_one(
+        {"action": "audit_old_only", "user": "x", "resource": "y",
+         "created_at": datetime.now(timezone.utc) - timedelta(days=91)}
+    )
+    main_mod.audit_col.insert_one(
+        {"action": "audit_fresh_only", "user": "x", "resource": "y",
+         "created_at": datetime.now(timezone.utc)}
+    )
+    # 不帶 start_date/end_date · 預設 days=90 窗口
+    r = client.get(
+        "/admin/audit-log?action=audit_old_only,audit_fresh_only",
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    actions = {i["action"] for i in body["items"]}
+    assert "audit_fresh_only" in actions
+    assert "audit_old_only" not in actions, "R36 · 預設 90 天窗口必排除 91 天前資料"
+    assert body["days_window"] == 90  # default 顯示
+
+    # 顯式帶 start_date · 應覆蓋 default
+    old_date = (datetime.now(timezone.utc) - timedelta(days=200)).strftime("%Y-%m-%d")
+    r2 = client.get(
+        f"/admin/audit-log?action=audit_old_only&start_date={old_date}",
+        headers=ADMIN_HEADERS,
+    )
+    actions2 = {i["action"] for i in r2.json()["items"]}
+    assert "audit_old_only" in actions2, "明確 start_date 應覆寫 default 窗口"
+    assert r2.json()["days_window"] is None  # 不顯示 default
