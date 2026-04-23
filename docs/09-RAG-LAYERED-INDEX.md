@@ -148,3 +148,57 @@ python3 scripts/upload-knowledge-base.py --agent-id $(get_id 00) --files 'knowle
 - v1.0 使用者量 10 人 · LibreChat 原生 file_search 夠用
 - 分開 vector DB 會增加:運維、同步、除錯成本
 - v2.0+ 若每 Agent 超過 500 檔 → 再評估(見 CLAUDE.md 擴充性章節)
+
+---
+
+## 5. 重建 Trigger(v1.3 C3 加 · 內容 hash 比對)
+
+### 5.1 增量機制(平日 cron)
+
+`scripts/knowledge-cron.sh` 每日 02:00 自動跑 · 4 層判斷決定一檔是否重 extract:
+
+```
+mtime > since_mtime?  ← 若否 · skipped_unchanged(不讀檔)
+  ├─ 否 → skip
+  └─ 是 → 計算 SHA256 content_hash(64KB stream)
+            └─ 與 db.knowledge_file_hashes.content_hash 比對
+                ├─ 相同 → skipped_unchanged(mtime 變但內容沒變 · git checkout/touch 等)
+                └─ 不同 → extract + 上 Meili + 寫新 hash
+```
+
+「mtime 變但內容沒變」常見來源:
+- git checkout 切版本
+- 檔案系統 touch 沒實改
+- rsync 過來時間戳被重寫
+- 編輯器存檔但內容沒改(IDE 自動 trim trailing whitespace 後跟原版一致)
+
+C3 加這層後省 OCR 時間(估每天 5-15% 檔不需 re-extract)
+
+### 5.2 強制全重 trigger(罕用)
+
+幾種情境必須跳過 hash 比對 · 全重 extract:
+
+| 情境 | 觸發 |
+|---|---|
+| brand-voice / 禁用詞大改 · 影響 chunking 語境 | `python3 scripts/reembed-knowledge.py` |
+| extract 邏輯升級(換 OCR 模型 / chunking 策略) | 同上 |
+| `db.knowledge_file_hashes` 表壞了 / 想 reset | 同上 |
+| 單 source 強制重(不全) | `POST /admin/sources/{id}/reindex?force=true` |
+
+### 5.3 為何不用 mtime 完全代替 hash?
+
+- mtime 不可靠(rsync / git / touch 都會改)· 會誤觸 expensive OCR
+- 但 mtime 是 fast filter · 不讀檔即可判斷 · 仍當第一道防線
+- 兩道結合:mtime 過了才讀檔算 hash · 大多數檔 0 ms(mtime skip)
+
+### 5.4 為何 hash 不是 metadata 而是另一個 collection?
+
+- `knowledge_file_hashes` 獨立 col · 可獨立 backup / restore / clear
+- 不污染主 `knowledge_sources_col` schema
+- 重建 hash 只需 drop col 再跑 `reembed-knowledge.py`
+
+### 5.5 Hash 寫入時機
+
+只在 **Meili 寫入成功** 才 commit hash · 防:
+- Meili 暫掛 · 抽字 OK 但搜尋未 index → 下次 mtime 沒變但 hash 已存 · 漏補 search
+- 對應 §1 三層 fallback timestamp 設計同邏輯

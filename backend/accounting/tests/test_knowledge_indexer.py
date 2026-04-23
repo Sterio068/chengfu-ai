@@ -512,3 +512,138 @@ def test_indexer_meili_task_no_uid_returns_true_with_warning(tmp_src, caplog):
     # 假成功 · 沒任何 error
     assert stats["errors"] == 0
     assert stats["search_progress_advanced"] is True
+
+
+
+# ============================================================
+# C3(v1.3)· content hash 比對 · mtime 變但內容沒變不重 extract
+# ============================================================
+def test_c3_hash_skip_when_mtime_changed_but_content_same(tmp_src):
+    """跑兩次:第二次 touch 同檔(mtime 變內容沒變)· 第二次應 skip"""
+    import os
+    import time
+    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+
+    # 第一次 · 全新跑 · file_hashes 表為空 · 全 extract
+    stats1 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        file_hashes_col=file_hashes_col,
+    )
+    assert stats1["file_count"] >= 2  # 至少 readme + 建議書 + notes
+    n_hashed_after_run1 = file_hashes_col.count_documents({})
+    assert n_hashed_after_run1 == stats1["file_count"]
+
+    # touch 一檔 · mtime 改但內容沒變
+    target = tmp_src["path"] + "/readme.md"
+    time.sleep(1.1)  # 確保 mtime 真改變(秒級精度)
+    os.utime(target, None)
+
+    # 第二次 · 同 hash · 應 skip
+    stats2 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        file_hashes_col=file_hashes_col,
+    )
+    assert stats2["file_count"] == 0, "mtime 變但 hash 同 · 應全 skip"
+    assert stats2["skipped"]["unchanged"] >= 1
+
+
+def test_c3_hash_reextract_when_content_changed(tmp_src):
+    """跑兩次:第二次真改內容 · 應重 extract 該檔"""
+    import time
+    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+
+    # 第一次
+    stats1 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        file_hashes_col=file_hashes_col,
+    )
+    initial_count = stats1["file_count"]
+    assert initial_count > 0
+
+    # 真改一檔內容
+    target = pathlib.Path(tmp_src["path"]) / "readme.md"
+    time.sleep(1.1)
+    target.write_text("根目錄 readme · 改過版本 v2", encoding="utf-8")
+
+    # 第二次 · hash 改了 · 應只重 extract 1 檔
+    stats2 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        file_hashes_col=file_hashes_col,
+    )
+    assert stats2["file_count"] == 1, "只該重 extract 改的那 1 檔"
+
+
+def test_c3_force_skip_hash_check(tmp_src):
+    """force=True 跳過 hash 比對 · 全部重 extract"""
+    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+
+    # 第一次正常跑(填 hash)
+    stats1 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        file_hashes_col=file_hashes_col,
+    )
+    initial_count = stats1["file_count"]
+
+    # 第二次 · 沒改檔 · 但 force=True · 應全重
+    stats2 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        file_hashes_col=file_hashes_col, force=True,
+    )
+    assert stats2["file_count"] == initial_count, "force=True 應重所有檔"
+
+
+def test_c3_legacy_mode_no_hash_col(tmp_src):
+    """沒給 file_hashes_col(v1.2 legacy 模式)· 純 mtime 行為不變"""
+    stats = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=None,
+        # file_hashes_col 留 None
+    )
+    assert stats["file_count"] >= 2  # 同 v1.2 行為
+
+
+def test_c3_compute_content_hash_streaming():
+    """SHA256 streaming · 64KB chunk · 大檔不爆記憶體"""
+    import tempfile
+    import hashlib
+    with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as f:
+        # 寫 200KB 隨機資料 · 跨 4 個 chunk
+        data = b"x" * 50000 + b"y" * 50000 + b"z" * 50000 + b"w" * 50000
+        f.write(data)
+        path = f.name
+    try:
+        h = knowledge_indexer._compute_content_hash(path)
+        expected = hashlib.sha256(data).hexdigest()
+        assert h == expected, "stream hash 應等於整檔一次 hash"
+        assert len(h) == 64
+    finally:
+        os.unlink(path)
+
+
+def test_c3_r33_meili_unavailable_no_hash_commit(tmp_src):
+    """R33#1 紅 · Meili down 時 hash 不能 commit · 否則下次 retry 永遠 skip"""
+    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+
+    class BrokenMeili:
+        def index(self, *a, **kw):
+            raise RuntimeError("meili down")
+        def create_index(self, *a, **kw):
+            raise RuntimeError("meili down")
+
+    # 第一次 · Meili 掛 · 應跑完抽字但不 commit hash
+    stats1 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=BrokenMeili(),
+        file_hashes_col=file_hashes_col,
+    )
+    assert stats1.get("meili_error"), "Meili 掛應記錄"
+    assert file_hashes_col.count_documents({}) == 0, \
+        "R33#1 · Meili 掛時 hash 不能 commit · 否則下次 retry 漏"
+
+    # 第二次 · Meili 還掛 · 應再嘗試 extract(因 hash 沒被 commit · mtime 但內容 hash 不同)
+    # 注意:second_run 不該 skip(因為 hash table 是空的)
+    stats2 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=BrokenMeili(),
+        file_hashes_col=file_hashes_col,
+    )
+    # R33#1 修後 · 兩次 stats1.file_count 應該一樣(因為都重 extract)
+    assert stats2["file_count"] == stats1["file_count"], \
+        "Meili 一直掛 · file_count 不該因 hash skip 而少"

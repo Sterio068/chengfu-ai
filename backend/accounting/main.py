@@ -122,6 +122,11 @@ async def lifespan(app: FastAPI):
     knowledge_sources_col.create_index([("path", 1)], unique=True)
     knowledge_audit_col.create_index([("created_at", -1)])
     knowledge_audit_col.create_index([("user", 1), ("source_id", 1)])
+    # C3(v1.3)· knowledge_file_hashes · 內容 hash 比對 · 防 mtime 變但內容沒變
+    # unique (source_id, rel_path) · 同 source 同 path 只一筆
+    db.knowledge_file_hashes.create_index(
+        [("source_id", 1), ("rel_path", 1)], unique=True, name="src_path_uniq"
+    )
     # Round 9 implicit · log TTL 防無限長(估 10 人 × 50 read/day × 365 ≈ 182k doc/年)
     # PDPA 留 90 天 audit 已綽綽有餘 · admin 想看歷史另存 export
     # R14#4 · 原本 try/except 靜默過 · 若 index 選項不同(TTL) 會留舊的 · TTL 沒生效 · 月 +4GB
