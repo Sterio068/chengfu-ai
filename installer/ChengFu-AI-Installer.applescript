@@ -235,15 +235,32 @@ echo OK
 	do shell script "echo " & quoted form of envContent & " > " & quoted form of (repoPath & "/config-templates/.env")
 
 	-- ============ 步驟 4 · 開 Terminal 跑 docker compose(讓 IT 看到進度)============
-	-- 用 Terminal 開新 window 跑 start.sh · IT 看見 docker 進度
+	-- v1.3.0 dry-run fix · 原本 `tell application "Terminal"` 在 macOS Sequoia+ 需要
+	-- AppleEvent 授權 · unsigned .app 會 -1743 錯
+	-- 改用 `open -a Terminal` 打開 .command 檔 · 不需 AppleEvent 授權
 	set scriptPath to repoPath & "/scripts/start.sh"
-	set logFile to repoPath & "/installer-progress.log"
+	set commandFile to repoPath & "/installer-run.command"
 
-	-- 在 Terminal 顯示進度
-	tell application "Terminal"
-		activate
-		do script "cd " & quoted form of repoPath & " && echo '═══ 承富 AI 安裝 · 抓 image + 啟動容器 ═══' && cd config-templates && docker compose pull && cd .. && bash scripts/start.sh && bash scripts/smoke-test.sh && echo '' && echo '✅ 安裝完成 · 訪問 http://localhost/' && echo '可關閉此 Terminal'"
-	end tell
+	-- 寫可執行 .command 檔 · Terminal 雙擊會跑
+	set cmdContent to "#!/bin/bash
+export PATH=/opt/homebrew/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH
+cd " & quoted form of repoPath & "
+echo '═══ 承富 AI 安裝 · 抓 image + 啟動容器 ═══'
+cd config-templates && docker compose pull
+cd ..
+bash scripts/start.sh
+bash scripts/smoke-test.sh
+echo ''
+echo '✅ 安裝完成 · 訪問 http://localhost/'
+echo '可關閉此 Terminal 視窗 · 但不要關 Docker Desktop'
+"
+	do shell script "cat > " & quoted form of commandFile & " <<'CHENGFU_EOF'
+" & cmdContent & "
+CHENGFU_EOF
+chmod +x " & quoted form of commandFile
+
+	-- open -a Terminal 不需 AppleEvent 授權 · 走正常 URL handler
+	do shell script "open -a Terminal " & quoted form of commandFile
 
 	-- 等 60 秒讓 docker 拉 + 啟動
 	delay 60
