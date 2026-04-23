@@ -173,7 +173,7 @@ export const chat = {
     toast.info("v1.1 開放檔案上傳 · 現在請把檔案內容複製貼上");
   },
 
-  async send(e) {
+  async send(e, _piiRedacted = false) {
     if (e) e.preventDefault();
     if (this.isStreaming) return;
     const input = document.getElementById("chat-input");
@@ -195,7 +195,9 @@ export const chat = {
     }
 
     // v1.2 Feature #3 · PII 偵測 · 送前掃一次身分證/電話/email/信用卡
-    try {
+    // v1.3 batch6 · CRITICAL · _piiRedacted flag 防遞迴炸彈
+    // 原本 redacted 後 return this.send(e) · 若後端對 ★★★★ 仍回 PII 就無限循環
+    if (!_piiRedacted) try {
       const piiR = await authFetch("/api-accounting/safety/pii-detect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,8 +224,8 @@ export const chat = {
             });
           } catch {}
           input.value = pii.redacted;
-          // 重新讀取打碼後的 text 繼續送
-          return this.send(e);
+          // 重新讀取打碼後的 text 繼續送 · 帶 _piiRedacted=true 防無限遞迴
+          return this.send(e, true);
         }
       }
     } catch (e) {

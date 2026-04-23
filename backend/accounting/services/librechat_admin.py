@@ -144,8 +144,12 @@ def archive_librechat_data(db, user_id: ObjectId, email: str,
 
 def delete_librechat_data(db, user_id: ObjectId) -> dict:
     """跨 LibreChat collection 刪該 user 全資料 + 刪 user 本人 doc
-    回 {col_name: deleted_count} · 失敗 col 標 -1"""
+    回 {col_name: deleted_count, _failed: [...]} · 失敗 col 標 -1
+
+    v1.3 batch6 · CRITICAL · partial fail 時不刪 users doc
+    避免 conversations / messages 殘留但 user 已刪 · PDPA 合規漏洞"""
     counts = {}
+    failed = []
     for col_name, field in USER_OWNED_COLLECTIONS:
         try:
             r = db[col_name].delete_many({field: user_id})
@@ -153,11 +157,25 @@ def delete_librechat_data(db, user_id: ObjectId) -> dict:
         except Exception as e:
             logger.error("[librechat-pdpa] delete %s fail: %s", col_name, e)
             counts[col_name] = -1
-    # 最後刪 user 本人(其他 collection 已清 · users 沒 cascade FK)
+            failed.append(col_name)
+
+    # v1.3 batch6 · CRITICAL · 任何 collection 失敗 · 不刪 users doc
+    # 留著 user 才能下次 retry · 否則資料變孤兒(user_id 找不到對應 user)
+    if failed:
+        logger.error(
+            "[librechat-pdpa] %d collection 刪除失敗 · 跳過 users 刪除 · 需手動 retry: %s",
+            len(failed), failed,
+        )
+        counts["users"] = "skipped_due_to_partial_failure"
+        counts["_failed"] = failed
+        return counts
+
+    # 全部 collection 都成功 · 才刪 users
     try:
         r = db.users.delete_one({"_id": user_id})
         counts["users"] = r.deleted_count
     except Exception as e:
         logger.error("[librechat-pdpa] delete user fail: %s", e)
         counts["users"] = -1
+        counts["_failed"] = ["users"]
     return counts

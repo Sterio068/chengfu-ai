@@ -123,7 +123,7 @@ export const social = {
             <span>📅 ${this._formatTime(p.schedule_at)}</span>
             ${p.attempts > 0 ? `<span>🔁 ${p.attempts} 次</span>` : ""}
             ${p.last_error ? `<span class="social-error" title="${escapeHtml(p.last_error)}">⚠️ 有錯</span>` : ""}
-            ${p.platform_url ? `<a href="${p.platform_url}" target="_blank">查看</a>` : ""}
+            ${p.platform_url && /^https?:\/\//.test(p.platform_url) ? `<a href="${escapeHtml(p.platform_url)}" target="_blank" rel="noopener noreferrer">查看</a>` : ""}
           </div>
         </div>
         ${allowActions ? `
@@ -224,7 +224,8 @@ export const social = {
   },
 
   async publishNow(id) {
-    if (!confirm("立刻發此貼文?(繞過排程)")) return;
+    // v1.3 batch6 · 取代 window.confirm · 一致 UX + Electron 安全
+    if (!await modal.confirm("立刻發此貼文?(繞過排程)", { title: "立即發出", icon: "🚀", primary: "立刻發" })) return;
     try {
       const r = await authFetch(`${BASE}/social/posts/${id}/publish-now`, { method: "POST" });
       const body = await r.json();
@@ -241,7 +242,7 @@ export const social = {
   },
 
   async cancelPost(id) {
-    if (!confirm("取消此排程?")) return;
+    if (!await modal.confirm("取消此排程?", { title: "取消排程", icon: "🚫", primary: "確定取消", danger: true })) return;
     try {
       const r = await authFetch(`${BASE}/social/posts/${id}`, { method: "DELETE" });
       if (!r.ok) {

@@ -61,15 +61,22 @@ export const mobile = {
     nav.addEventListener("click", e => {
       const item = e.target.closest(".mobile-bottom-item");
       if (!item) return;
-      nav.querySelectorAll(".mobile-bottom-item").forEach(el => el.classList.remove("active"));
+      nav.querySelectorAll(".mobile-bottom-item").forEach(el => {
+        el.classList.remove("active");
+        el.removeAttribute("aria-current");
+      });
       item.classList.add("active");
+      item.setAttribute("aria-current", "page");  // v1.3 batch6 · SR 唸「目前頁面」
     });
 
     // 監聽 workspace 切換 · sync active state
     document.addEventListener("ws-changed", (e) => {
       const ws = String(e.detail?.ws || "0");
       nav.querySelectorAll(".mobile-bottom-item").forEach(el => {
-        el.classList.toggle("active", el.dataset.ws === ws);
+        const isActive = el.dataset.ws === ws;
+        el.classList.toggle("active", isActive);
+        if (isActive) el.setAttribute("aria-current", "page");
+        else el.removeAttribute("aria-current");
       });
     });
   },

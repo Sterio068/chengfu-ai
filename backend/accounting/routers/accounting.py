@@ -228,7 +228,7 @@ def delete_transaction(tx_id: str):
 # ============================================================
 def _next_invoice_no():
     from main import invoices_col
-    yy = datetime.now().strftime("%y")
+    yy = datetime.now(timezone.utc).strftime("%y")
     prefix = f"INV-{yy}"
     last = invoices_col.find_one({"invoice_no": {"$regex": f"^{prefix}"}}, sort=[("invoice_no", -1)])
     next_seq = int(last["invoice_no"].split("-")[-1]) + 1 if last else 1
@@ -269,7 +269,7 @@ def list_invoices(status: Optional[str] = None, project_id: Optional[str] = None
 # ============================================================
 def _next_quote_no():
     from main import quotes_col
-    yy = datetime.now().strftime("%y")
+    yy = datetime.now(timezone.utc).strftime("%y")
     prefix = f"Q-{yy}"
     last = quotes_col.find_one({"quote_no": {"$regex": f"^{prefix}"}}, sort=[("quote_no", -1)])
     next_seq = int(last["quote_no"].split("-")[-1]) + 1 if last else 1

@@ -172,16 +172,17 @@ export const knowledge = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+          // v1.3 batch6 · CRITICAL · 一次讀 body · 不論 ok/錯都從同一份 body 走
+          // 原本錯誤路徑與成功路徑各 await r.json() 二次讀同一 stream · ok 路徑會炸
+          const body = await r.json().catch(() => ({ detail: r.statusText }));
           if (!r.ok) {
-            const err = await r.json().catch(() => ({ detail: r.statusText }));
-            operationError("建立資料源", err);
+            operationError("建立資料源", body);
             return false;
           }
           toast.success("資料源已建立 · 開始索引…");
           await this.loadAdmin();
           // 立刻觸發 reindex
-          const { id } = await r.json();
-          this.reindex(id, { silent: true });
+          this.reindex(body.id, { silent: true });
           return true;
         } catch (e) {
           networkError("建立資料源", e);

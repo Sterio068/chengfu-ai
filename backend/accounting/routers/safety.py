@@ -42,6 +42,9 @@ def classify_level(payload: ContentCheck, request: Request):
     """Level 03 keyword classifier · 在 Agent 處理前預掃。
 
     rate limit 由 main.py app 級別 limiter 套用(SlowAPIMiddleware 自動)
+
+    v1.3 batch6 · M-1 · response 不再回 triggers list
+    避免攻擊者用 enumeration 反推 LEVEL_3_PATTERNS · 規避 classifier
     """
     hits = []
     for pattern in LEVEL_3_PATTERNS:
@@ -51,7 +54,7 @@ def classify_level(payload: ContentCheck, request: Request):
     level = "03" if hits else ("02" if len(payload.text) > 500 else "01")
     return {
         "level": level,
-        "triggers": hits[:10],  # 最多回 10 個命中
+        "hit_count": len(hits),  # 數量公開 OK · 細節不公開
         "recommendation": {
             "01": "可直接處理",
             "02": "建議去識別化(客戶名/金額)後處理",
@@ -124,8 +127,13 @@ def audit_pii(payload: PIIDetectRequest, request: Request):
     redacted, hits = _redact_pii(payload.text or "")
     if hits:
         try:
-            from main import audit_col
-            user = (request.headers.get("X-User-Email") or "").strip().lower() or None
+            from main import audit_col, current_user_email
+            # v1.3 batch6 · H-1 · 優先驗證 cookie · 避免未驗 header 偽造 audit
+            user = current_user_email(request)
+            if not user:
+                user = (request.headers.get("X-User-Email") or "").strip().lower() or None
+                if user:
+                    logger.warning("[pii-audit] user from unverified header: %s", user)
             audit_col.insert_one({
                 "action": "pii_warning_dismissed",
                 "user": user,

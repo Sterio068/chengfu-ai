@@ -17,7 +17,7 @@ v1.3 A1 · admin 拆檔(第一批)· 純讀儀表 + ROI 指標 endpoints
 - 透過 admin/__init__.py include_router 合併到主 router
 """
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from fastapi import APIRouter, Query
 
@@ -57,7 +57,7 @@ def admin_dashboard(_admin: str = require_admin_dep()):
         month_convos = 0
 
     return {
-        "as_of": datetime.now().isoformat(),
+        "as_of": datetime.now(timezone.utc).isoformat(),
         "accounting": {
             "month_income": pnl["total_income"],
             "month_expense": pnl["total_expense"],

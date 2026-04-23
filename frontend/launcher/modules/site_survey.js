@@ -295,6 +295,8 @@ export const siteSurvey = {
   _startPolling() {
     if (this._pollTimer) clearInterval(this._pollTimer);
     let attempts = 0;
+    // v1.3 batch6 · stale closure 修 · 把 ID 局部存
+    const pollId = this._currentSurveyId;
     this._pollTimer = setInterval(async () => {
       attempts++;
       if (attempts > 30) {
@@ -307,7 +309,7 @@ export const siteSurvey = {
         return;
       }
       try {
-        const r = await authFetch(`${BASE}/site-survey/${this._currentSurveyId}`);
+        const r = await authFetch(`${BASE}/site-survey/${pollId}`);
         if (!r.ok) return;
         const body = await r.json();
         if (body.status === "done") {

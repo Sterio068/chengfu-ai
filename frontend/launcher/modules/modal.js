@@ -148,7 +148,8 @@ export const modal = {
       const html = fields.map((f, i) => {
         const inputId = `${fid}_${i}`;
         const errId = `${inputId}_err`;
-        const labelText = `${escapeHtml(f.label)}${f.required ? ' <em style="color:var(--red)" aria-hidden="true">*</em>' : ""}`;
+        // v1.3 batch6 · WCAG 1.4.1 · 必填非只靠紅色 · 加 badge 文字 + 圖示
+        const labelText = `${escapeHtml(f.label)}${f.required ? ' <span class="modal2-req-badge" aria-hidden="true">必填</span>' : ""}`;
         const ariaReq = f.required ? "aria-required=\"true\"" : "";
         const ariaErr = `aria-describedby="${errId}"`;
         const inputCommon = `id="${inputId}" placeholder="${escapeHtml(f.placeholder || "")}" ${ariaReq} ${ariaErr}`;
@@ -180,7 +181,8 @@ export const modal = {
                 el.style.borderColor = "var(--red)";
                 el.setAttribute("aria-invalid", "true");
                 if (errEl) {
-                  errEl.textContent = `「${f.label}」必填`;
+                  // v1.3 batch6 · 加 ⚠ 圖示 · SR 會唸「警告」
+                  errEl.textContent = `⚠ 「${f.label}」必填`;
                   errEl.style.display = "block";
                 }
                 if (!firstErr) firstErr = el;

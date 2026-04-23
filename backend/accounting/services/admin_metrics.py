@@ -7,10 +7,13 @@ main.py 的 /admin/* 與 /quota/check handlers 呼叫這裡
 - 所有外部依賴(db / collection / settings / email)當參數傳入
 - test 前呼叫 reset_cache() 避免 _SCHEMA_CHECKED 汙染
 """
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from bson import ObjectId
+
+logger = logging.getLogger("chengfu")
 
 
 # ============================================================
@@ -80,8 +83,9 @@ def tx_fingerprint(db, limit: int = 10) -> list[dict]:
                 "has_model": "model" in doc,
                 "has_createdAt": "createdAt" in doc,
             })
-    except Exception:
-        pass
+    except Exception as e:
+        # v1.3 batch6 · HIGH · 別吞 schema probe 錯誤 · 否則升級後 silent NT$ 0
+        logger.warning("[metrics] tx_fingerprint fail: %s", e)
     return fp
 
 
@@ -153,7 +157,9 @@ def budget_status(db, monthly_budget_ntd: float,
         stats = list(db.transactions.aggregate(pipeline))
         spent = sum(price_ntd(s["_id"] or "", s.get("tin", 0) or 0,
                               s.get("tout", 0) or 0, usd_to_ntd) for s in stats)
-    except Exception:
+    except Exception as e:
+        # v1.3 batch6 · HIGH · 別吞 budget 計算錯 · 否則 dashboard 顯示假 NT$ 0
+        logger.error("[metrics] budget aggregate fail: %s", e)
         spent = 0.0
     pct = (spent / monthly_budget_ntd * 100) if monthly_budget_ntd else 0
     level = "ok" if pct < 80 else "warn" if pct < 100 else "over"
