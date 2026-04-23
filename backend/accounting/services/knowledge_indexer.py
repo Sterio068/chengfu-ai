@@ -54,6 +54,47 @@ def _doc_id_for(source_id: str, rel_path: str) -> str:
     return hashlib.md5(f"{source_id}::{rel_path}".encode()).hexdigest()
 
 
+def _compute_content_hash(path: str, *, chunk_size: int = 65536) -> str:
+    """C3(v1.3)· 串流計算 SHA256 · 64KB chunk · 防大檔吃光記憶體
+    回 hex digest 64 chars · IO 錯誤 raise(讓 caller 走 errors 路徑)
+    """
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _hash_lookup(file_hashes_col, source_id: str, rel_path: str) -> str:
+    """從 db.knowledge_file_hashes 拿先前算過的 content_hash · 沒有回 ''"""
+    if file_hashes_col is None:
+        return ""
+    doc = file_hashes_col.find_one(
+        {"source_id": source_id, "rel_path": rel_path},
+        {"content_hash": 1},
+    )
+    return (doc or {}).get("content_hash", "") or ""
+
+
+def _hash_store(file_hashes_col, source_id: str, rel_path: str, content_hash: str) -> None:
+    """成功 extract + index 後存新 hash · upsert · failed extract 不更新"""
+    if file_hashes_col is None or not content_hash:
+        return
+    file_hashes_col.update_one(
+        {"source_id": source_id, "rel_path": rel_path},
+        {"$set": {
+            "source_id": source_id,
+            "rel_path": rel_path,
+            "content_hash": content_hash,
+            "indexed_at": datetime.now(timezone.utc),
+        }},
+        upsert=True,
+    )
+
+
 def _submit_and_wait(index, docs: list, meili_client, timeout_s: int = 60) -> bool:
     """Codex Round 10.5 fix · 真的等 Meili indexing 成功才算成功
 
@@ -127,7 +168,8 @@ def _ensure_index(meili_client):
     return index
 
 
-def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> dict:
+def reindex_source(source_id: str, knowledge_sources_col, meili_client=None,
+                   file_hashes_col=None, force: bool = False) -> dict:
     """對單一 source 增量索引。
 
     Parameters
@@ -135,6 +177,9 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
     source_id : str · MongoDB ObjectId string
     knowledge_sources_col : pymongo Collection
     meili_client : meilisearch.Client · None 則只抽字不上 Meili(測試用)
+    file_hashes_col : pymongo Collection · None 則不做 hash 比對(legacy 模式)
+                      C3 加 · 內容 hash 比對 · mtime 改但內容沒改不重 extract
+    force : bool · True 跳過 hash 比對 · 強制重 extract 全檔(scripts/reembed-knowledge.py 用)
 
     Returns
     -------
@@ -260,7 +305,7 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             except OSError:
                 errors += 1
                 continue
-            if int(stat.st_mtime) <= since_mtime:
+            if int(stat.st_mtime) <= since_mtime and not force:
                 skipped_unchanged += 1
                 continue
             if stat.st_size > max_bytes:
@@ -270,7 +315,21 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             if mime_white and ext not in [w.lower().lstrip(".") for w in mime_white]:
                 skipped_mime += 1
                 continue
-            to_process.append((path, rel))
+            # C3(v1.3)· content hash 比對 · 防 mtime 變但內容沒變(git checkout / touch)
+            # 沒 file_hashes_col 走 legacy 模式 · 純 mtime 判斷(不破壞 v1.2 行為)
+            if file_hashes_col is not None and not force:
+                try:
+                    new_hash = _compute_content_hash(path)
+                except OSError:
+                    errors += 1
+                    continue
+                old_hash = _hash_lookup(file_hashes_col, str(src["_id"]), rel)
+                if new_hash == old_hash:
+                    skipped_unchanged += 1
+                    continue
+                to_process.append((path, rel, new_hash))
+            else:
+                to_process.append((path, rel, None))
 
     # 並行 extract · workers 4 預設(env REINDEX_WORKERS 可調)
     # Codex R5#4 · 每檔 per-file timeout · 防 corrupt PDF / OCR hang 卡整批
@@ -279,13 +338,13 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
     per_file_timeout = int(os.getenv("REINDEX_FILE_TIMEOUT_SEC", "120"))
 
     def _extract_one(item):
-        path, rel = item
+        path, rel, content_hash = item
         try:
             doc = extract(path)
         except Exception as e:
             logger.warning("[indexer] extract fail %s: %s", path, e)
-            return None, rel, "error"
-        return doc, rel, doc.get("type", "ok")
+            return None, rel, "error", content_hash
+        return doc, rel, doc.get("type", "ok"), content_hash
 
     results = []
     if workers > 1 and len(to_process) > 10:
@@ -300,15 +359,16 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
                         "[indexer] %s timeout > %ds · skip · 列入 errors",
                         item[0], per_file_timeout,
                     )
-                    results.append((None, item[1], "timeout"))
+                    results.append((None, item[1], "timeout", item[2]))
                 except Exception as e:
                     logger.error("[indexer] %s future error: %s", item[0], e)
-                    results.append((None, item[1], "error"))
+                    results.append((None, item[1], "error", item[2]))
     else:
         results = [_extract_one(item) for item in to_process]
 
     # 整合 + 送 Meili
-    for doc, rel, type_str in results:
+    indexed_hashes: list[tuple[str, str]] = []  # (rel_path, hash) · 成功才存
+    for doc, rel, type_str, content_hash in results:
         if doc is None:
             errors += 1
             continue
@@ -325,6 +385,9 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             doc["project"] = None
         docs_batch.append(doc)
         file_count += 1
+        # C3 · 收集成功 extract 的 hash · 後面送 Meili 成功才 commit
+        if content_hash:
+            indexed_hashes.append((rel, content_hash))
 
     # ROADMAP §11.4 · 並行 extract 完 · 200 doc/批送 Meili
     # Codex R10.5 R1+R2 · wait_for_task + sticky meili_any_failed
@@ -335,6 +398,13 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
             if not task_ok:
                 errors += len(chunk)
                 meili_any_failed = True
+
+    # C3 · Meili 寫入成功(或無 Meili 純抽字模式)· commit hash 到 db
+    # Meili 失敗時 NOT commit · 防下次 mtime 沒變但 hash 已存 · 漏補 search index
+    if file_hashes_col is not None and indexed_hashes and not meili_any_failed:
+        sid_str = str(src["_id"])
+        for rel, content_hash in indexed_hashes:
+            _hash_store(file_hashes_col, sid_str, rel, content_hash)
 
     # Q4 · 三種情境:
     # (a) 沒給 meili_client(cron / 測試沒配)· 不計搜尋進度 · 但 scanned 仍前進
@@ -397,13 +467,20 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None) -> 
     return stats
 
 
-def reindex_all(knowledge_sources_col, meili_client=None) -> dict:
-    """cron 入口 · 所有 enabled sources 各跑一輪"""
+def reindex_all(knowledge_sources_col, meili_client=None,
+                file_hashes_col=None, force: bool = False) -> dict:
+    """cron 入口 · 所有 enabled sources 各跑一輪
+    C3(v1.3)· file_hashes_col 可選 · 給就啟動 hash 比對
+    C3 · force=True 強制重 extract 所有檔(忽略 hash + mtime)
+    """
     results = {}
     for src in knowledge_sources_col.find({"enabled": True}):
         sid = str(src["_id"])
         try:
-            results[src["name"]] = reindex_source(sid, knowledge_sources_col, meili_client)
+            results[src["name"]] = reindex_source(
+                sid, knowledge_sources_col, meili_client,
+                file_hashes_col=file_hashes_col, force=force,
+            )
         except Exception as e:
             logger.exception("[indexer] reindex_all %s fail", src.get("name"))
             results[src["name"]] = {"ok": False, "reason": str(e)}

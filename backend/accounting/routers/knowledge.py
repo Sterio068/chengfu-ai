@@ -448,9 +448,12 @@ def all_sources_health(_admin: str = require_admin_dep()):
 
 
 @router.post("/admin/sources/{source_id}/reindex")
-def reindex_source_endpoint(source_id: str, _admin: str = require_admin_dep()):
-    """手動觸發 reindex · 同步執行(source 不大時可接受)"""
-    from main import knowledge_sources_col
+def reindex_source_endpoint(source_id: str, force: bool = False,
+                             _admin: str = require_admin_dep()):
+    """手動觸發 reindex · 同步執行(source 不大時可接受)
+    C3(v1.3)· force=true 跳過 hash 比對 · 強制全檔重 extract(brand-voice 改詞用)
+    """
+    from main import knowledge_sources_col, db
     try:
         _id = ObjectId(source_id)
     except Exception:
@@ -461,7 +464,10 @@ def reindex_source_endpoint(source_id: str, _admin: str = require_admin_dep()):
     if not src.get("enabled"):
         raise HTTPException(400, "資料源已停用")
     meili = _get_meili_client()
-    stats = knowledge_indexer.reindex_source(source_id, knowledge_sources_col, meili)
+    stats = knowledge_indexer.reindex_source(
+        source_id, knowledge_sources_col, meili,
+        file_hashes_col=db.knowledge_file_hashes, force=force,
+    )
     return stats
 
 

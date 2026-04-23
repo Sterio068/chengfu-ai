@@ -27,13 +27,17 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
 fi
 
 # 在容器內跑 reindex_all · 取 stats 回來存 log
+# C3(v1.3)· file_hashes_col 啟動 · 內容 hash 比對 · mtime 變但內容沒變不重 extract
 docker exec "$CONTAINER" python -c "
 import json, sys
 from services import knowledge_indexer
-from main import knowledge_sources_col, _get_meili_client
+from main import knowledge_sources_col, db, _get_meili_client
 
 meili = _get_meili_client()
-stats = knowledge_indexer.reindex_all(knowledge_sources_col, meili)
+stats = knowledge_indexer.reindex_all(
+    knowledge_sources_col, meili,
+    file_hashes_col=db.knowledge_file_hashes,
+)
 print(json.dumps(stats, ensure_ascii=False, indent=2, default=str))
 " >>"$LOG" 2>&1
 
