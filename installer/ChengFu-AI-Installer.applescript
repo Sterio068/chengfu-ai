@@ -12,23 +12,21 @@ on run
 	-- ============ 步驟 0 · 歡迎畫面 ============
 	set welcomeText to "歡迎使用承富 AI 系統 v1.3.0 安裝精靈" & return & return & ¬
 		"執行時間:30-45 分鐘(視網路)" & return & return & ¬
-		"v1.2 4 功能:" & return & ¬
+		"✨ 本次安裝只要你設一組 admin 密碼" & return & ¬
+		"其他 9 位同仁你裝完後自己在 UI 建(⌘U 同仁管理)" & return & ¬
+		"自訂頭銜 · 權限勾選 · 不用再編 shell script" & return & return & ¬
+		"v1.3.0 新功能:" & return & ¬
+		"  👥 同仁管理 UI(admin 在前端建帳號 + 7 preset 頭銜 + 28 權限勾選)" & return & ¬
 		"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘 PWA" & return & ¬
-		"v1.3.0 強化(20 PR · 2026-04-23):" & return & ¬
-		"  · 13 V1.3-PLAN(12 ship · B1 真打 Meta 延 v1.4)" & return & ¬
-		"  · 13 user-guide markdown(quickstart / mobile-ios / error-codes / training)" & return & ¬
-		"  · 5 批 UX 升級(toast 標準化 / 8 view 空狀態 / Modal a11y / 27 shortcut)" & return & ¬
-		"  · 行動端 bottom nav · WCAG 2.2 (skip-link / focus-visible / reduced-motion)" & return & ¬
-		"  · 30+ hardening fixes(來自 5 agent deep audit)" & return & ¬
-		"  · L3 server-side wall + OAuth URL encode + cookie verified audit" & return & ¬
-		"  203 tests pass · 12/13 ship · B1 真 Meta + sync→async pymongo 留 v1.4" & return & return & ¬
+		"  📚 13 份 user-guide(quickstart / mobile / error-codes / training)" & return & ¬
+		"  🔒 30+ hardening · L3 server-side wall · OAuth URL encode · PDPA no-orphan" & return & ¬
+		"  ♿ WCAG 2.2(skip-link / focus-visible / reduced-motion / a11y baseline)" & return & return & ¬
 		"請預先準備:" & return & ¬
 		"  • Anthropic API Key(必須 · Tier 2 預存 USD $50)" & return & ¬
 		"  • OpenAI API Key(會議速記 Whisper 用 · 必須)" & return & ¬
 		"  • Fal.ai API Key(設計助手生圖 · 選配)" & return & ¬
-		"  • Webhook URL(Slack/Discord/Telegram/Mattermost · 每位同事自設 · 安裝後在 launcher 設)" & return & ¬
-		"  • 公司域名(計畫對外用)" & return & ¬
-		"  • 管理員 email(預設 sterio068@gmail.com)" & return & ¬
+		"  • 公司域名(計畫對外用 · 可先留白)" & return & ¬
+		"  • admin email + 密碼(你想用哪個登入 · 將自動註冊第一個 admin)" & return & ¬
 		"  • Docker Desktop 已安裝且啟動" & return & return & ¬
 		"按「繼續」開始 · 按「取消」結束"
 	display dialog welcomeText with title "承富 AI 安裝 · 歡迎" buttons {"取消", "繼續"} default button "繼續" with icon note
@@ -286,29 +284,32 @@ echo ''
 echo '✅ 安裝完成 · admin 已建好'
 echo ''
 echo '══════════════════════════════════════════'
-echo '  下一步 · admin 第一次登入'
+echo '  安裝完成 · 下一步只要 3 個動作'
 echo '══════════════════════════════════════════'
 echo ''
-echo '1. 訪問 http://localhost/chat'
-echo '2. 用剛設的 email + 密碼登入'
-echo '3. 進 launcher:http://localhost/'
-echo '4. 右上角⚙設定 · 驗證 🎛 管理面板(⌘M)看得到'
+echo '【1】訪問 http://localhost/'
+echo '    (自動跳到 Launcher 首頁 · 不是 LibreChat 原介面)'
 echo ''
-echo '── 同仁帳號 ──'
-echo '2 種方式(選一):'
+echo '【2】用剛設的 email + 密碼登入'
+echo '    email: " & adminEmail & "'
+echo '    密碼:你剛在精靈 5/7 步驟設的'
 echo ''
-echo 'A · 同仁自註冊:'
-echo '   · 修改 config-templates/.env 加 ALLOW_REGISTRATION=true'
-echo '   · docker compose up -d librechat'
-echo '   · 同仁訪問 http://localhost/chat 自己註冊'
-echo '   · 建完後改回 ALLOW_REGISTRATION=false'
+echo '【3】按 ⌘U 進「同仁管理」· 建其他 9 位同仁'
+echo '    ✨ v1.3 新功能 · 不用再跑 shell script!'
 echo ''
-echo 'B · admin 批次建:'
-echo '   · 編輯 scripts/create-users.py 內 USERS list'
-echo '   · LIBRECHAT_ADMIN_EMAIL=" & adminEmail & " \\\\'
-echo '     LIBRECHAT_ADMIN_PASSWORD=<密碼> \\\\'
-echo '     python3 scripts/create-users.py'
-echo '   · 產 scripts/passwords.txt · 分給同仁後 shred -u 刪'
+echo '    建同仁流程:'
+echo '     a) 按「+ 建新同仁」'
+echo '     b) 填 email + 姓名'
+echo '     c) 按 🎲 產隨機密碼 · 📋 複製分給同仁'
+echo '     d) 選頭銜 preset(會計 / 企劃 / 設計 / 公關 / 業務 / 新人)'
+echo '        · 或自訂 free text'
+echo '        · 或展開 28 項權限勾選樹'
+echo '     e) 按「建立」· 密碼顯示一次 · 複製完就看不到了'
+echo ''
+echo '【其他】'
+echo ' · 忘了某人密碼 → 停用再重建(密碼只回一次)'
+echo ' · 同仁離職 → 停用(保資料)· 真清走 admin 面板 PDPA'
+echo ' · admin 升降權 → ⌘U 改 role 欄 USER ↔ ADMIN'
 echo ''
 echo '可關閉此 Terminal 視窗 · 但不要關 Docker Desktop'
 "
@@ -334,24 +335,23 @@ chmod +x " & quoted form of commandFile
 
 	-- ============ 步驟 5 · 印維運手冊 ============
 	if healthOK is "OK" then
-		display dialog "🎯 承富 AI 系統 v1.2 安裝完成!" & return & return & ¬
+		display dialog "🎯 承富 AI 系統 v1.3.0 安裝完成!" & return & return & ¬
 			"訪問入口:" & return & ¬
 			"  • Launcher 首頁:http://localhost/" & return & ¬
 			"  • LibreChat 對話:http://localhost/chat" & return & ¬
 			"  • 健康檢查:http://localhost/healthz" & return & ¬
 			"  • Uptime 監控:http://localhost:3001" & return & return & ¬
-			"v1.2 4 個新功能(左側 sidebar):" & return & ¬
-			"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘" & return & return & ¬
-			"下一步(在 Terminal 跑):" & return & ¬
-			"  cd " & repoPath & return & ¬
-			"  python3 scripts/create-users.py" & return & ¬
-			"  python3 scripts/create-agents.py" & return & ¬
-			"  python3 scripts/upload-knowledge-base.py" & return & ¬
-			"  ./scripts/install-launchd.sh  # 5 個 cron(含 social-scheduler)" & return & return & ¬
+			"✨ v1.3 新功能:" & return & ¬
+			"  👥 同仁管理 UI(⌘U)· admin 建帳號 + 頭銜 + 權限勾選" & return & ¬
+			"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘 PWA" & return & return & ¬
+			"下一步:" & return & ¬
+			"  1. 點「開啟 Launcher」 · 用剛設的 " & adminEmail & " 登入" & return & ¬
+			"  2. 按 ⌘U 進「同仁管理」 · 建其他 9 位同仁" & return & ¬
+			"  3. 選 7 個頭銜 preset · 或自訂權限勾選" & return & ¬
+			"  4. 每個同仁產隨機密碼 · 複製分發" & return & return & ¬
 			"提醒同事:" & return & ¬
-			"  • 進「使用教學」綁 Webhook(Slack/Discord/Telegram/Mattermost · 標案截止 / 預算警告會推)" & return & ¬
-			"  • iPhone 場勘:設定 → 相機 → 格式 → 最相容(JPEG)" & return & return & ¬
-			"完整文件:" & repoPath & "/docs/RELEASE-NOTES-v1.2.md" & return & ¬
+			"  • iPhone 場勘:設定 → 相機 → 格式 → 最相容(JPEG)" & return & ¬
+			"  • 使用教學(⌘?)· 13 份中文手冊" & return & return & ¬
 			"問題找:sterio068@gmail.com" ¬
 			with title "✅ 安裝完成" buttons {"開啟 Launcher", "稍後"} default button "開啟 Launcher"
 		if button returned of result is "開啟 Launcher" then
