@@ -161,9 +161,29 @@ Anthropic key 與 JWT secret 建議**每年**重產一次:
 若無法務保留需求:
 - [ ] LibreChat admin → **Delete User**(徹底刪除帳號與對話)
 - [ ] 從 `config-templates/users.json` 移除
+- [ ] **跑 PDPA delete-on-request endpoint**(2026-04-23 加 · R29~R31 完整版):
+  ```bash
+  # 1. 先 dry_run 看會刪 / 切多少筆(注意 X-Internal-Token 走 admin)
+  TOKEN=$(security find-generic-password -s 'chengfu-ai-internal-token' -w)
+  curl -s -X POST -H "X-Internal-Token: $TOKEN" -H "Content-Type: application/json" \
+       -d '{"confirm_email": "離職者@chengfu.com", "dry_run": true}' \
+       http://localhost/api-accounting/admin/users/離職者@chengfu.com/delete-all | python3 -m json.tool
+
+  # 2. 確認 counts 合理 · dry_run=false 真刪
+  curl -s -X POST -H "X-Internal-Token: $TOKEN" -H "Content-Type: application/json" \
+       -d '{"confirm_email": "離職者@chengfu.com", "dry_run": false}' \
+       http://localhost/api-accounting/admin/users/離職者@chengfu.com/delete-all
+  ```
+
+  該 endpoint **跨 9 個刪除類 + 11 個 unset 類** collection 處理(case-insensitive):
+  - 刪除類:user_preferences / feedback / meetings / site_surveys / scheduled_posts / knowledge_audit / quota_overrides / design_jobs / agent_overrides
+  - unset 類:crm_leads(owner) / media_pitch_history(pitched_by) / media_contacts(created_by) / knowledge_sources(created_by) / projects(owner + handoff.updated_by) / crm_stage_history(changed_by) / agent_overrides(editor) / system_settings(updated_by) / tender_alerts(reviewed_by) / crm_leads.notes[].by
+
+  **不刪 LibreChat 對話**(在不同 DB)· response 會帶 `librechat_warning` 提醒上面 5.3 流程
 
 若需法務保留(如訴訟中):
 - [ ] 寫入 `docs/LEGAL-HOLD.md`,標註保留期限
+- [ ] PDPA delete-all **暫不執行** · 等保留期過再跑
 
 ---
 
