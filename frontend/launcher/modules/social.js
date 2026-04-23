@@ -159,9 +159,14 @@ export const social = {
   },
 
   async openNewModal(existing = null) {
-    // 預設 schedule = 1 小時後
+    // R24#1 修 · datetime-local 必須 LOCAL formatter · toISOString 會把本地轉 UTC 偏 8 小時
+    const localIso = (d) => {
+      // YYYY-MM-DDTHH:mm · 本地時區 · 不轉 UTC
+      const pad = n => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
     const defaultTime = new Date(Date.now() + 3600 * 1000);
-    const defaultIso = defaultTime.toISOString().slice(0, 16);
+    const defaultIso = localIso(defaultTime);
     const r = await modal.prompt(
       [
         { name: "platform", label: "平台", type: "select",
@@ -172,17 +177,18 @@ export const social = {
         { name: "image_url", label: "圖片 URL(IG 必填)", type: "text",
           value: existing?.image_url || "" },
         { name: "schedule_at", label: "排定時間(本地時區)", type: "datetime-local",
-          value: existing ? new Date(existing.schedule_at).toISOString().slice(0, 16) : defaultIso },
+          value: existing ? localIso(new Date(existing.schedule_at)) : defaultIso },
       ],
       { title: existing ? "編輯排程" : "+ 新排程", icon: "📅", submitText: "排程" },
     );
     if (!r) return;
 
-    // datetime-local 沒帶 timezone · 後端 _to_utc 會視為 Asia/Taipei
+    // datetime-local 是本地 naive · 後端 _to_utc 會視為 Asia/Taipei
+    // 補 :00 秒給 ISO 完整格式
     const payload = {
       platform: r.platform,
       content: r.content,
-      schedule_at: r.schedule_at + ":00",  // datetime-local 沒秒 · 補
+      schedule_at: r.schedule_at + ":00",
       image_url: r.image_url || null,
     };
 

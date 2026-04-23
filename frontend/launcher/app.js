@@ -139,7 +139,10 @@ export const app = {
 
   handleHashChange() {
     const hash = window.location.hash.replace("#", "");
-    const views = ["projects", "skills", "dashboard", "accounting", "admin", "tenders", "workflows", "crm", "knowledge"];
+    // R24 P1 · v1.2 加 4 個新 view + help 進 whitelist · 重新整理 /#social 才進得去
+    const views = ["projects", "skills", "dashboard", "accounting", "admin", "tenders",
+                   "workflows", "crm", "knowledge", "help",
+                   "meeting", "media", "social", "site"];
     if (views.includes(hash)) {
       this.showView(hash);
       if (hash === "accounting") accounting.load();
@@ -148,6 +151,7 @@ export const app = {
       if (hash === "workflows")  workflows.load();
       if (hash === "crm")        crm.load();
       if (hash === "knowledge")  knowledge.loadBrowser();
+      // showView 已經 dispatch help/meeting/media/social/site init · 此處不重複
     }
   },
 

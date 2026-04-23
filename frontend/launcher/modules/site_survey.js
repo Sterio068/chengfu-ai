@@ -119,7 +119,11 @@ export const siteSurvey = {
     });
     root.querySelectorAll("[data-del]").forEach(b => {
       b.addEventListener("click", () => {
-        this._images.splice(parseInt(b.dataset.del), 1);
+        const idx = parseInt(b.dataset.del);
+        const removed = this._images.splice(idx, 1)[0];
+        if (removed?.isObjectUrl && removed.dataUrl) {
+          try { URL.revokeObjectURL(removed.dataUrl); } catch {}
+        }
         this.render();
       });
     });
@@ -141,7 +145,7 @@ export const siteSurvey = {
     const remaining = MAX_IMAGES - this._images.length;
     if (files.length > remaining) {
       toast.warn(`只能再加 ${remaining} 張`);
-      files = files.slice(0, remaining);
+      files = Array.from(files).slice(0, remaining);
     }
     for (const f of files) {
       if (f.size > MAX_BYTES) {
@@ -153,15 +157,20 @@ export const siteSurvey = {
         toast.error(`${f.name} 是 HEIC · 不支援 · 改 iPhone 設定 → 相機 → 最相容`);
         continue;
       }
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(f);
-      });
-      this._images.push({ file: f, dataUrl });
+      // R24#6 · 用 objectURL 不是 dataURL · 省 33% memory(不 base64 膨脹)
+      const dataUrl = URL.createObjectURL(f);
+      this._images.push({ file: f, dataUrl, isObjectUrl: true });
     }
     this.render();
+  },
+
+  _revokeObjectUrls() {
+    // 刪 / 清空時 revoke · 不洩漏 memory
+    this._images.forEach(img => {
+      if (img.isObjectUrl && img.dataUrl) {
+        try { URL.revokeObjectURL(img.dataUrl); } catch {}
+      }
+    });
   },
 
   _getGPS() {
@@ -213,7 +222,8 @@ export const siteSurvey = {
       const body = await r.json();
       this._currentSurveyId = body.survey_id;
       toast.success("AI 處理中(約 30 秒)");
-      // 重置表單
+      // R24#6 · revoke objectURLs 釋放 memory
+      this._revokeObjectUrls();
       this._images = [];
       this._gps = null;
       this._addressHint = "";
