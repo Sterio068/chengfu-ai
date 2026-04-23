@@ -11,7 +11,7 @@
  */
 import { authFetch } from "./auth.js";
 import { escapeHtml } from "./util.js";
-import { toast } from "./toast.js";
+import { toast, networkError, operationError } from "./toast.js";
 
 const BASE = "/api-accounting";
 
@@ -51,7 +51,11 @@ export const meeting = {
 
       <h3>📋 我的會議</h3>
       ${this._meetings.length === 0 ? `
-        <p class="meeting-empty">沒會議 · 點上面「上傳音檔」開始</p>
+        <div class="empty-state">
+          <div class="empty-state-icon">🎤</div>
+          <div class="empty-state-title">尚無會議紀錄</div>
+          <div class="empty-state-hint">點上方「+ 上傳音檔」開始</div>
+        </div>
       ` : `
         <div class="meeting-list">
           ${this._meetings.map(m => `
@@ -95,14 +99,14 @@ export const meeting = {
     try {
       const r = await authFetch(`${BASE}/memory/meetings/${id}`);
       if (!r.ok) {
-        toast.error("讀取失敗");
+        operationError("讀取會議", `HTTP ${r.status}`, () => this._openDetail(id));
         return;
       }
       const body = await r.json();
       this._currentId = id;
       this._showResult(body);
     } catch (e) {
-      toast.error(`網路錯:${String(e)}`);
+      networkError("讀取會議", e, () => this._openDetail(id));
     }
   },
 
@@ -139,6 +143,12 @@ export const meeting = {
     form.addEventListener("submit", async e => {
       e.preventDefault();
       const fd = new FormData(form);
+      // UX 改善 · 鎖 submit 按鈕防 double-click + 顯示上傳進度
+      const submitBtn = form.querySelector("button[type=submit]");
+      const cancelBtn = form.querySelector("[data-cancel]");
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "⏳ 上傳中...";
+      cancelBtn.disabled = true;
       try {
         const r = await authFetch(`${BASE}/memory/transcribe`, {
           method: "POST",
@@ -146,18 +156,60 @@ export const meeting = {
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
-          toast.error(`上傳失敗:${err.detail || r.status}`);
+          operationError("上傳音檔", err);
+          submitBtn.disabled = false;
+          cancelBtn.disabled = false;
+          submitBtn.innerHTML = "開始 · Whisper + Haiku";
           return;
         }
         const body = await r.json();
-        toast.success(`已上傳 ${body.size_mb}MB · 處理中...`);
+        toast.success(`已上傳 ${body.size_mb}MB · STT 處理中(約 ${Math.ceil(body.size_mb * 6)}s)`);
         modal.remove();
         this._currentId = body.meeting_id;
         this._startPolling();
+        // 主 view 顯示 in-progress banner
+        this._showProcessingBanner(body.meeting_id);
       } catch (e) {
-        toast.error(`網路錯:${String(e)}`);
+        networkError("上傳音檔", e);
+        submitBtn.disabled = false;
+        cancelBtn.disabled = false;
+        submitBtn.innerHTML = "開始 · Whisper + Haiku";
       }
     });
+  },
+
+  _showProcessingBanner(meetingId) {
+    // UX 改善 · main view 上方加 banner · 不只 toast 一閃即失
+    const root = document.getElementById("meeting-content");
+    if (!root) return;
+    let banner = document.getElementById("meeting-processing-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "meeting-processing-banner";
+      banner.style.cssText = "padding:14px 18px; background:var(--surface-2); border:1px solid var(--accent); border-radius:var(--r-md); margin-bottom:16px; display:flex; align-items:center; gap:12px;";
+      root.prepend(banner);
+    }
+    let elapsed = 0;
+    banner.innerHTML = `<div class="loading-spinner" style="width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+      <div style="flex:1">
+        <div style="font-weight:600">🎤 處理中(meeting_id ${meetingId.slice(-6)})</div>
+        <div id="meeting-banner-timer" style="font-size:12px; color:var(--text-secondary)">已 ${elapsed}s · Whisper STT 中 · 完成自動跳結果</div>
+      </div>`;
+    if (this._bannerTimer) clearInterval(this._bannerTimer);
+    this._bannerTimer = setInterval(() => {
+      elapsed += 1;
+      const t = document.getElementById("meeting-banner-timer");
+      if (t) t.textContent = `已 ${elapsed}s · Whisper STT 中 · 完成自動跳結果`;
+    }, 1000);
+  },
+
+  _hideProcessingBanner() {
+    const banner = document.getElementById("meeting-processing-banner");
+    if (banner) banner.remove();
+    if (this._bannerTimer) {
+      clearInterval(this._bannerTimer);
+      this._bannerTimer = null;
+    }
   },
 
   _startPolling() {
@@ -167,7 +219,11 @@ export const meeting = {
       attempts++;
       if (attempts > 60) {  // 3 分鐘
         clearInterval(this._pollTimer);
-        toast.error("超時 · 到「使用教學 → API Key」看 OpenAI 是否有效");
+        this._hideProcessingBanner();
+        toast.error("處理超時(3 分鐘)", {
+          detail: "OpenAI API Key 可能無效或過期",
+          action: { label: "看設定", onClick: () => location.hash = "#help" },
+        });
         return;
       }
       try {
@@ -176,10 +232,15 @@ export const meeting = {
         const body = await r.json();
         if (body.status === "done") {
           clearInterval(this._pollTimer);
+          this._hideProcessingBanner();
           this._showResult(body);
         } else if (body.status === "failed") {
           clearInterval(this._pollTimer);
-          toast.error(`處理失敗:${body.error || "未知錯"}`);
+          this._hideProcessingBanner();
+          toast.error("會議處理失敗", {
+            detail: body.error || "未知錯誤",
+            action: { label: "故障排除", onClick: () => location.hash = "#help" },
+          });
         }
       } catch {}
     }, 3000);
@@ -249,14 +310,14 @@ export const meeting = {
         );
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
-          toast.error(`推失敗:${err.detail || r.status}`);
+          operationError("推到 Handoff", err);
           return;
         }
         const body = await r.json();
         toast.success(`已推 ${body.next_actions_count} 項待辦到 Handoff`);
         modal.remove();
       } catch (e) {
-        toast.error(`網路錯:${String(e)}`);
+        networkError("推到 Handoff", e);
       }
     });
   },
