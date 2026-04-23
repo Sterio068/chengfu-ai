@@ -7,7 +7,11 @@ ROADMAP §11.1 · 從 main.py 抽出的第一個 router(最孤立 · 證明 patt
 """
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
+from datetime import datetime, timezone
+import logging
 import re
+
+logger = logging.getLogger("chengfu")
 
 
 router = APIRouter(prefix="/safety", tags=["safety"])
@@ -112,7 +116,11 @@ def detect_pii(payload: PIIDetectRequest):
 @router.post("/pii-audit")
 def audit_pii(payload: PIIDetectRequest, request: Request):
     """前端送出時 · 寫 audit log 記錄『user 看到 PII 警告但仍送了』
-    · 不記 raw value · 只記 hit kind + count + user · PDPA"""
+    · 不記 raw value · 只記 hit kind + count + user · PDPA
+
+    R29 修:原 __import__("datetime").datetime.now(timezone.utc) timezone NameError 被
+    bare except 吞 · 結果 audit 從未真寫 · 改正規 import + 不吞例外
+    """
     redacted, hits = _redact_pii(payload.text or "")
     if hits:
         try:
@@ -126,8 +134,8 @@ def audit_pii(payload: PIIDetectRequest, request: Request):
                     "hit_kinds": list(set(h["kind"] for h in hits)),
                     "text_length": len(payload.text or ""),
                 },
-                "created_at": __import__("datetime").datetime.now(timezone.utc),
+                "created_at": datetime.now(timezone.utc),
             })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[pii-audit] write fail: %s", e)
     return {"audited": True, "hit_count": len(hits)}

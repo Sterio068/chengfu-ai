@@ -797,15 +797,25 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
                      _admin: str = require_admin_dep()):
     """PDPA 17 條 · 同仁離職 / 自願刪除請求 · 把該 user 跨 collection 全刪
 
-    跨 collection 範圍(承富 v1.2):
+    跨 collection 範圍(承富 v1.2 + R29 補):
+    刪除類(該 user 私有資料):
     - user_preferences(line_token / webhook_url / agent prefs)
     - feedback(該 user 的 thumbs up/down)
     - meetings(該 user 上傳的會議速記)
     - site_surveys(該 user 拍的場勘照片 metadata)
     - scheduled_posts(author = user_email)
-    - crm_leads(owner = user_email · note:不刪 lead 本身 · 改 owner=None)
     - knowledge_audit(user 搜的 audit log)
     - chengfu_quota_overrides(若有)
+    - design_jobs(R29 補 · user 欄 · prompt + 圖檔 reference)
+    - agent_overrides(R29 補 · admin 為該 user 客製 prompt)
+
+    切人關聯類(資料屬公司 · 只切 user 識別):
+    - crm_leads(owner=None · lead 屬公司業務)
+    - media_pitch_history(R29 補 · pitched_by=None · pitch 紀錄屬公司)
+    - media_contacts(R29 補 · created_by=None · 媒體名單屬公司)
+
+    保留類(法規要求保留):
+    - audit_log / main audit_col(操作 audit · PDPA 第 11 條保留)
 
     安全護欄:
     1. require admin · 不開放自助
@@ -825,8 +835,8 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
     target = user_email.strip().lower()
     audit_col = db.knowledge_audit  # 借這個 col 紀錄 PDPA 操作
 
-    # collection → query
-    targets = [
+    # 刪除類 · collection → query
+    delete_targets = [
         ("user_preferences", {"user_email": target}),
         ("feedback", {"user_email": target}),
         ("meetings", {"owner": target}),
@@ -834,12 +844,19 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
         ("scheduled_posts", {"author": target}),
         ("knowledge_audit", {"user": target}),
         ("chengfu_quota_overrides", {"email": target}),
-        # crm_leads 只清 owner · 不刪 lead 本身(資料屬於公司)
-        # 用 update_many 不在這裡 · 下面單獨處理
+        ("design_jobs", {"user": target}),       # R29 補
+        ("agent_overrides", {"user_email": target}),  # R29 補(若 admin 有為該 user 客製)
+    ]
+
+    # 切人關聯類 · collection → (query, $set patch)
+    unset_targets = [
+        ("crm_leads", {"owner": target}, {"owner": None}),
+        ("media_pitch_history", {"pitched_by": target}, {"pitched_by": None}),  # R29 補
+        ("media_contacts", {"created_by": target}, {"created_by": None}),       # R29 補
     ]
 
     counts = {}
-    for col_name, q in targets:
+    for col_name, q in delete_targets:
         col = db[col_name]
         if payload.dry_run:
             counts[col_name] = col.count_documents(q)
@@ -847,12 +864,14 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
             r = col.delete_many(q)
             counts[col_name] = r.deleted_count
 
-    # crm_leads · owner 改 None(資料留 · 個人關聯切)
-    if payload.dry_run:
-        counts["crm_leads_owner_unset"] = db.crm_leads.count_documents({"owner": target})
-    else:
-        r = db.crm_leads.update_many({"owner": target}, {"$set": {"owner": None}})
-        counts["crm_leads_owner_unset"] = r.modified_count
+    for col_name, q, patch in unset_targets:
+        col = db[col_name]
+        key = f"{col_name}_unset"
+        if payload.dry_run:
+            counts[key] = col.count_documents(q)
+        else:
+            r = col.update_many(q, {"$set": patch})
+            counts[key] = r.modified_count
 
     # 寫 audit · 不論 dry_run 都記
     audit_col.insert_one({

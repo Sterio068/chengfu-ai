@@ -1109,20 +1109,32 @@ def test_pdpa_dry_run_counts(client):
     assert body["counts"]["user_preferences"] >= 1
     assert body["counts"]["feedback"] >= 1
     assert body["counts"]["scheduled_posts"] >= 1
-    assert body["counts"]["crm_leads_owner_unset"] >= 1
+    # R29 改名 crm_leads_owner_unset → crm_leads_unset(因 unset_targets pattern)
+    assert body["counts"]["crm_leads_unset"] >= 1
     # dry_run · 資料應仍在
     assert main_mod.db.user_preferences.count_documents({"user_email": target}) >= 1
 
 
 def test_pdpa_real_delete(client):
-    """admin POST dry_run=false · 真刪 + crm_leads owner unset · audit 記下"""
+    """admin POST dry_run=false · 真刪 + crm_leads owner unset · audit 記下
+    R29 補:含 design_jobs / media_pitch_history / agent_overrides 等 9 類"""
     import main as main_mod
     from datetime import datetime, timezone
     target = "real-delete@chengfu.local"
+    # 刪除類 sample
     main_mod.db.user_preferences.insert_one(
         {"user_email": target, "key": "lang", "value": "tw"})
+    main_mod.db.design_jobs.insert_one(
+        {"user": target, "prompt_preview": "client A", "created_at": datetime.now(timezone.utc)})
+    main_mod.db.agent_overrides.insert_one(
+        {"user_email": target, "agent_num": "01", "prompt": "x"})
+    # 切關聯類 sample
     main_mod.db.crm_leads.insert_one(
         {"title": "real lead", "owner": target, "stage": "lead"})
+    main_mod.db.media_pitch_history.insert_one(
+        {"contact_id": "x", "pitched_by": target, "topic": "y"})
+    main_mod.db.media_contacts.insert_one(
+        {"name": "記者 A", "outlet": "中時", "created_by": target})
 
     r = client.post(
         f"/admin/users/{target}/delete-all",
@@ -1132,15 +1144,35 @@ def test_pdpa_real_delete(client):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["dry_run"] is False
-    # 真刪
+    # 刪除類 · 真刪
     assert main_mod.db.user_preferences.count_documents({"user_email": target}) == 0
-    # crm_lead 仍在但 owner 被清
-    leftover = main_mod.db.crm_leads.find_one({"title": "real lead"})
-    assert leftover is not None
-    assert leftover["owner"] is None
+    assert main_mod.db.design_jobs.count_documents({"user": target}) == 0
+    assert main_mod.db.agent_overrides.count_documents({"user_email": target}) == 0
+    # 切關聯類 · 資料留 · 個人欄被清
+    assert main_mod.db.crm_leads.find_one({"title": "real lead"})["owner"] is None
+    assert main_mod.db.media_pitch_history.find_one({"contact_id": "x"})["pitched_by"] is None
+    assert main_mod.db.media_contacts.find_one({"name": "記者 A"})["created_by"] is None
     # audit 記下
     audit = main_mod.db.knowledge_audit.find_one({"action": "pdpa_delete", "resource": target})
     assert audit is not None
+
+
+def test_pii_audit_writes_log(client):
+    """R29 紅 · /safety/pii-audit 須真寫 audit_log
+    原 __import__ datetime + bare except 吞掉 NameError · audit 從未寫"""
+    import main as main_mod
+    before = main_mod.audit_col.count_documents({"action": "pii_warning_dismissed"})
+    r = client.post(
+        "/safety/pii-audit",
+        json={"text": "我的 email test@example.com · 手機 0912345678"},
+        headers={"X-User-Email": "user@chengfu.local"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["audited"] is True
+    assert body["hit_count"] >= 1
+    after = main_mod.audit_col.count_documents({"action": "pii_warning_dismissed"})
+    assert after == before + 1, "audit_log 必須真寫(R29 修)"
 
 
 def test_pdpa_confirm_email_mismatch(client):
