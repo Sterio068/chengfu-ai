@@ -5,6 +5,8 @@ import { escapeHtml } from "./util.js";
 import { modal } from "./modal.js";
 import { toast, networkError, operationError } from "./toast.js";
 import { tpl } from "./tpl.js";
+// v1.3 batch6 · 全 fetch 改 authFetch · 過去未帶 cookie · prod 嚴格 auth 會 401
+import { authFetch } from "./auth.js";
 
 const BASE = "/api-accounting/crm";
 const STAGES = [
@@ -34,7 +36,7 @@ export const crm = {
   async loadLeads() {
     try {
       // R17#1 修 · backend 改 {items,total,...} shape · 加 limit=500 取足
-      const r = await fetch(`${BASE}/leads?limit=500`);
+      const r = await authFetch(`${BASE}/leads?limit=500`);
       const body = await r.json();
       // 向後相容 · 新舊 shape 都吃
       this.leads = Array.isArray(body) ? body : (body.items || []);
@@ -51,7 +53,7 @@ export const crm = {
 
   async loadStats() {
     try {
-      const r = await fetch(`${BASE}/stats`);
+      const r = await authFetch(`${BASE}/stats`);
       const s = await r.json();
       setText("crm-stat-total", s.total_leads || 0);
       setText("crm-stat-win-rate", (s.win_rate ?? "—") + (s.win_rate != null ? "%" : ""));
@@ -161,7 +163,7 @@ export const crm = {
     e.currentTarget.classList.remove("drag-over");
     if (!this.draggedId) return;
     try {
-      const r = await fetch(`${BASE}/leads/${this.draggedId}`, {
+      const r = await authFetch(`${BASE}/leads/${this.draggedId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage: newStage, _by: this._currentUserEmail }),
@@ -186,7 +188,7 @@ export const crm = {
     ], { title: "新商機", primary: "建立", icon: "💼" });
     if (!r) return;
     try {
-      const resp = await fetch(`${BASE}/leads`, {
+      const resp = await authFetch(`${BASE}/leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -209,7 +211,7 @@ export const crm = {
 
   async importFromTenders() {
     try {
-      const r = await fetch(`${BASE}/import-from-tenders`, { method: "POST" });
+      const r = await authFetch(`${BASE}/import-from-tenders`, { method: "POST" });
       if (!r.ok) {
         operationError("從標案匯入", await r.json().catch(() => ({})));
         return;

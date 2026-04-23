@@ -66,6 +66,9 @@
   --shadow-1: 0 1px 3px rgba(0,0,0,0.3);
   --shadow-2: 0 4px 12px rgba(0,0,0,0.4);
   --shadow-3: 0 20px 48px rgba(0,0,0,0.5);
+
+  /* v1.3 batch6 · WCAG 2.4.11 · dark mode focus ring 對 dark sidebar 對比足夠 */
+  --accent: #4F8FFF;  /* 亮藍 · 對 #1E1E20 約 7:1 · 原 #0F2340 才 1.4:1 */
 }
 
 /* Follow system colour scheme when data-theme="auto" */
@@ -84,11 +87,28 @@
     --shadow-1: 0 1px 3px rgba(0,0,0,0.3);
     --shadow-2: 0 4px 12px rgba(0,0,0,0.4);
     --shadow-3: 0 20px 48px rgba(0,0,0,0.5);
+    --accent: #4F8FFF;  /* v1.3 batch6 · dark accent for focus ring */
   }
 }
 
 /* ============================================================ Reset */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* v1.3 batch6 · WCAG 2.4.1 · skip-link · 鍵盤跳過 17+ sidebar item */
+.skip-link {
+  position: absolute;
+  left: 8px; top: -40px;
+  background: var(--accent);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  transition: top 0.15s;
+  text-decoration: none;
+}
+.skip-link:focus { top: 8px; outline: 3px solid white; outline-offset: 2px; }
 
 html, body {
   font-family: var(--font-system);
@@ -1676,6 +1696,28 @@ kbd {
 }
 .modal2-actions .btn-ghost:hover { background: var(--border-strong); }
 
+/* v1.3 batch6 · WCAG 1.4.1 · 必填 badge · 文字 + 邊框 · 不只靠顏色 */
+.modal2-req-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border: 1px solid var(--red);
+  color: var(--red);
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+[data-theme="dark"] .modal2-req-badge { color: #FCA5A5; border-color: #FCA5A5; }
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] .modal2-req-badge { color: #FCA5A5; border-color: #FCA5A5; }
+}
+
+/* v1.3 batch6 · close button 達 44×44 touch target */
+.modal-close, .drawer-close {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 /* ============================================================
    Service Health 指示器
    ============================================================ */
@@ -1756,21 +1798,24 @@ kbd {
   }
 }
 
-/* v1.3 batch4 P1#6 · 行動端底部 nav · 拇指可達 · 6 個工作區一鍵切 */
+/* v1.3 batch4 P1#6 · 行動端底部 nav · 拇指可達 · 6 個工作區一鍵切
+   v1.3 batch6 · WCAG 2.5.8 · 加 spacing 避免相鄰誤觸 */
 .mobile-bottom-nav {
   display: none;  /* 桌機隱 */
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: 60px;
+  height: 64px;  /* +4px · 內留 spacing */
   background: var(--bg-float, var(--bg-content));
   backdrop-filter: var(--blur, blur(12px));
   -webkit-backdrop-filter: var(--blur, blur(12px));
   border-top: 1px solid var(--border);
   z-index: 90;
-  padding-bottom: env(safe-area-inset-bottom, 0);  /* iPhone home indicator */
+  padding: 4px 2px env(safe-area-inset-bottom, 0);  /* iPhone home indicator */
 }
 .mobile-bottom-item {
   flex: 1;
+  min-width: 44px;     /* WCAG 2.5.8 minimum */
+  margin: 0 2px;       /* SC 2.5.8 24x24 target 需 ≥ 4px 間距(2+2) */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1779,6 +1824,7 @@ kbd {
   color: var(--text-secondary);
   font-size: 10px;
   padding: 6px 4px;
+  border-radius: 8px;
   transition: color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -2379,14 +2425,35 @@ body.has-banner .main-header { margin-top: 44px; }
   font-size: 11px;
   font-weight: 500;
 }
-.chat-input-hints .hint-level.l1 { background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); }
-.chat-input-hints .hint-level.l2 { background: color-mix(in srgb, var(--orange) 14%, transparent); color: var(--orange); }
+/* v1.3 batch6 · WCAG 1.4.3 · 4.5:1 · 加深 fg color · 加深底色 */
+.chat-input-hints .hint-level.l1 {
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+  color: #1A7F37;  /* 深 forest green · vs white 4.6:1 */
+}
+.chat-input-hints .hint-level.l2 {
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+  color: #B75900;  /* 深橘 · vs white 4.54:1 */
+}
 .chat-input-hints .hint-level.l3 {
-  background: color-mix(in srgb, var(--red) 18%, transparent);
-  color: var(--red);
+  background: color-mix(in srgb, var(--red) 22%, transparent);
+  color: #C81E14;  /* 深紅 · vs white 5.1:1 */
   font-weight: 700;
   border: 1px solid color-mix(in srgb, var(--red) 50%, transparent);
   animation: l3-pulse 1.6s ease-in-out infinite;
+}
+/* dark mode 文字色用淺色 */
+[data-theme="dark"] .hint-level.l1 { color: #4ADE80; }
+[data-theme="dark"] .hint-level.l2 { color: #FBA33C; }
+[data-theme="dark"] .hint-level.l3 { color: #FCA5A5; }
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] .hint-level.l1 { color: #4ADE80; }
+  [data-theme="auto"] .hint-level.l2 { color: #FBA33C; }
+  [data-theme="auto"] .hint-level.l3 { color: #FCA5A5; }
+}
+/* v1.3 batch6 · WCAG 2.2.2 · hover/focus 暫停 pulse */
+.hint-level.l3:hover,
+.hint-level.l3:focus-within {
+  animation-play-state: paused;
 }
 @keyframes l3-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 35%, transparent); }

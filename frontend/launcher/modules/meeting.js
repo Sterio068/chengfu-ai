@@ -218,6 +218,8 @@ export const meeting = {
   _startPolling() {
     if (this._pollTimer) clearInterval(this._pollTimer);
     let attempts = 0;
+    // v1.3 batch6 · stale closure 修 · 把 ID 局部存 · 防中途 _currentId 被新 upload 蓋掉
+    const pollId = this._currentId;
     this._pollTimer = setInterval(async () => {
       attempts++;
       if (attempts > 60) {  // 3 分鐘
@@ -230,7 +232,7 @@ export const meeting = {
         return;
       }
       try {
-        const r = await authFetch(`${BASE}/memory/meetings/${this._currentId}`);
+        const r = await authFetch(`${BASE}/memory/meetings/${pollId}`);
         if (!r.ok) return;
         const body = await r.json();
         if (body.status === "done") {

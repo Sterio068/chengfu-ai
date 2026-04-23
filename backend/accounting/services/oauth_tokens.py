@@ -84,8 +84,11 @@ def decrypt_token(encrypted: str) -> str:
         nonce, ct = raw[:12], raw[12:]
         cipher = AESGCM(key)
         return cipher.decrypt(nonce, ct, None).decode("utf-8")
-    except Exception as e:
-        raise RuntimeError(f"decrypt 失敗:{e}")
+    except Exception:
+        # v1.3 batch6 · HIGH · 不洩漏 cryptography 內部訊息(nonce 長度 / tag mismatch)
+        # 給呼叫方面向用戶安全字串 · debug 細節進 log
+        logger.debug("[oauth] decrypt fail · key 不匹配 / token 損毀", exc_info=True)
+        raise RuntimeError("token 解密失敗 · 請重新連結帳號")
 
 
 # ============================================================

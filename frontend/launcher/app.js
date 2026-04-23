@@ -232,6 +232,8 @@ export const app = {
     };
     const ws = VIEW_TO_WS[view] || "0";
     document.dispatchEvent(new CustomEvent("ws-changed", { detail: { ws, view } }));
+    // v1.3 batch6 · WCAG 4.1.3 + 1.3.1 · focus main · SR 重唸新 view 的 h1
+    setTimeout(() => document.getElementById("main-content")?.focus(), 50);
     // V1.1 §E-3 · 切到 knowledge 自動載入
     if (view === "knowledge") knowledge.loadBrowser();
     if (view === "admin") knowledge.loadAdmin();
@@ -334,13 +336,18 @@ export const app = {
       if (fill) fill.style.width = pct + "%";
       const today = new Date().getDate();
       setText("usage-avg", Math.round(used / Math.max(1, today) / 1000) + "k");
-    } catch {
-      setText("usage-used", "0");
-      setText("usage-limit", "150萬");
-      setText("usage-remaining", "150萬");
-      setText("usage-avg", "0");
+    } catch (e) {
+      // v1.3 batch6 · 別吞 quota 失敗 · 顯示 "—" 而非 misleading 0
+      console.warn("[usage] loadUsage failed:", e);
+      setText("usage-used", "—");
+      setText("usage-limit", "—");
+      setText("usage-remaining", "—");
+      setText("usage-avg", "—");
       const card = document.querySelector(".usage-card");
-      if (card) card.classList.add("empty");
+      if (card) {
+        card.classList.add("empty");
+        card.title = "用量載入失敗 · 點重試或檢查 accounting 服務";
+      }
     }
   },
 
@@ -370,7 +377,12 @@ export const app = {
             }
           }
         }
-      } catch {}
+      } catch (e) {
+        // v1.3 batch6 · 別吞 budget API 失敗
+        console.warn("[roi] budget-status failed:", e);
+        setText("roi-budget-value", "—");
+        setText("roi-budget-sub", "預算服務載入失敗");
+      }
     } else if (budgetEl) {
       setText("roi-budget-value", "—");
       setText("roi-budget-sub", "管理員才看得到");
@@ -396,7 +408,10 @@ export const app = {
           `;
         }
       }
-    } catch {}
+    } catch (e) {
+      // v1.3 batch6 · 別吞 funnel API 失敗
+      console.warn("[roi] tender-funnel failed:", e);
+    }
     // 本週 AI 幫你做幾件(loadUsage 已放 stat-this-week-tasks)· 抓相同數值到 ROI 卡
     const tasks = document.getElementById("stat-this-week-tasks")?.textContent;
     if (tasks && tasks !== "—") setText("roi-tasks-value", tasks);

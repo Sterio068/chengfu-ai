@@ -196,7 +196,8 @@ export const media = {
   },
 
   async deactivateContact(id) {
-    if (!confirm("確定停用此記者?(可日後復原 · 不真刪)")) return;
+    // v1.3 batch6 · 取代 window.confirm · 一致 UX
+    if (!await modal.confirm("確定停用此記者?(可日後復原 · 不真刪)", { title: "停用記者", icon: "📰", primary: "停用", danger: true })) return;
     try {
       const r = await authFetch(`${BASE}/media/contacts/${id}`, { method: "DELETE" });
       if (!r.ok) {
@@ -272,8 +273,8 @@ export const media = {
                   <td>${escapeHtml(c.outlet)}</td>
                   <td><b>${c.score}</b></td>
                   <td><small>
-                    匹配:${(c.reason.matched_topics || []).join("/")} · jaccard=${c.reason.jaccard}<br>
-                    接受率 ${c.accepted_count}/${c.pitched_count} · recency=${c.reason.recency_weight}
+                    匹配:${(c.reason.matched_topics || []).map(escapeHtml).join("/")} · jaccard=${escapeHtml(String(c.reason.jaccard))}<br>
+                    接受率 ${c.accepted_count}/${c.pitched_count} · recency=${escapeHtml(String(c.reason.recency_weight))}
                   </small></td>
                 </tr>
               `).join("")}

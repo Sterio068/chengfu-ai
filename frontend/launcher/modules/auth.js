@@ -8,6 +8,7 @@
  *   - 跨分頁 auth refresh 用 navigator.locks 防 race
  */
 import { API } from "./config.js";
+import { escapeHtml } from "./util.js";
 
 let _jwt = null;
 let _userEmail = null;
@@ -103,9 +104,10 @@ export function _showBanner({ message, actionLabel, onClick, variant = "error" }
     document.body.prepend(el);
   }
   el.className = `sys-banner ${variant}`;
+  // v1.3 batch6 · H-3 · escapeHtml message + actionLabel · 防 caller 帶含 server reply 的 XSS
   el.innerHTML = `
-    <span>${message}</span>
-    ${actionLabel ? `<button class="banner-action" type="button">${actionLabel}</button>` : ""}
+    <span>${escapeHtml(message)}</span>
+    ${actionLabel ? `<button class="banner-action" type="button">${escapeHtml(actionLabel)}</button>` : ""}
   `;
   // 重建 innerHTML 後 · 舊 listener 自動被 GC · 綁新的
   if (actionLabel && onClick) {

@@ -246,6 +246,21 @@ async def lifespan(app: FastAPI):
         )
     else:
         logger.info("[auth] JWT_REFRESH_SECRET 已設 · cookie 驗 ON · admin 強制 trusted")
+
+    # v1.3 batch6 · CRITICAL C-2 · OAuth token 加密 key 強制檢查
+    _creds_key = os.getenv("CREDS_KEY", "")
+    if not _creds_key or len(_creds_key) < 32:
+        if _is_prod():
+            raise RuntimeError(
+                "CREDS_KEY required in production (>= 32 bytes) · "
+                "OAuth token 會以 PLAIN: prefix 明文存庫 · 違反 PDPA"
+            )
+        logger.warning(
+            "[security] CREDS_KEY 未設或太短(dev mode)· "
+            "social OAuth token 將以明文 PLAIN: prefix 存庫 · production 必設"
+        )
+    else:
+        logger.info("[security] CREDS_KEY 已設 · OAuth token AES-GCM 加密 ON")
     # R7#10 · prod legacy header fallback 預設關 · 開發或明確 opt-in 才開
     if not _legacy_auth_headers_enabled():
         logger.info("[auth] X-User-Email legacy fallback OFF · 必走 cookie 或 internal token")
@@ -445,9 +460,16 @@ def serialize(doc):
 _users_col = db.users  # LibreChat 的 users collection
 
 # ADMIN_EMAILS env 白名單(逗號分隔)· 相容舊部署用 ADMIN_EMAIL 單值
+# v1.3 batch6 · CRITICAL C-3 · 移除 hardcode email fallback · 避免 git leak
+# dev 仍可用 ADMIN_EMAIL env 設; prod 必須明確設 ADMIN_EMAILS
 _admin_allowlist = {e.strip().lower() for e in (
-    os.getenv("ADMIN_EMAILS", os.getenv("ADMIN_EMAIL", "sterio068@gmail.com")).split(",")
+    os.getenv("ADMIN_EMAILS", os.getenv("ADMIN_EMAIL", "")).split(",")
 ) if e.strip()}
+if not _admin_allowlist:
+    logger.warning(
+        "[admin] ADMIN_EMAILS 未設 · admin endpoint 將完全鎖死 · "
+        "設 ADMIN_EMAILS=email1,email2 開放管理員"
+    )
 
 
 def _verify_librechat_cookie(request: Request) -> Optional[str]:

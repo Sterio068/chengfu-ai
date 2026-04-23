@@ -34,13 +34,20 @@ from pydantic import BaseModel
 def _parse_date_boundary(raw: str, *, end: bool = False) -> datetime:
     """R18 · audit-log 日期 parser · 容忍 YYYY-MM-DD 或完整 ISO datetime
     原本 f"{start_date}T00:00:00" 若 raw 已含 T 會變 T..T 導致 ValueError 500
+
+    v1.3 batch6 · MEDIUM · 統一回 tz-aware UTC · 避免與 datetime.now(timezone.utc) 比較炸 TypeError
     """
     s = raw.strip().replace("Z", "+00:00")
     try:
         if "T" in s:
-            return datetime.fromisoformat(s)
+            dt = datetime.fromisoformat(s)
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
         d = date.fromisoformat(s)
-        return datetime.combine(d, datetime.max.time() if end else datetime.min.time())
+        return datetime.combine(
+            d,
+            datetime.max.time() if end else datetime.min.time(),
+            tzinfo=timezone.utc,
+        )
     except ValueError:
         raise HTTPException(422, "date must be YYYY-MM-DD or ISO datetime")
 
@@ -437,7 +444,7 @@ def monthly_report(month: Optional[str] = None, _admin: str = require_admin_dep(
     from main import pnl_report, feedback_col
     from routers.feedback import _compute_feedback_stats
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if month:
         y, m = map(int, month.split("-"))
     else:
@@ -522,7 +529,9 @@ def list_agent_prompts(_admin: str = require_admin_dep()):
     if presets_dir.exists():
         for f in sorted(presets_dir.glob("0*.json")):
             try:
-                data = json.load(open(f))
+                # v1.3 batch6 · HIGH · with context manager · 防 fd 洩漏
+                with open(f, encoding="utf-8") as fh:
+                    data = json.load(fh)
                 override = db.agent_overrides.find_one({"agent_num": f.stem.split("-")[0]})
                 agents.append({
                     "agent_num": f.stem.split("-")[0],

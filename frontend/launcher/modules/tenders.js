@@ -37,6 +37,8 @@ export const tenders = {
     const q = this.filter === "all" ? "" : `?status=${this.filter}`;
     try {
       const r = await fetch(`${BASE}${q}`);
+      // v1.3 batch6 · M-2 silent · 沒 r.ok 會把 500 error JSON 當空陣列 · 顯示「尚無標案」誤導
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const items = await r.json();
       const count = document.getElementById("tender-count");
       if (count) count.textContent = items.filter(i => i.status === "new").length;
