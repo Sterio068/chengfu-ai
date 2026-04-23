@@ -175,6 +175,18 @@ services:
       # X-User-Email legacy fallback · prod 預設關 · dev 預設開
       # 設 1 → 即使 prod 也允許(過渡期 launcher 還沒切 cookie 時用)
       - ALLOW_LEGACY_AUTH_HEADERS=${ALLOW_LEGACY_AUTH_HEADERS:-0}
+      # v1.3 batch6 · CRITICAL C-2 · OAuth token 加密 key(>= 32 bytes)
+      # prod 必設 · dev 容退化 PLAIN: 明文 + warning
+      - CREDS_KEY=${CREDS_KEY:-}
+      # v1.3 batch6 · CRITICAL C-3 · admin email allowlist(移除 hardcode 後必設)
+      # 沒設 prod 起得來但 admin endpoint 全鎖死 + warn log
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      # v1.3 A3 · CRITICAL C-3 · L3 機敏內容 server-side 強制擋
+      # 預設 audit-only(寫 log 不擋)· 設 1 啟用硬擋(回 403)
+      - L3_HARD_STOP=${L3_HARD_STOP:-0}
+      # v1.3 A3 · CRITICAL C-8 · OAuth callback URL base(白名單)
+      # prod 必設 · 否則退化用 X-Forwarded-Host(可被偽造做 open-redirect)
+      - OAUTH_REDIRECT_BASE_URL=${OAUTH_REDIRECT_BASE_URL:-}
     expose:
       - "8000"
     networks:
