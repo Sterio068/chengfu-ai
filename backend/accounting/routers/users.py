@@ -41,8 +41,9 @@ def get_user_prefs(user_email: str,
     db = get_db()
     _require_self_or_admin(user_email, caller)
     prefs = list(db.user_preferences.find({"user_email": user_email}))
-    # R25#1 · 敏感欄位(line_token / api_keys)只回 configured + last4 · 不回原值
-    SENSITIVE = {"line_token"}
+    # R25#1 + R27#3 · 敏感欄位(line_token / webhook_url / api_keys)只回 configured + last4 · 不回原值
+    # webhook_url 含 Slack/Discord/Telegram 整段 secret · 同等敏感
+    SENSITIVE = {"line_token", "webhook_url"}
     out = {}
     for p in prefs:
         k, v = p.get("key"), p.get("value", "")
@@ -102,22 +103,28 @@ def set_webhook(user_email: str, payload: WebhookSetup,
                 caller: Optional[str] = current_user_email_dep()):
     """同事自設 webhook URL · 支援 Slack/Discord/Telegram/Mattermost
     R26#2 · 取代 LINE Notify(已停服 2025-03-31)
+    R27#4 · 必驗 SSRF(必 https · 不指內網 IP)
     """
     _require_self_or_admin(user_email, caller)
+    from services.webhook_notify import send, validate_webhook_url, WebhookValidationError
+    url = payload.url.strip()
+    try:
+        validate_webhook_url(url)
+    except WebhookValidationError as e:
+        raise HTTPException(400, str(e))
     db = get_db()
     db.user_preferences.update_one(
         {"user_email": user_email, "key": "webhook_url"},
         {"$set": {
             "user_email": user_email,
             "key": "webhook_url",
-            "value": payload.url.strip(),
+            "value": url,
             "updated_at": datetime.utcnow(),
         }},
         upsert=True,
     )
     # 立刻送測試訊息
-    from services.webhook_notify import send
-    ok = send(payload.url.strip(), "✅ 承富 AI · webhook 綁定成功 · 之後重要事件會推這")
+    ok = send(url, "✅ 承富 AI · webhook 綁定成功 · 之後重要事件會推這")
     return {"saved": True, "test_sent": ok}
 
 

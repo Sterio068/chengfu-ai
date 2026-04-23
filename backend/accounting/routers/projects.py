@@ -20,8 +20,11 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from ._deps import require_user_dep
 
-router = APIRouter(tags=["projects"])
+
+# R27#2 · router-wide require login · nginx /api-accounting 公開 · 沒登入禁讀寫 project
+router = APIRouter(tags=["projects"], dependencies=[require_user_dep()])
 logger = logging.getLogger("chengfu")
 
 

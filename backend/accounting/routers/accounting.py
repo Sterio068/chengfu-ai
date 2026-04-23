@@ -25,8 +25,12 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from ._deps import require_user_dep
 
-router = APIRouter(tags=["accounting"])
+
+# R27#2 · router-wide require login · nginx 直接公開 /api-accounting/* · 沒登入禁讀寫
+# 個別 admin 操作(seed / DELETE)在 endpoint 級再升 require_admin_dep
+router = APIRouter(tags=["accounting"], dependencies=[require_user_dep()])
 logger = logging.getLogger("chengfu")
 
 

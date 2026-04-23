@@ -17,20 +17,73 @@ webhook URL 通常長這樣:
 
 best-effort · 失敗不擋主流程
 """
+import ipaddress
 import json
 import logging
+import socket
 import urllib.parse
 import urllib.request
 
 logger = logging.getLogger("chengfu")
 
 
+# R27#4 · SSRF 防護 · webhook URL user-supplied · 立刻 server-side fetch
+# 沒護欄 → 同仁可探內網(librechat/mongodb/meili/localhost/admin endpoint)
+# 白名單也行 · 但承富 user 自架 webhook(Mattermost on-prem)合法 · 改 IP block
+_BLOCKED_HOSTS = {"localhost", "metadata.google.internal"}
+
+
+class WebhookValidationError(ValueError):
+    """webhook URL 不合法 · raise 在 set_webhook 時擋下"""
+
+
+def validate_webhook_url(url: str) -> str:
+    """R27#4 · 防 SSRF · raise WebhookValidationError 若不合法
+    1. 必須 https:// 起頭(telegram bot / mattermost / slack / discord 都支援)
+    2. host 解析後 IP 不可是 private/loopback/link-local/reserved
+    3. 阻擋 metadata service hostname
+    """
+    if not url:
+        raise WebhookValidationError("webhook URL 不可為空")
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https":
+        raise WebhookValidationError("webhook 必須 https://")
+    host = (parsed.hostname or "").lower()
+    if not host or host in _BLOCKED_HOSTS:
+        raise WebhookValidationError(f"webhook host 不允許:{host or '(空)'}")
+    # 解析 DNS · 拒絕內網 IP(防 attacker 用 evil.com → CNAME → 10.0.0.1)
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as e:
+        raise WebhookValidationError(f"webhook host DNS 解析失敗:{e}")
+    for info in infos:
+        ip_str = info[4][0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved \
+                or ip.is_multicast or ip.is_unspecified:
+            raise WebhookValidationError(
+                f"webhook 拒絕指向內網/loopback IP:{host} → {ip}"
+            )
+    return url
+
+
 def send(webhook_url: str, message: str, *, timeout: int = 10) -> bool:
-    """Generic webhook · 自動偵測 platform 用對應 payload"""
+    """Generic webhook · 自動偵測 platform 用對應 payload
+    R27#4 · send 時 best-effort 不 raise · 但設定時透過 validate_webhook_url 把關
+    """
     if not webhook_url:
         return False
     try:
         url = webhook_url.strip()
+        # send 時再驗一次 · 防 DB 內既有舊 URL 是內網
+        try:
+            validate_webhook_url(url)
+        except WebhookValidationError as e:
+            logger.warning("[webhook] blocked by SSRF guard: %s", e)
+            return False
         is_telegram = "telegram.org" in url
         if is_telegram:
             # Telegram bot · message 進 query string sendMessage

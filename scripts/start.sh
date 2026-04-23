@@ -135,8 +135,19 @@ if [[ -d "$ACC_DIR" ]] && docker image inspect config-templates-accounting > /de
     fi
 fi
 
-# 本機開發:override.yml 會被自動 merge(docker compose 預設行為)
-# 正式部署想關掉 override:COMPOSE_FILE=docker-compose.yml ./scripts/start.sh
+# R27#1 · 預設 PROD · 不 auto-merge override.yml(否則 ECC_ENV=development +
+# ALLOW_LEGACY_AUTH_HEADERS=1 會繞過 R7/R8/R26 prod fail-closed · 任何同仁可偽造 X-User-Email)
+# 本機 dev 顯式打開:CHENGFU_ENV=dev ./scripts/start.sh(自動 include override)
+# 直接給 COMPOSE_FILE 也吃(advanced)
+if [[ -z "${COMPOSE_FILE:-}" ]]; then
+    if [[ "${CHENGFU_ENV:-prod}" == "dev" ]]; then
+        export COMPOSE_FILE="docker-compose.yml:docker-compose.override.yml"
+        echo "  ⚙ DEV 模式 · 含 override.yml(ECC_ENV=development · LEGACY_AUTH_HEADERS=1)"
+    else
+        export COMPOSE_FILE="docker-compose.yml"
+        echo "  🔒 PROD 模式 · 不 merge override(prod auth fail-closed)"
+    fi
+fi
 docker compose up -d
 
 echo "[3/3] 等待 nginx + LibreChat 就緒..."

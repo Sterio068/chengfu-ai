@@ -24,8 +24,11 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from ._deps import require_user_dep
 
-router = APIRouter(tags=["crm"])
+
+# R27#2 · router-wide require login · CRM lead PII · 沒登入禁讀寫
+router = APIRouter(tags=["crm"], dependencies=[require_user_dep()])
 logger = logging.getLogger("chengfu")
 
 

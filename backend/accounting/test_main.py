@@ -16,13 +16,17 @@ import mongomock
 from unittest.mock import patch
 
 # 用 mongomock 隔離真實 MongoDB(這個測試可在任何環境跑)
+# R27#2 · router-wide require_user_dep · TestClient 必帶 X-User-Email · ENV 必開 LEGACY headers
 @pytest.fixture(scope="module")
 def client():
+    import os
+    os.environ["ALLOW_LEGACY_AUTH_HEADERS"] = "1"
+    os.environ["ECC_ENV"] = "development"  # 防 prod startup 強制 JWT_REFRESH_SECRET
     with patch("pymongo.MongoClient", mongomock.MongoClient):
         import importlib
         import main
         importlib.reload(main)
-        c = TestClient(main.app)
+        c = TestClient(main.app, headers={"X-User-Email": "test@chengfu.local"})
         # 觸發 startup
         c.get("/healthz")
         yield c
@@ -852,7 +856,8 @@ def test_design_history_after_failed_call(client):
 
 def test_design_history_requires_login(client):
     """R6#3 · 無 X-User-Email → 403"""
-    r = client.get("/design/history")
+    # R27 · 必須清掉 fixture 預設 X-User-Email · 模擬真匿名
+    r = client.get("/design/history", headers={"X-User-Email": ""})
     assert r.status_code == 403
 
 
@@ -864,13 +869,13 @@ def test_auth_design_recraft_blocks_anonymous(client):
     r = client.post("/design/recraft", json={
         "prompt": "anonymous attempt to burn fal credits",
         "image_size": "square_hd",
-    })
+    }, headers={"X-User-Email": ""})  # R27 · 清匿名
     assert r.status_code == 403
 
 
 def test_auth_tenders_blocks_anonymous(client):
     """R6#4 · /tender-alerts 改 require user · 防外部偵察承富業務"""
-    r = client.get("/tender-alerts")
+    r = client.get("/tender-alerts", headers={"X-User-Email": ""})  # R27 · 清匿名
     assert r.status_code == 403
 
 
@@ -895,7 +900,7 @@ def test_auth_feedback_blocks_anonymous(client):
     r = client.post("/feedback",
         json={"message_id": "anon_attack", "verdict": "down",
               "note": "這個 agent 很爛", "user_email": "victim@chengfu.local"},
-        # 注意:故意不送 X-User-Email
+        headers={"X-User-Email": ""},  # R27 · 清 fixture 預設 · 模擬真匿名
     )
     assert r.status_code == 403
     # 驗:DB 不該有這筆
