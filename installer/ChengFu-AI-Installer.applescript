@@ -33,13 +33,27 @@ on run
 	if button returned of result is "取消" then return
 
 	-- ============ 步驟 1 · 環境檢查 ============
+	-- osascript do shell script PATH 受限(只 /usr/bin:/bin 等)· homebrew docker 找不到
+	-- 修:強制 PATH 含所有常見 docker 安裝位置 + Docker Desktop bundled bin
 	set checkResult to do shell script "
+export PATH=/opt/homebrew/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH
 which docker > /dev/null 2>&1 && docker info > /dev/null 2>&1 && echo OK || echo MISSING
 "
 	if checkResult is not "OK" then
-		display dialog "❌ Docker Desktop 未安裝或未啟動" & return & return & ¬
-			"請先到 https://www.docker.com/products/docker-desktop/" & return & ¬
-			"下載並啟動 Docker Desktop · 然後重跑此安裝精靈" buttons {"關閉"} with icon stop
+		-- 區分「沒裝」vs「裝了沒啟動」· 給更精確訊息
+		set whichResult to do shell script "
+export PATH=/opt/homebrew/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH
+which docker > /dev/null 2>&1 && echo HAS || echo NONE
+"
+		if whichResult is "HAS" then
+			display dialog "⚠ Docker 已安裝 · 但 daemon 未啟動" & return & return & ¬
+				"請手動開 Docker Desktop(Applications → Docker)" & return & ¬
+				"等鯨魚 icon 在 menu bar 變綠 · 然後重跑此安裝精靈" buttons {"關閉"} with icon caution
+		else
+			display dialog "❌ Docker Desktop 未安裝" & return & return & ¬
+				"請先到 https://www.docker.com/products/docker-desktop/" & return & ¬
+				"下載 + 安裝 + 啟動 Docker Desktop · 然後重跑此安裝精靈" buttons {"關閉"} with icon stop
+		end if
 		return
 	end if
 
