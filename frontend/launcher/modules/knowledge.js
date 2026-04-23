@@ -11,7 +11,7 @@
 import { authFetch } from "./auth.js";
 import { chat } from "./chat.js";
 import { escapeHtml } from "./util.js";
-import { toast } from "./toast.js";
+import { toast, networkError, operationError } from "./toast.js";
 import { modal } from "./modal.js";
 
 const BASE = "/api-accounting";
@@ -46,15 +46,23 @@ export const knowledge = {
       this._sources = await r.json();
       this._renderAdmin(root);
     } catch (e) {
-      root.innerHTML = `<div class="chip-empty">❌ 無法載入:${escapeHtml(e.message)}</div>`;
+      root.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">😓</div>
+          <div class="empty-state-title">無法載入資料源</div>
+          <div class="empty-state-hint">${escapeHtml(e.message || "後端 API 可能未啟動")}</div>
+          <button class="btn-ghost" onclick="window.knowledge?.loadAdmin()" style="margin-top:12px">重試</button>
+        </div>`;
     }
   },
 
   _renderAdmin(root) {
     if (!this._sources.length) {
       root.innerHTML = `
-        <div class="chip-empty">
-          還沒有資料源 · <a href="#" class="link" data-new-source>新增第一個</a>
+        <div class="empty-state">
+          <div class="empty-state-icon">📂</div>
+          <div class="empty-state-title">尚無資料源</div>
+          <div class="empty-state-hint"><a href="#" class="link" data-new-source>+ 新增第一個資料源</a></div>
         </div>`;
       root.querySelector("[data-new-source]")?.addEventListener("click", e => {
         e.preventDefault();
@@ -166,7 +174,7 @@ export const knowledge = {
           });
           if (!r.ok) {
             const err = await r.json().catch(() => ({ detail: r.statusText }));
-            toast.error("建立失敗:" + (err.detail || "未知錯誤"));
+            operationError("建立資料源", err);
             return false;
           }
           toast.success("資料源已建立 · 開始索引…");
@@ -176,7 +184,7 @@ export const knowledge = {
           this.reindex(id, { silent: true });
           return true;
         } catch (e) {
-          toast.error("網路錯誤:" + e.message);
+          networkError("建立資料源", e);
           return false;
         }
       },
@@ -206,7 +214,7 @@ export const knowledge = {
       const r = await authFetch(`${BASE}/admin/sources/${id}/reindex`, { method: "POST" });
       if (!r.ok) {
         const err = await r.json().catch(() => ({ detail: r.statusText }));
-        toast.error("索引失敗:" + (err.detail || "未知"));
+        operationError("索引資料源", err, () => this.reindex(id, opts));
         return;
       }
       const stats = await r.json();
@@ -218,7 +226,7 @@ export const knowledge = {
       }
       await this.loadAdmin();
     } catch (e) {
-      toast.error("索引失敗:" + e.message);
+      networkError("索引資料源", e, () => this.reindex(id, opts));
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "🔄 重索引"; }
     }
@@ -230,17 +238,17 @@ export const knowledge = {
     try {
       const r = await authFetch(`${BASE}/admin/sources/${id}/health`);
       if (!r.ok) {
-        toast.error("健康檢查失敗:HTTP " + r.status);
+        operationError("健康檢查", `HTTP ${r.status}`, () => this.checkHealth(id));
         return;
       }
       const h = await r.json();
       if (h.status === "ok") {
         toast.success(`✓ 路徑正常 · ${h.entry_count} 個 top-level 項`);
       } else {
-        toast.error(`⚠ ${h.status} · ${h.issue || ""}`);
+        toast.warn("資料源狀態異常", { detail: `${h.status} · ${h.issue || ""}` });
       }
     } catch (e) {
-      toast.error("健康檢查失敗:" + e.message);
+      networkError("健康檢查", e, () => this.checkHealth(id));
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "🩺 健康"; }
     }
@@ -258,7 +266,7 @@ export const knowledge = {
       if (!r.ok) throw new Error(r.statusText);
       toast.success(s.enabled ? "已暫停" : "已啟用");
       await this.loadAdmin();
-    } catch (e) { toast.error("切換失敗:" + e.message); }
+    } catch (e) { operationError("切換啟用狀態", e); }
   },
 
   async remove(id) {
@@ -274,7 +282,7 @@ export const knowledge = {
       if (!r.ok) throw new Error(r.statusText);
       toast.success("已刪除 · Meili 清除中");
       await this.loadAdmin();
-    } catch (e) { toast.error("刪除失敗:" + e.message); }
+    } catch (e) { operationError("刪除資料源", e); }
   },
 
   // ---------- 使用者側:知識庫 view ----------
@@ -289,15 +297,23 @@ export const knowledge = {
       this._publicSources = sources || [];
       this._renderBrowser(root);
     } catch (e) {
-      root.innerHTML = `<div class="chip-empty">❌ 無法載入</div>`;
+      root.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">😓</div>
+          <div class="empty-state-title">無法載入知識庫</div>
+          <div class="empty-state-hint">${escapeHtml(e?.message || "網路或後端錯")}</div>
+          <button class="btn-ghost" onclick="window.knowledge?.loadBrowser()" style="margin-top:12px">重試</button>
+        </div>`;
     }
   },
 
   _renderBrowser(root) {
     if (!this._publicSources.length) {
       root.innerHTML = `
-        <div class="chip-empty">
-          還沒有資料源 · ${isAdmin() ? '請到 <a href="#" class="link" data-goto-admin>Admin</a> 新增' : "請管理員新增"}
+        <div class="empty-state">
+          <div class="empty-state-icon">📚</div>
+          <div class="empty-state-title">尚無資料源</div>
+          <div class="empty-state-hint">${isAdmin() ? '到 <a href="#" class="link" data-goto-admin>Admin</a> 新增資料源' : "請 Champion 新增"}</div>
         </div>`;
       root.querySelector("[data-goto-admin]")?.addEventListener("click", e => {
         e.preventDefault();
@@ -413,7 +429,7 @@ export const knowledge = {
       if (drawer) drawer.dataset.mode = "knowledge";
       document.getElementById("project-drawer-backdrop")?.classList.add("open");
       drawer?.classList.add("open");
-    } catch (e) { toast.error(e.message); }
+    } catch (e) { operationError("開啟資料夾", e); }
   },
 
   async _openFile(sid, rel) {
@@ -421,7 +437,7 @@ export const knowledge = {
       const r = await authFetch(withConvId(`${BASE}/knowledge/read?source_id=${sid}&rel_path=${encodeURIComponent(rel)}`));
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        toast.error(err.detail || "讀取失敗");
+        operationError("讀取檔案", err);
         return;
       }
       const body = await r.json();
@@ -446,7 +462,7 @@ export const knowledge = {
           return true;
         },
       });
-    } catch (e) { toast.error(e.message); }
+    } catch (e) { operationError("開啟檔案", e); }
   },
 
   async _searchAll(q, signal) {
@@ -459,7 +475,12 @@ export const knowledge = {
       const body = await r.json();
       const hits = body.hits || [];
       if (!hits.length) {
-        root.innerHTML = `<div class="chip-empty">沒結果${body.message ? ' · ' + escapeHtml(body.message) : ''}</div>`;
+        root.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-title">找不到結果</div>
+            <div class="empty-state-hint">${body.message ? escapeHtml(body.message) : "試試其他關鍵字 · 或縮短搜尋"}</div>
+          </div>`;
         return;
       }
       root.innerHTML = `
@@ -484,7 +505,12 @@ export const knowledge = {
     } catch (e) {
       // R17#3 · AbortError 是 debounce/新輸入觸發的主動 abort · 不是真錯 · 不閃紅
       if (e?.name === "AbortError") return;
-      root.innerHTML = `<div class="chip-empty">❌ 搜尋失敗</div>`;
+      root.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">😓</div>
+          <div class="empty-state-title">搜尋失敗</div>
+          <div class="empty-state-hint">${escapeHtml(e?.message || "Meilisearch 可能未啟動")}</div>
+        </div>`;
     }
   },
 

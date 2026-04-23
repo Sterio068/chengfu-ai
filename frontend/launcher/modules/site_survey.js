@@ -15,7 +15,7 @@
  */
 import { authFetch } from "./auth.js";
 import { escapeHtml } from "./util.js";
-import { toast } from "./toast.js";
+import { toast, networkError, operationError } from "./toast.js";
 
 const BASE = "/api-accounting";
 const MAX_IMAGES = 5;
@@ -149,12 +149,15 @@ export const siteSurvey = {
     }
     for (const f of files) {
       if (f.size > MAX_BYTES) {
-        toast.error(`${f.name} > 5MB · 跳過`);
+        toast.warn(`照片過大已跳過`, { detail: `${f.name}(${(f.size / 1024 / 1024).toFixed(1)}MB > 5MB)` });
         continue;
       }
       // HEIC mime check(iPhone 預設)
       if (f.type === "image/heic" || f.type === "image/heif" || f.name.toLowerCase().endsWith(".heic")) {
-        toast.error(`${f.name} 是 HEIC · 不支援 · 改 iPhone 設定 → 相機 → 最相容`);
+        toast.warn(`HEIC 不支援`, {
+          detail: `${f.name} · 到「設定 → 相機 → 格式 → 最相容」`,
+          action: { label: "教學", onClick: () => location.hash = "#help" },
+        });
         continue;
       }
       // R24#6 · 用 objectURL 不是 dataURL · 省 33% memory(不 base64 膨脹)
@@ -175,7 +178,7 @@ export const siteSurvey = {
 
   _getGPS() {
     if (!navigator.geolocation) {
-      toast.error("瀏覽器不支援 GPS");
+      toast.error("瀏覽器不支援 GPS", { detail: "請改用 iPhone Safari 或 Chrome" });
       return;
     }
     toast.info("取得 GPS 中...");
@@ -190,7 +193,11 @@ export const siteSurvey = {
         this.render();
       },
       err => {
-        toast.error(`GPS 失敗:${err.message}`);
+        const hint = err.code === 1 ? "已被拒絕 · 到「設定 → 隱私 → 定位」開啟" : err.message;
+        toast.error("GPS 取得失敗", {
+          detail: hint,
+          action: { label: "教學", onClick: () => location.hash = "#help" },
+        });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
@@ -198,7 +205,7 @@ export const siteSurvey = {
 
   async _submit() {
     if (this._images.length === 0) {
-      toast.error("至少 1 張照片");
+      toast.warn("請至少拍 1 張照片");
       return;
     }
     const fd = new FormData();
@@ -211,17 +218,29 @@ export const siteSurvey = {
     if (this._addressHint) fd.set("address_hint", this._addressHint);
     if (this._projectId) fd.set("project_id", this._projectId);
 
+    // UX(v1.3 P1#14)· 鎖 submit + 顯示 banner · 防 double-click
+    const submitBtn = document.getElementById("site-submit-btn");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "⏳ 上傳中...";
+    }
+
     try {
-      toast.info(`上傳 ${this._images.length} 張(${(this._images.reduce((s, i) => s + i.file.size, 0) / 1024 / 1024).toFixed(1)}MB)...`);
+      const totalMB = (this._images.reduce((s, i) => s + i.file.size, 0) / 1024 / 1024).toFixed(1);
+      toast.info(`上傳 ${this._images.length} 張(${totalMB}MB)...`);
       const r = await authFetch(`${BASE}/site-survey`, { method: "POST", body: fd });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        toast.error(`上傳失敗:${err.detail || r.status}`);
+        operationError("上傳場勘照片", err, () => this._submit());
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = "🚀 上傳 + AI 分析";
+        }
         return;
       }
       const body = await r.json();
       this._currentSurveyId = body.survey_id;
-      toast.success("AI 處理中(約 30 秒)");
+      toast.success(`AI 分析中(約 ${this._images.length * 6} 秒)`);
       // R24#6 · revoke objectURLs 釋放 memory
       this._revokeObjectUrls();
       this._images = [];
@@ -229,8 +248,47 @@ export const siteSurvey = {
       this._addressHint = "";
       this.render();
       this._startPolling();
+      this._showProcessingBanner(body.survey_id, this._images?.length || 0);
     } catch (e) {
-      toast.error(`網路錯:${String(e)}`);
+      networkError("上傳場勘照片", e, () => this._submit());
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "🚀 上傳 + AI 分析";
+      }
+    }
+  },
+
+  _showProcessingBanner(surveyId, imageCount) {
+    // P1#14 · main view 上方顯示 banner · 跟 meeting.js 同 pattern
+    const root = document.getElementById("view-site-content");
+    if (!root) return;
+    let banner = document.getElementById("site-processing-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "site-processing-banner";
+      banner.className = "banner-processing";
+      root.prepend(banner);
+    }
+    let elapsed = 0;
+    banner.innerHTML = `<div class="loading-spinner" style="width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+      <div style="flex:1">
+        <div style="font-weight:600">📸 場勘 AI 分析中(survey ${surveyId.slice(-6)})</div>
+        <div id="site-banner-timer" style="font-size:12px; color:var(--text-secondary)">已 ${elapsed}s · Claude Vision 處理 ${imageCount} 張照片中</div>
+      </div>`;
+    if (this._bannerTimer) clearInterval(this._bannerTimer);
+    this._bannerTimer = setInterval(() => {
+      elapsed += 1;
+      const t = document.getElementById("site-banner-timer");
+      if (t) t.textContent = `已 ${elapsed}s · Claude Vision 處理中`;
+    }, 1000);
+  },
+
+  _hideProcessingBanner() {
+    const banner = document.getElementById("site-processing-banner");
+    if (banner) banner.remove();
+    if (this._bannerTimer) {
+      clearInterval(this._bannerTimer);
+      this._bannerTimer = null;
     }
   },
 
@@ -241,7 +299,11 @@ export const siteSurvey = {
       attempts++;
       if (attempts > 30) {
         clearInterval(this._pollTimer);
-        toast.error("超時 · 到歷史看");
+        this._hideProcessingBanner();
+        toast.error("AI 分析超時(90 秒)", {
+          detail: "可能 ANTHROPIC_API_KEY 失效 · 或 Anthropic 服務暫慢",
+          action: { label: "看歷史", onClick: () => this._loadHistory() },
+        });
         return;
       }
       try {
@@ -250,11 +312,16 @@ export const siteSurvey = {
         const body = await r.json();
         if (body.status === "done") {
           clearInterval(this._pollTimer);
+          this._hideProcessingBanner();
           this._showResult(body);
           this._loadHistory();
         } else if (body.status === "failed") {
           clearInterval(this._pollTimer);
-          toast.error(`處理失敗:${body.error || "?"}`);
+          this._hideProcessingBanner();
+          toast.error("場勘處理失敗", {
+            detail: body.error || "未知錯誤",
+            action: { label: "故障排除", onClick: () => location.hash = "#help" },
+          });
         }
       } catch {}
     }, 3000);
@@ -338,14 +405,15 @@ export const siteSurvey = {
       try {
         const r = await authFetch(`${BASE}/site-survey/${this._currentSurveyId}/push-to-handoff`, { method: "POST" });
         if (!r.ok) {
-          toast.error("推失敗");
+          const err = await r.json().catch(() => ({}));
+          operationError("推到 Handoff", err);
           return;
         }
         const body = await r.json();
         toast.success(`已推 · ${body.issues_count} 個 issues 進 Handoff`);
         m.remove();
       } catch (e) {
-        toast.error(`網路錯:${String(e)}`);
+        networkError("推到 Handoff", e);
       }
     });
   },
@@ -358,7 +426,12 @@ export const siteSurvey = {
       const body = await r.json();
       const items = body.items || [];
       if (!items.length) {
-        list.innerHTML = `<p class="site-empty">沒歷史 · 上面拍幾張試試</p>`;
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📸</div>
+            <div class="empty-state-title">尚無場勘紀錄</div>
+            <div class="empty-state-hint">拍 1-5 張現場照片 + GPS · AI 自動結構化</div>
+          </div>`;
         return;
       }
       list.innerHTML = items.map(s => `
@@ -370,8 +443,14 @@ export const siteSurvey = {
           <span class="site-history-status status-${s.status}">${s.status}</span>
         </div>
       `).join("");
-    } catch {
-      list.innerHTML = `<p class="site-empty">讀取失敗</p>`;
+    } catch (e) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">😓</div>
+          <div class="empty-state-title">讀取歷史失敗</div>
+          <div class="empty-state-hint">${escapeHtml(e?.message || "網路或伺服器錯")}</div>
+          <button class="btn-ghost" onclick="window.siteSurvey?._loadHistory()" style="margin-top:12px">重試</button>
+        </div>`;
     }
   },
 
