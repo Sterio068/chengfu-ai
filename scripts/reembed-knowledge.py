@@ -42,12 +42,15 @@ def main():
         sys.exit(0)
 
     # 容器內跑(同 knowledge-cron.sh pattern · force=True)
+    # R33#黃1 修 · _get_meili_client 在 routers.knowledge 不在 main
+    # R33#黃2 修 · 內層檢查每 source stats · Meili 失敗 sys.exit(1) 讓操作員重跑
     cmd = [
         "docker", "exec", CONTAINER, "python", "-c",
         """
-import json
+import json, sys
 from services import knowledge_indexer
-from main import knowledge_sources_col, db, _get_meili_client
+from main import knowledge_sources_col, db
+from routers.knowledge import _get_meili_client
 
 meili = _get_meili_client()
 stats = knowledge_indexer.reindex_all(
@@ -56,6 +59,24 @@ stats = knowledge_indexer.reindex_all(
     force=True,  # C3 · 強制重 extract
 )
 print(json.dumps(stats, ensure_ascii=False, indent=2, default=str))
+
+# R33#黃2 · 任一 source Meili 失敗 → exit 1 · 防外層誤以為成功
+fail_count = 0
+for name, s in stats.items():
+    if not isinstance(s, dict):
+        continue
+    if s.get('ok') is False:
+        fail_count += 1
+        print(f'[FAIL] {name}: {s.get(\"reason\", \"unknown\")}', file=sys.stderr)
+        continue
+    # search_progress_advanced 三狀態:True OK / False Meili 掛 / None 無 Meili
+    spa = s.get('search_progress_advanced')
+    if spa is False:  # 真有 Meili 但這輪沒前進
+        fail_count += 1
+        print(f'[FAIL] {name}: Meili 寫入失敗 · errors={s.get(\"errors\", 0)}', file=sys.stderr)
+if fail_count > 0:
+    print(f'\\n{fail_count} source 失敗 · 請檢查並重跑', file=sys.stderr)
+    sys.exit(1)
 """,
     ]
 

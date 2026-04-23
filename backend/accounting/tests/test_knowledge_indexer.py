@@ -617,3 +617,33 @@ def test_c3_compute_content_hash_streaming():
         assert len(h) == 64
     finally:
         os.unlink(path)
+
+
+def test_c3_r33_meili_unavailable_no_hash_commit(tmp_src):
+    """R33#1 紅 · Meili down 時 hash 不能 commit · 否則下次 retry 永遠 skip"""
+    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+
+    class BrokenMeili:
+        def index(self, *a, **kw):
+            raise RuntimeError("meili down")
+        def create_index(self, *a, **kw):
+            raise RuntimeError("meili down")
+
+    # 第一次 · Meili 掛 · 應跑完抽字但不 commit hash
+    stats1 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=BrokenMeili(),
+        file_hashes_col=file_hashes_col,
+    )
+    assert stats1.get("meili_error"), "Meili 掛應記錄"
+    assert file_hashes_col.count_documents({}) == 0, \
+        "R33#1 · Meili 掛時 hash 不能 commit · 否則下次 retry 漏"
+
+    # 第二次 · Meili 還掛 · 應再嘗試 extract(因 hash 沒被 commit · mtime 但內容 hash 不同)
+    # 注意:second_run 不該 skip(因為 hash table 是空的)
+    stats2 = knowledge_indexer.reindex_source(
+        tmp_src["id"], tmp_src["col"], meili_client=BrokenMeili(),
+        file_hashes_col=file_hashes_col,
+    )
+    # R33#1 修後 · 兩次 stats1.file_count 應該一樣(因為都重 extract)
+    assert stats2["file_count"] == stats1["file_count"], \
+        "Meili 一直掛 · file_count 不該因 hash skip 而少"

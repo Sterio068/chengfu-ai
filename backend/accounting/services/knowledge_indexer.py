@@ -269,7 +269,11 @@ def reindex_source(source_id: str, knowledge_sources_col, meili_client=None,
     docs_batch: list[dict] = []
     file_count = 0
     errors = 0
-    meili_any_failed = False  # Codex R2.1 · 任一 batch 失敗 · 整輪 search 進度不動
+    # R33#1 修 · _ensure_index 失敗(Meili down)時 · index 是 None 但 meili_any_failed 仍 False
+    # 導致下面 hash commit 條件 `not meili_any_failed` 為 True · hash 被寫入
+    # 下次 retry 時 mtime 沒變 + hash 同 · 永遠不上 Meili
+    # 修:meili 給了但拿不到 index → 視為 meili_any_failed=True · 不 commit hash
+    meili_any_failed = bool(meili_client) and (index is None)
     skipped_excluded = 0
     skipped_unchanged = 0
     skipped_too_big = 0
