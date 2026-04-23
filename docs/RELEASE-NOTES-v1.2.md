@@ -1,6 +1,6 @@
 # 承富 AI 系統 v1.2 · Release Notes
 
-> **發布日期:** 2026-04-23
+> **發布日期:** 2026-04-23(收尾完成)
 > **對象:** 承富老闆 + Champion 看
 > **5 分鐘讀完**
 
@@ -8,9 +8,10 @@
 
 ## 1. 一句話總結
 
-**v1.1 工程強化 → v1.2 加 4 個新功能 + 17 項現有優化 · 月省 100+ 小時 / 10 人 · 承富進入 AI 工作流真實時代。**
+**v1.1 工程強化 → v1.2 加 6 個新功能 + 17 項優化 + 全 4 個 frontend view + 9 輪 audit · 月省 120+ 小時 / 10 人 · 承富全 AI 工作流真實上線。**
 
-23 輪 Codex 對抗式審查(R5 → R23)· 修 60+ 紅黃線 · 157 pytest pass · 0 紅。
+26 輪 Codex 對抗式審查(R5 → R25)· 修 80+ 紅黃線 · 149 pytest pass · 0 紅。
+v1.2 終於從「後端 ready」→「全前端整合 · 同事點開就能用」。
 
 ---
 
@@ -45,6 +46,28 @@
 - 一鍵推到 project.handoff(不覆寫人工欄位 · 獨立 site_issues/site_venue)
 - GPS 範圍驗證 · 防亂灌
 - Memory-safe:寫 tmp file · BackgroundTask 逐張讀
+
+### 🆕 v1.2 收尾(2026-04-23 加)6 件大事
+
+#### 4 個 frontend view(Day 1)
+- `meeting.js` 列表 view + 上傳 modal + 結果 modal + push handoff
+- `media.js` 表格 + 推薦 modal + CSV import
+- `social.js` 排程列表 + datetime-local 草稿(R24 timezone 修)
+- `site_survey.js` iPhone PWA + camera + GPS + objectURL(R24 memory)
+
+#### 4 補功能(Day 2)
+- **Feature #2 LINE Notify**(`services/line_notify.py`):每位同事自設 token · 標案截止 / 預算警告自動推
+- **Feature #3 PII 偵測**(`/safety/pii-detect`):chat 送前掃 7 種 PII(身分證/手機/email...)· 一鍵打碼
+- **HEIC 自動轉 JPEG**(pillow-heif):iPhone 場勘不再 reject
+- **social-scheduler launchd cron**:每 5 分鐘掃 queue 自動發
+
+#### 1 個 installer 升級(Day 3)
+- `ChengFu-AI-Installer.app` v1.2:6 步對話框(加 OpenAI key 必填提示)+ LINE Notify 提示 + iPhone HEIC 提示
+
+#### 9 輪 Codex audit(R17-R25 · 修 30+ 項)
+- 全綠收尾 · v1.2 release ready
+
+---
 
 ### ✅ 17 項現有強化(Sprint 1/2/3)
 

@@ -10,10 +10,15 @@
 
 on run
 	-- ============ 步驟 0 · 歡迎畫面 ============
-	set welcomeText to "歡迎使用承富 AI 系統 v1.1 安裝精靈" & return & return & ¬
+	set welcomeText to "歡迎使用承富 AI 系統 v1.2 安裝精靈" & return & return & ¬
 		"執行時間:30-45 分鐘(視網路)" & return & return & ¬
+		"v1.2 新增 4 功能:" & return & ¬
+		"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘 PWA" & return & return & ¬
 		"請預先準備:" & return & ¬
 		"  • Anthropic API Key(必須 · Tier 2 預存 USD $50)" & return & ¬
+		"  • OpenAI API Key(會議速記 Whisper 用 · 必須)" & return & ¬
+		"  • Fal.ai API Key(設計助手生圖 · 選配)" & return & ¬
+		"  • LINE Notify token(每位同事自設 · 安裝後在 launcher 設)" & return & ¬
 		"  • 公司域名(計畫對外用)" & return & ¬
 		"  • 管理員 email(預設 sterio068@gmail.com)" & return & ¬
 		"  • Docker Desktop 已安裝且啟動" & return & return & ¬
@@ -73,7 +78,7 @@ echo NOT_FOUND
 		"格式 sk-ant-xxx... · 從 https://console.anthropic.com 拿" & return & ¬
 		"必須 Tier 2(預存 USD $50)" & return & return & ¬
 		"⚠️ 此值會存進 macOS Keychain · 不會明文寫進 .env" ¬
-		default answer "" with title "承富 AI 安裝 · 1/5" with hidden answer buttons {"取消", "下一步"} default button "下一步"
+		default answer "" with title "承富 AI 安裝 · 1/6" with hidden answer buttons {"取消", "下一步"} default button "下一步"
 	if button returned of apiKeyDialog is "取消" then return
 	set anthropicKey to text returned of apiKeyDialog
 	if length of anthropicKey is less than 20 then
@@ -81,12 +86,22 @@ echo NOT_FOUND
 		return
 	end if
 
+	-- 2a-2 · OpenAI API Key(v1.2 · Whisper 會議速記用)
+	set openaiKeyDialog to display dialog ¬
+		"請貼上 OpenAI API Key(v1.2 必須 · 會議速記 Whisper STT 用)" & return & return & ¬
+		"格式 sk-... · 從 https://platform.openai.com/api-keys 拿" & return & ¬
+		"Tier 1 普通帳號就夠 · Whisper $0.006/分鐘" & return & return & ¬
+		"留空可跳過 · 但會議速記功能不可用 · 之後可在「使用教學 → API Key」補設" ¬
+		default answer "" with title "承富 AI 安裝 · 2/6" with hidden answer buttons {"取消", "下一步"} default button "下一步"
+	if button returned of openaiKeyDialog is "取消" then return
+	set openaiKey to text returned of openaiKeyDialog
+
 	-- 2b · 公司域名(對外)· 暫時可空
 	set domainDialog to display dialog ¬
 		"請輸入承富對外域名(可暫時跳過 · 用本機 localhost)" & return & return & ¬
 		"例:ai.chengfu.com.tw" & return & ¬
 		"留空 → 本機開發模式 · 之後可手動改 .env" ¬
-		default answer "" with title "承富 AI 安裝 · 2/5" buttons {"取消", "下一步"} default button "下一步"
+		default answer "" with title "承富 AI 安裝 · 3/6" buttons {"取消", "下一步"} default button "下一步"
 	if button returned of domainDialog is "取消" then return
 	set publicDomain to text returned of domainDialog
 
@@ -94,7 +109,7 @@ echo NOT_FOUND
 	set adminDialog to display dialog ¬
 		"請輸入承富 AI 管理員 email" & return & return & ¬
 		"白名單內 user 才能用 admin endpoint" ¬
-		default answer "sterio068@gmail.com" with title "承富 AI 安裝 · 3/5" buttons {"取消", "下一步"} default button "下一步"
+		default answer "sterio068@gmail.com" with title "承富 AI 安裝 · 4/6" buttons {"取消", "下一步"} default button "下一步"
 	if button returned of adminDialog is "取消" then return
 	set adminEmail to text returned of adminDialog
 
@@ -103,7 +118,7 @@ echo NOT_FOUND
 		"請輸入 NAS 掛載路徑(可暫時跳過)" & return & return & ¬
 		"例:/Volumes/chengfu-nas/projects" & return & ¬
 		"留空 → 用 /tmp/chengfu-test-sources(本機測試)" ¬
-		default answer "" with title "承富 AI 安裝 · 4/5" buttons {"取消", "下一步"} default button "下一步"
+		default answer "" with title "承富 AI 安裝 · 5/6" buttons {"取消", "下一步"} default button "下一步"
 	if button returned of nasDialog is "取消" then return
 	set nasPath to text returned of nasDialog
 
@@ -125,7 +140,7 @@ echo NOT_FOUND
 		"  3. 抓 5 個 Docker image(LibreChat / Mongo / Meili / nginx / accounting)" & return & ¬
 		"  4. 啟動 6 容器 · 等 healthy" & return & ¬
 		"  5. 跑 smoke test · 印維運手冊"
-	display dialog confirmText with title "承富 AI 安裝 · 5/5 確認" buttons {"上一步取消", "啟動安裝"} default button "啟動安裝"
+	display dialog confirmText with title "承富 AI 安裝 · 6/6 確認" buttons {"上一步取消", "啟動安裝"} default button "啟動安裝"
 
 	-- ============ 步驟 3 · 寫 Keychain + .env ============
 	-- 用 do shell script · 隱藏終端機
@@ -133,6 +148,12 @@ echo NOT_FOUND
 		do shell script ¬
 			"security delete-generic-password -s 'chengfu-ai-anthropic-key' 2>/dev/null; " & ¬
 			"security add-generic-password -a $USER -s 'chengfu-ai-anthropic-key' -w " & quoted form of anthropicKey & " 2>&1"
+		-- v1.2 · OpenAI key 也寫 Keychain(若 user 有填)
+		if openaiKey is not "" and length of openaiKey > 10 then
+			do shell script ¬
+				"security delete-generic-password -s 'chengfu-ai-openai-key' 2>/dev/null; " & ¬
+				"security add-generic-password -a $USER -s 'chengfu-ai-openai-key' -w " & quoted form of openaiKey & " 2>&1"
+		end if
 
 		-- 自動產 JWT / CREDS / Meili / Internal token
 		do shell script "
@@ -216,18 +237,24 @@ echo OK
 
 	-- ============ 步驟 5 · 印維運手冊 ============
 	if healthOK is "OK" then
-		display dialog "🎯 承富 AI 系統 v1.1 安裝完成!" & return & return & ¬
+		display dialog "🎯 承富 AI 系統 v1.2 安裝完成!" & return & return & ¬
 			"訪問入口:" & return & ¬
 			"  • Launcher 首頁:http://localhost/" & return & ¬
 			"  • LibreChat 對話:http://localhost/chat" & return & ¬
 			"  • 健康檢查:http://localhost/healthz" & return & ¬
 			"  • Uptime 監控:http://localhost:3001" & return & return & ¬
+			"v1.2 4 個新功能(左側 sidebar):" & return & ¬
+			"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘" & return & return & ¬
 			"下一步(在 Terminal 跑):" & return & ¬
 			"  cd " & repoPath & return & ¬
 			"  python3 scripts/create-users.py" & return & ¬
 			"  python3 scripts/create-agents.py" & return & ¬
-			"  python3 scripts/upload-knowledge-base.py" & return & return & ¬
-			"完整文件:" & repoPath & "/INSTALL.md" & return & ¬
+			"  python3 scripts/upload-knowledge-base.py" & return & ¬
+			"  ./scripts/install-launchd.sh  # 5 個 cron(含 social-scheduler)" & return & return & ¬
+			"提醒同事:" & return & ¬
+			"  • 進「使用教學」綁 LINE Notify(標案截止 / 預算警告會推 LINE)" & return & ¬
+			"  • iPhone 場勘:設定 → 相機 → 格式 → 最相容(JPEG)" & return & return & ¬
+			"完整文件:" & repoPath & "/docs/RELEASE-NOTES-v1.2.md" & return & ¬
 			"問題找:sterio068@gmail.com" ¬
 			with title "✅ 安裝完成" buttons {"開啟 Launcher", "稍後"} default button "開啟 Launcher"
 		if button returned of result is "開啟 Launcher" then
