@@ -257,3 +257,19 @@ def test_export_csv_excludes_inactive_by_default(client):
     r2 = client.get("/media/contacts/export.csv?include_inactive=true", headers=ADMIN)
     assert "active1" in r2.text
     assert "deleted1" in r2.text
+
+def test_export_csv_writes_audit_log(client):
+    """B3 self-review · 每次 export 必寫 audit_col(action=media_export_csv)
+    · PDPA 拿 PII 全量是 sensitive op · 必留 trail"""
+    import main
+    before = main.audit_col.count_documents({"action": "media_export_csv"})
+    r = client.get("/media/contacts/export.csv?include_inactive=true", headers=ADMIN)
+    assert r.status_code == 200
+    after = main.audit_col.count_documents({"action": "media_export_csv"})
+    assert after == before + 1
+    # 最新一筆含 include_inactive flag
+    latest = main.audit_col.find_one(
+        {"action": "media_export_csv"}, sort=[("created_at", -1)]
+    )
+    assert latest["details"]["include_inactive"] is True
+    assert "contact_count" in latest["details"]
