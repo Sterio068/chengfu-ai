@@ -4,13 +4,31 @@
 
 ---
 
-## 一句話原則
+## 3 層權限模型
 
-- **一般同事**:只能看 / 改 **自己的** 對話 / project / 場勘 / 會議
-- **Admin**:可看 / 操作 **所有人**(離職資料刪除 / 用量 / 預算 / 系統設定)
-- **匿名(沒登入)**:除 `/healthz` 外全擋
+承富 AI 採 **3 層簡化模型** · 10 人規模夠用 · 不搞過度複雜的 RBAC
 
-Admin 從哪定:`config-templates/.env` 的 `ADMIN_EMAIL=` · 多人逗號分隔
+| 層級 | 誰 | 權限 |
+|---|---|---|
+| 🔴 **ADMIN** | 老闆 + IT(安裝精靈建的第一個 + `ADMIN_EMAILS` 白名單) | 全部 |
+| 🟡 **USER** | 9 位同仁 | 自己的資料 + 共用 10 Agent |
+| ⚪ **匿名** | 沒登入的瀏覽器 | 只能看登入頁 · `/healthz` |
+
+---
+
+## Admin 從哪定?(2 條路徑 · OR 關係)
+
+**路徑 1 · `ADMIN_EMAILS` 白名單(推薦)**
+- `config-templates/.env` 設 `ADMIN_EMAILS=老闆@公司.com,IT@公司.com`
+- 逗號分隔 · 改完 restart `docker compose` 生效
+- v1.3 移除 hardcode · 沒設 = admin 全鎖死(安全預設)
+
+**路徑 2 · LibreChat `users.role=ADMIN`**
+- LibreChat 第一個註冊者自動 ADMIN(DB layer)
+- 安裝精靈會自動建這個 admin · 不用手動註冊
+- 加入 `users.role=ADMIN` 的 user 也會被承富後端認為是 admin
+
+**優先順序**:`ADMIN_EMAILS` > `users.role` > 一律當 USER
 
 ---
 
@@ -101,13 +119,66 @@ UI 不該顯示 admin 功能給你 · 若意外點到回 403:
 ## Admin 升降權怎麼做?
 
 **升新 admin**:
-- Sterio 改 `config-templates/.env` ADMIN_EMAIL 加新 email
-- `./scripts/start.sh` 重啟 accounting · 立即生效
+- 現有 admin 改 `config-templates/.env` `ADMIN_EMAILS` 加新 email
+  ```
+  ADMIN_EMAILS=老闆@公司.com,IT@公司.com,新admin@公司.com
+  ```
+- `./scripts/start.sh` 或 `docker compose up -d accounting` 重啟生效
 - 該 user 重新整理 launcher · 看到管理面板
 
 **降 admin**:
 - 同上 · 移除 email
 - 該 user 下次 request 即失去 admin 權
+
+---
+
+## 怎麼建新同仁帳號?
+
+安裝精靈只建第一個 admin。其他 9 位同仁 2 種方式(admin 選一):
+
+### A · 同仁自己註冊(最省事)
+
+```bash
+# 1. admin 編輯 config-templates/.env
+ALLOW_REGISTRATION=true  # 原本 false · 改 true
+
+# 2. 重啟 LibreChat
+cd config-templates && docker compose up -d librechat
+
+# 3. 通知同仁:訪問 http://ai.公司.com/chat 點「註冊」
+#    自己填 email + 密碼 + 顯示名稱
+
+# 4. 全員建好後 · 改回 ALLOW_REGISTRATION=false 關窗
+docker compose up -d librechat
+```
+
+⚠ 開 `ALLOW_REGISTRATION=true` 期間任何人知道網址都能註冊 · 建議只開短時間
+
+### B · admin 批次建(產密碼表分發)
+
+```bash
+# 1. 編輯 scripts/create-users.py 裡 USERS list
+#    填 10 個同仁:email + name
+USERS = [
+    {"email": "alice@chengfu.com", "name": "王小明", "role": "USER"},
+    {"email": "bob@chengfu.com",   "name": "李小華", "role": "USER"},
+    # ...
+]
+
+# 2. 跑 script(用 admin 登入 token 建)
+LIBRECHAT_ADMIN_EMAIL=admin@chengfu.com \
+LIBRECHAT_ADMIN_PASSWORD=<剛設的密碼> \
+python3 scripts/create-users.py
+
+# 3. 產 scripts/passwords.txt · 分給同仁
+#    交付完 shred -u scripts/passwords.txt 安全刪
+```
+
+### C · 不建同仁帳號只自己用
+
+- 什麼都不做 · 一個 admin 帳號就好
+- 缺:同仁共用 1 帳號 · 用量 + audit log 混在一起
+- 僅適合 solo founder 或前期試用
 
 **完全移除帳號(離職)**:
 - 走 `docs/05-SECURITY.md §5.4` 完整 SOP

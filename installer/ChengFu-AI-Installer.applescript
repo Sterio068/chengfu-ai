@@ -130,17 +130,39 @@ echo NOT_FOUND
 	-- 2c · 管理員 email
 	set adminDialog to display dialog ¬
 		"請輸入承富 AI 管理員 email" & return & return & ¬
+		"將用此 email 自動註冊 LibreChat 第一個 admin 帳號" & return & ¬
 		"白名單內 user 才能用 admin endpoint" ¬
-		default answer "sterio068@gmail.com" with title "承富 AI 安裝 · 4/6" buttons {"取消", "下一步"} default button "下一步"
+		default answer "sterio068@gmail.com" with title "承富 AI 安裝 · 4/7" buttons {"取消", "下一步"} default button "下一步"
 	if button returned of adminDialog is "取消" then return
 	set adminEmail to text returned of adminDialog
+
+	-- v1.3.0 · 2c-2 · admin 密碼(用來登入 LibreChat)
+	set pwdDialog to display dialog ¬
+		"設一組 admin 登入密碼" & return & return & ¬
+		"• 用來登入 LibreChat(http://localhost/chat)" & return & ¬
+		"• 也用來跑 scripts/create-users.py 建其他同仁帳號" & return & ¬
+		"• 至少 8 字 · 記牢或存密碼管理器" ¬
+		default answer "" with title "承富 AI 安裝 · 5/7" with hidden answer buttons {"取消", "下一步"} default button "下一步"
+	if button returned of pwdDialog is "取消" then return
+	set adminPassword to text returned of pwdDialog
+	if length of adminPassword is less than 8 then
+		display dialog "❌ 密碼至少 8 字元" buttons {"關閉"} with icon stop
+		return
+	end if
+
+	set adminNameDialog to display dialog ¬
+		"admin 顯示名稱(LibreChat 左上角會顯示)" & return & return & ¬
+		"可用中文 · 例:「王小明」或「Sterio」" ¬
+		default answer "承富管理員" with title "承富 AI 安裝 · 6/7" buttons {"取消", "下一步"} default button "下一步"
+	if button returned of adminNameDialog is "取消" then return
+	set adminName to text returned of adminNameDialog
 
 	-- 2d · 知識庫 NAS 路徑(選填)
 	set nasDialog to display dialog ¬
 		"請輸入 NAS 掛載路徑(可暫時跳過)" & return & return & ¬
 		"例:/Volumes/chengfu-nas/projects" & return & ¬
 		"留空 → 用 /tmp/chengfu-test-sources(本機測試)" ¬
-		default answer "" with title "承富 AI 安裝 · 5/6" buttons {"取消", "下一步"} default button "下一步"
+		default answer "" with title "承富 AI 安裝 · 7/7" buttons {"取消", "下一步"} default button "下一步"
 	if button returned of nasDialog is "取消" then return
 	set nasPath to text returned of nasDialog
 
@@ -242,6 +264,8 @@ echo OK
 	set commandFile to repoPath & "/installer-run.command"
 
 	-- 寫可執行 .command 檔 · Terminal 雙擊會跑
+	-- v1.3.0 · 自動建 LibreChat admin(用戶剛設的 email + 密碼)
+	-- 用 LibreChat 內建 npm run create-user CLI
 	set cmdContent to "#!/bin/bash
 export PATH=/opt/homebrew/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH
 cd " & quoted form of repoPath & "
@@ -249,9 +273,43 @@ echo '═══ 承富 AI 安裝 · 抓 image + 啟動容器 ═══'
 cd config-templates && docker compose pull
 cd ..
 bash scripts/start.sh
+echo ''
+echo '═══ 等 LibreChat ready ═══'
+until curl -sf http://localhost/chat/api/config > /dev/null 2>&1; do sleep 2; done
+echo '✓ LibreChat ready'
+echo ''
+echo '═══ 建 admin 帳號(' " & quoted form of adminEmail & " ')═══'
+docker exec chengfu-librechat npm run create-user -- " & quoted form of adminEmail & " " & quoted form of adminName & " " & quoted form of adminEmail & " " & quoted form of adminPassword & " || echo '⚠ admin 建立失敗 · 可手動註冊 http://localhost/chat(第一個註冊者自動為 ADMIN)'
+echo ''
 bash scripts/smoke-test.sh
 echo ''
-echo '✅ 安裝完成 · 訪問 http://localhost/'
+echo '✅ 安裝完成 · admin 已建好'
+echo ''
+echo '══════════════════════════════════════════'
+echo '  下一步 · admin 第一次登入'
+echo '══════════════════════════════════════════'
+echo ''
+echo '1. 訪問 http://localhost/chat'
+echo '2. 用剛設的 email + 密碼登入'
+echo '3. 進 launcher:http://localhost/'
+echo '4. 右上角⚙設定 · 驗證 🎛 管理面板(⌘M)看得到'
+echo ''
+echo '── 同仁帳號 ──'
+echo '2 種方式(選一):'
+echo ''
+echo 'A · 同仁自註冊:'
+echo '   · 修改 config-templates/.env 加 ALLOW_REGISTRATION=true'
+echo '   · docker compose up -d librechat'
+echo '   · 同仁訪問 http://localhost/chat 自己註冊'
+echo '   · 建完後改回 ALLOW_REGISTRATION=false'
+echo ''
+echo 'B · admin 批次建:'
+echo '   · 編輯 scripts/create-users.py 內 USERS list'
+echo '   · LIBRECHAT_ADMIN_EMAIL=" & adminEmail & " \\\\'
+echo '     LIBRECHAT_ADMIN_PASSWORD=<密碼> \\\\'
+echo '     python3 scripts/create-users.py'
+echo '   · 產 scripts/passwords.txt · 分給同仁後 shred -u 刪'
+echo ''
 echo '可關閉此 Terminal 視窗 · 但不要關 Docker Desktop'
 "
 	do shell script "cat > " & quoted form of commandFile & " <<'CHENGFU_EOF'
