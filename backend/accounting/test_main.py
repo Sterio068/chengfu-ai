@@ -1153,8 +1153,10 @@ def test_pdpa_real_delete(client):
     assert main_mod.db.media_pitch_history.find_one({"contact_id": "x"})["pitched_by"] is None
     assert main_mod.db.media_contacts.find_one({"name": "記者 A"})["created_by"] is None
     # audit 記下
-    audit = main_mod.db.knowledge_audit.find_one({"action": "pdpa_delete", "resource": target})
-    assert audit is not None
+    # 自查補:PDPA audit 寫 db.audit_log(同其他 admin 操作)· 不寫 db.knowledge_audit
+    # 否則 /admin/audit-log 看不到 PDPA 紀錄
+    audit = main_mod.audit_col.find_one({"action": "pdpa_delete", "resource": target})
+    assert audit is not None, "PDPA audit 必寫 main.audit_col(db.audit_log)"
 
 
 def test_pii_audit_writes_log(client):

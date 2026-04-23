@@ -833,7 +833,9 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
         raise HTTPException(400, "admin 不能刪自己 · 請另一位 admin 操作")
 
     target = user_email.strip().lower()
-    audit_col = db.knowledge_audit  # 借這個 col 紀錄 PDPA 操作
+    # 自查補:audit 寫 main.audit_col(=db.audit_log)· 跟其他 admin 操作一致
+    # 原本誤用 db.knowledge_audit · /admin/audit-log 看不到 PDPA 紀錄
+    from main import audit_col
 
     # 刪除類 · collection → query
     delete_targets = [
