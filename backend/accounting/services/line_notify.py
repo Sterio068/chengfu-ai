@@ -1,5 +1,13 @@
 """
-LINE Notify · Feature #2 · 推播通知
+[DEPRECATED] LINE Notify · Feature #2 · 推播通知
+
+⚠️ R26#2 警告:LINE Notify 官方已 2025-03-31 停服
+請改用 services/webhook_notify.py(支援 Slack/Discord/Telegram/Mattermost)
+
+本檔留作 backward compat · 既有 db.line_token 不會炸 · 但 send() 會 fail
+新部署:routers/users.py 已改用 webhook_url 欄位 · 不會新建 line_token
+
+舊內容(歷史):
 
 每位同事在 launcher「使用教學 → API Key」綁自己 LINE Notify token
 觸發場景:

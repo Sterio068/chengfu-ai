@@ -101,6 +101,10 @@ fi
 if check_existing "creds-iv"; then
     put_secret "creds-iv" "$(openssl rand -hex 16)"
 fi
+# R26#1 · v1.2 加 · cron 跨 service 呼叫 admin endpoint(social-scheduler / daily-digest)
+if check_existing "internal-token"; then
+    put_secret "internal-token" "$(openssl rand -hex 32)"
+fi
 echo ""
 
 # ------------------ 6. Meilisearch Master Key ------------------

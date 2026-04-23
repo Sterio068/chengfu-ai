@@ -92,9 +92,11 @@ export OPENAI_API_KEY="$(read_kc "openai-key")"
 export EMAIL_PASSWORD="$(read_kc "email-password")"
 
 # 必要金鑰(產生過才有)
+# R26#1 · 加 internal-token · 沒它 prod startup raise · social-scheduler cron 跑不動
 for pair in "jwt-secret:JWT_SECRET" "jwt-refresh-secret:JWT_REFRESH_SECRET" \
             "creds-key:CREDS_KEY" "creds-iv:CREDS_IV" \
-            "meili-master-key:MEILI_MASTER_KEY"; do
+            "meili-master-key:MEILI_MASTER_KEY" \
+            "internal-token:ECC_INTERNAL_TOKEN"; do
     key="${pair%%:*}"
     var="${pair##*:}"
     val="$(read_kc "$key")"

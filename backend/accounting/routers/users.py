@@ -90,38 +90,59 @@ def delete_user_pref(user_email: str, key: str,
 
 
 # ============================================================
-# Feature #2 · LINE Notify token 設定 + 測試送
+# Feature #2 · Webhook Notify(R26#2 · LINE Notify 已停服 · 改 generic webhook)
+# 支援:Slack / Discord / Telegram bot / Mattermost / 任何 POST {"text"} webhook
 # ============================================================
-class LineTokenSetup(BaseModel):
-    token: str  # LINE Notify token
+class WebhookSetup(BaseModel):
+    url: str  # Slack/Discord/Telegram/Mattermost webhook URL
 
 
-@router.post("/users/{user_email}/line-token")
-def set_line_token(user_email: str, payload: LineTokenSetup,
-                   caller: Optional[str] = current_user_email_dep()):
-    """同事自設 LINE Notify token · /users/me 也走此(email = caller)"""
+@router.post("/users/{user_email}/webhook")
+def set_webhook(user_email: str, payload: WebhookSetup,
+                caller: Optional[str] = current_user_email_dep()):
+    """同事自設 webhook URL · 支援 Slack/Discord/Telegram/Mattermost
+    R26#2 · 取代 LINE Notify(已停服 2025-03-31)
+    """
     _require_self_or_admin(user_email, caller)
     db = get_db()
     db.user_preferences.update_one(
-        {"user_email": user_email, "key": "line_token"},
+        {"user_email": user_email, "key": "webhook_url"},
         {"$set": {
             "user_email": user_email,
-            "key": "line_token",
-            "value": payload.token.strip(),
+            "key": "webhook_url",
+            "value": payload.url.strip(),
             "updated_at": datetime.utcnow(),
         }},
         upsert=True,
     )
     # 立刻送測試訊息
-    from services.line_notify import send
-    ok = send(payload.token.strip(), "✅ 承富 AI · LINE Notify 綁定成功 · 之後重要事件會推這")
+    from services.webhook_notify import send
+    ok = send(payload.url.strip(), "✅ 承富 AI · webhook 綁定成功 · 之後重要事件會推這")
     return {"saved": True, "test_sent": ok}
 
 
-@router.delete("/users/{user_email}/line-token")
-def delete_line_token(user_email: str,
-                      caller: Optional[str] = current_user_email_dep()):
+@router.delete("/users/{user_email}/webhook")
+def delete_webhook(user_email: str,
+                   caller: Optional[str] = current_user_email_dep()):
     _require_self_or_admin(user_email, caller)
     db = get_db()
-    r = db.user_preferences.delete_one({"user_email": user_email, "key": "line_token"})
+    r = db.user_preferences.delete_one({"user_email": user_email, "key": "webhook_url"})
     return {"deleted": r.deleted_count}
+
+
+# ============================================================
+# [DEPRECATED] LINE Notify · 留 backward compat · 提示停服
+# ============================================================
+class LineTokenSetup(BaseModel):
+    token: str
+
+
+@router.post("/users/{user_email}/line-token")
+def set_line_token_deprecated(user_email: str, payload: LineTokenSetup,
+                              caller: Optional[str] = current_user_email_dep()):
+    """[DEPRECATED] R26#2 · LINE Notify 已停服 2025-03-31 · 請改 /users/{email}/webhook"""
+    raise HTTPException(
+        410,  # Gone
+        "LINE Notify 已於 2025-03-31 停服 · 請改用 /users/{email}/webhook"
+        "(支援 Slack/Discord/Telegram/Mattermost)",
+    )

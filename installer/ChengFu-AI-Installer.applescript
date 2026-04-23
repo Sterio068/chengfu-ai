@@ -18,7 +18,7 @@ on run
 		"  • Anthropic API Key(必須 · Tier 2 預存 USD $50)" & return & ¬
 		"  • OpenAI API Key(會議速記 Whisper 用 · 必須)" & return & ¬
 		"  • Fal.ai API Key(設計助手生圖 · 選配)" & return & ¬
-		"  • LINE Notify token(每位同事自設 · 安裝後在 launcher 設)" & return & ¬
+		"  • Webhook URL(Slack/Discord/Telegram/Mattermost · 每位同事自設 · 安裝後在 launcher 設)" & return & ¬
 		"  • 公司域名(計畫對外用)" & return & ¬
 		"  • 管理員 email(預設 sterio068@gmail.com)" & return & ¬
 		"  • Docker Desktop 已安裝且啟動" & return & return & ¬
@@ -252,7 +252,7 @@ echo OK
 			"  python3 scripts/upload-knowledge-base.py" & return & ¬
 			"  ./scripts/install-launchd.sh  # 5 個 cron(含 social-scheduler)" & return & return & ¬
 			"提醒同事:" & return & ¬
-			"  • 進「使用教學」綁 LINE Notify(標案截止 / 預算警告會推 LINE)" & return & ¬
+			"  • 進「使用教學」綁 Webhook(Slack/Discord/Telegram/Mattermost · 標案截止 / 預算警告會推)" & return & ¬
 			"  • iPhone 場勘:設定 → 相機 → 格式 → 最相容(JPEG)" & return & return & ¬
 			"完整文件:" & repoPath & "/docs/RELEASE-NOTES-v1.2.md" & return & ¬
 			"問題找:sterio068@gmail.com" ¬
