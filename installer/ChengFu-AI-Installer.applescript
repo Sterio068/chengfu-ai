@@ -15,12 +15,15 @@ on run
 		"✨ 本次安裝只要你設一組 admin 密碼" & return & ¬
 		"其他 9 位同仁你裝完後自己在 UI 建(⌘U 同仁管理)" & return & ¬
 		"自訂頭銜 · 權限勾選 · 不用再編 shell script" & return & return & ¬
-		"v1.3.0 新功能:" & return & ¬
-		"  👥 同仁管理 UI(admin 在前端建帳號 + 7 preset 頭銜 + 28 權限勾選)" & return & ¬
+		"v1.3.0 會自動幫你建:" & return & ¬
+		"  👤 第一個 admin 帳號(你下一步要填的 email + 密碼)" & return & ¬
+		"  🤖 10 個 Agent 助手(✨ 主管家 · 🎯 投標 · 🎪 活動 · 🎨 設計 · 📣 公關" & return & ¬
+		"     🎙 會議 · 📚 知識 · 💰 財務 · ⚖️ 法務 · 📊 營運)" & return & return & ¬
+		"裝完後 admin 在 launcher ⌘U 自己建 9 位同仁 · 自訂頭銜 + 權限" & return & return & ¬
+		"v1.3.0 功能:" & return & ¬
+		"  👥 同仁管理 UI(admin UI 建帳號 + 7 preset + 28 權限勾選)" & return & ¬
 		"  🎤 會議速記 · 🎬 媒體 CRM · 📅 社群排程 · 📸 場勘 PWA" & return & ¬
-		"  📚 13 份 user-guide(quickstart / mobile / error-codes / training)" & return & ¬
-		"  🔒 30+ hardening · L3 server-side wall · OAuth URL encode · PDPA no-orphan" & return & ¬
-		"  ♿ WCAG 2.2(skip-link / focus-visible / reduced-motion / a11y baseline)" & return & return & ¬
+		"  📚 13 份 user-guide · 🔒 30+ hardening · ♿ WCAG 2.2" & return & return & ¬
 		"請預先準備:" & return & ¬
 		"  • Anthropic API Key(必須 · Tier 2 預存 USD $50)" & return & ¬
 		"  • OpenAI API Key(會議速記 Whisper 用 · 必須)" & return & ¬
@@ -277,11 +280,32 @@ until curl -sf http://localhost/chat/api/config > /dev/null 2>&1; do sleep 2; do
 echo '✓ LibreChat ready'
 echo ''
 echo '═══ 建 admin 帳號(' " & quoted form of adminEmail & " ')═══'
-docker exec chengfu-librechat npm run create-user -- " & quoted form of adminEmail & " " & quoted form of adminName & " " & quoted form of adminEmail & " " & quoted form of adminPassword & " || echo '⚠ admin 建立失敗 · 可手動註冊 http://localhost/chat(第一個註冊者自動為 ADMIN)'
+# LibreChat npm run create-user 會問 confirm · echo y 自動過
+docker exec chengfu-librechat sh -c 'echo y | npm run create-user -- " & quoted form of adminEmail & " " & quoted form of adminName & " " & quoted form of adminEmail & " " & quoted form of adminPassword & " ' || echo '⚠ admin 建立失敗 · 可手動註冊 http://localhost/chat(第一個註冊者自動為 ADMIN)'
+echo ''
+echo '═══ 等 admin 寫入 MongoDB(避 race condition)═══'
+until docker exec chengfu-mongo mongosh chengfu --quiet --eval 'db.users.countDocuments({email:\"" & adminEmail & "\"})' 2>/dev/null | grep -q '^1$'; do
+  echo '  等 admin 寫入...'
+  sleep 2
+done
+echo '✓ admin 已 ready'
+echo ''
+echo '═══ 建 10 個 core Agent(✨ 主管家 · 🎯 投標 · 🎪 活動 · 🎨 設計 · 📣 公關 · 🎙 會議 · 📚 知識 · 💰 財務 · ⚖️ 法務 · 📊 營運)═══'
+# LIBRECHAT_URL 必走 http://localhost(走 nginx)· 不能直連 3080 因 docker 網路只內部
+LIBRECHAT_URL=http://localhost \
+LIBRECHAT_ADMIN_EMAIL=" & quoted form of adminEmail & " \
+LIBRECHAT_ADMIN_PASSWORD=" & quoted form of adminPassword & " \
+python3 scripts/create-agents.py --tier core || {
+  echo '⚠ Agent 建立失敗 · 裝完進 launcher 再手動跑:'
+  echo '   LIBRECHAT_URL=http://localhost \\\\'
+  echo '   LIBRECHAT_ADMIN_EMAIL=" & adminEmail & " \\\\'
+  echo '   LIBRECHAT_ADMIN_PASSWORD=<密碼> \\\\'
+  echo '   python3 scripts/create-agents.py --tier core'
+}
 echo ''
 bash scripts/smoke-test.sh
 echo ''
-echo '✅ 安裝完成 · admin 已建好'
+echo '✅ 安裝完成 · admin + 10 Agent 已建好'
 echo ''
 echo '══════════════════════════════════════════'
 echo '  安裝完成 · 下一步只要 3 個動作'
