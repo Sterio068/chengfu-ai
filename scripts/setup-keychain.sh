@@ -30,8 +30,9 @@ echo ""
 echo "這些值之後可用以下指令查看:"
 echo "  security find-generic-password -s '${SERVICE_PREFIX}-<name>' -w"
 echo ""
-read -p "繼續? (y/N) " confirm
-[[ "$confirm" == "y" || "$confirm" == "Y" ]] || exit 0
+read -p "繼續? (y/N · 也接受全形 Ｙ/ｙ) " confirm
+# 接受半形 + 全形 + yes · 防中文輸入法漏接
+[[ "$confirm" =~ ^[yYＹｙ]$|^yes$|^YES$ ]] || exit 0
 echo ""
 
 # ------------------ 函式 ------------------
@@ -51,7 +52,8 @@ check_existing() {
     local full_key="${SERVICE_PREFIX}-${key}"
     if security find-generic-password -s "$full_key" -a "$USER" > /dev/null 2>&1; then
         read -p "  ⚠ 已存在 $full_key,覆寫? (y/N) " ow
-        [[ "$ow" == "y" || "$ow" == "Y" ]] && return 0 || return 1
+        # 接受半形 + 全形 · 防中文輸入法漏接
+        [[ "$ow" =~ ^[yYＹｙ]$|^yes$|^YES$ ]] && return 0 || return 1
     fi
     return 0
 }
