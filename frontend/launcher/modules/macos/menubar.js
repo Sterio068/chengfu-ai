@@ -302,10 +302,14 @@ function _renderStatusNotif() {
   el.type = "button";
   el.className = "menubar-status-item notif";
   el.id = "menubar-status-notif";
-  el.title = "通知中心(Sprint C 完整)";
+  el.title = "通知中心(⌃⌘N)";
   el.innerHTML = `<span class="status-icon">🔔</span>`;
-  el.addEventListener("click", () => {
-    window.toast?.info?.("通知中心 · Sprint C 推出");
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // 動態 import NC · 不擋首屏
+    import("./notification-center.js").then(m => m.toggle()).catch(err => {
+      window.toast?.warn?.("通知中心未載入 · " + err.message);
+    });
   });
   return el;
 }

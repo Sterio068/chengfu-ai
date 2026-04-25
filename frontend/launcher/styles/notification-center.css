@@ -1,0 +1,283 @@
+/* ============================================================
+   notification-center.css · v1.4 Sprint C Phase 5
+   ============================================================
+   右滑出面板 · 取代原 inspector 浪費空間
+   觸發:點 menubar 🔔 · 鍵盤 ⌃⌘N
+   ============================================================ */
+
+.notification-center {
+  position: fixed;
+  top: var(--menubar-h, 28px);
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  z-index: 650;            /* 在 menubar 600 之下 · 在 dock 500 之上 */
+  background: var(--vibrancy-light);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-left: 0.5px solid var(--separator);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* 從右滑出 · 預設藏 */
+  transform: translateX(100%);
+  transition: transform 320ms var(--ease-spring);
+  pointer-events: auto;
+}
+
+[data-theme="dark"] .notification-center {
+  background: var(--vibrancy-dark);
+}
+
+@supports not (backdrop-filter: blur(20px)) {
+  .notification-center { background: rgba(246, 246, 246, 0.97); }
+  [data-theme="dark"] .notification-center { background: rgba(30, 30, 30, 0.97); }
+}
+
+.notification-center.open {
+  transform: translateX(0);
+}
+
+/* mobile · 改成全寬 */
+@media (max-width: 768px) {
+  .notification-center {
+    width: 100vw;
+  }
+}
+
+/* ============================================================
+   Header
+   ============================================================ */
+.nc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.nc-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--label-primary);
+}
+
+.nc-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.nc-close:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--label-primary);
+}
+
+[data-theme="dark"] .nc-close {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .nc-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ============================================================
+   Widgets
+   ============================================================ */
+.nc-widgets {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nc-widget {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 0.5px solid var(--separator);
+  border-radius: 12px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+}
+
+[data-theme="dark"] .nc-widget {
+  background: rgba(60, 60, 60, 0.7);
+}
+
+.nc-widget.muted {
+  opacity: 0.85;
+}
+
+.nc-widget.interactive:hover {
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.nc-widget.skeleton {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--label-tertiary);
+  text-align: center;
+  padding: 24px;
+}
+
+.nc-w-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--label-secondary);
+  margin-bottom: 8px;
+}
+
+.nc-w-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nc-w-row.big {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 4px 0 8px;
+  font-feature-settings: "tnum" 1;
+}
+
+.nc-w-amt {
+  color: var(--label-primary);
+}
+
+.nc-w-max {
+  color: var(--label-tertiary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nc-w-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--label-secondary);
+  margin-top: 6px;
+}
+
+.nc-w-meta .danger {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.nc-w-text {
+  color: var(--label-secondary);
+}
+
+.nc-w-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0;
+}
+
+.nc-w-empty {
+  color: var(--label-tertiary);
+  font-size: 12px;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.nc-w-action {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: 0;
+  background: var(--accent);
+  color: white;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.nc-w-action:hover {
+  background: var(--accent-hover);
+}
+
+/* ============================================================
+   Usage bar
+   ============================================================ */
+.nc-w-bar {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.nc-w-bar-fill {
+  height: 100%;
+  background: var(--color-success);
+  border-radius: 3px;
+  transition: width var(--dur-normal);
+}
+
+.nc-w-bar-fill.danger {
+  background: var(--color-danger);
+}
+
+/* ============================================================
+   Health
+   ============================================================ */
+.nc-health-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.nc-health-dot.warn {
+  background: var(--color-warning);
+}
+
+.nc-health-dot.small {
+  width: 6px;
+  height: 6px;
+}
+
+.nc-w-services {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.nc-service {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--label-secondary);
+}
+
+.nc-status-code {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+}
