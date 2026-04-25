@@ -20,8 +20,8 @@ echo "  承富 AI 系統 · Keychain 機密初始化"
 echo "============================================"
 echo ""
 echo "本腳本會將以下機密寫入 macOS Keychain:"
-echo "  - Anthropic API Key(必要)"
-echo "  - OpenAI API Key(選配:STT / embedding)"
+echo "  - OpenAI API Key(必要:主力 AI 引擎)"
+echo "  - Anthropic API Key(選配:Claude 備援 / 長文件工作流)"
 echo "  - JWT Secrets × 2(自動產生)"
 echo "  - LibreChat CREDS Key/IV(自動產生)"
 echo "  - Meilisearch Master Key(自動產生)"
@@ -63,26 +63,27 @@ prompt_secret() {
     echo "$value"
 }
 
-# ------------------ 1. Anthropic API Key(必要)------------------
-echo "[1/7] Anthropic API Key"
-if check_existing "anthropic-key"; then
-    echo "  到 https://console.anthropic.com 取得 sk-ant-... 開頭的 key"
-    echo "  ⚠ 確認已升 Tier 2(D-002)"
-    key=$(prompt_secret "貼入 Anthropic API Key")
+# ------------------ 1. OpenAI API Key(必要)------------------
+echo "[1/7] OpenAI API Key"
+if check_existing "openai-key"; then
+    echo "  到 https://platform.openai.com/api-keys 取得 sk-... 開頭的 key"
+    echo "  承富預設用 OpenAI,前端可再切換到 Claude 備援"
+    key=$(prompt_secret "貼入 OpenAI API Key")
     [[ -z "$key" ]] && { echo "❌ 不可為空"; exit 1; }
-    put_secret "anthropic-key" "$key"
+    put_secret "openai-key" "$key"
 fi
 echo ""
 
-# ------------------ 2. OpenAI API Key(選配)------------------
-echo "[2/7] OpenAI API Key(選配 · 用於 STT 語音轉文字 / embedding)"
+# ------------------ 2. Anthropic API Key(選配)------------------
+echo "[2/7] Anthropic API Key(選配 · Claude 備援)"
 read -p "  略過這個? (Y/n) " skip
 if [[ "$skip" != "n" && "$skip" != "N" ]]; then
     echo "  已略過"
 else
-    if check_existing "openai-key"; then
-        key=$(prompt_secret "貼入 OpenAI API Key")
-        [[ -n "$key" ]] && put_secret "openai-key" "$key"
+    if check_existing "anthropic-key"; then
+        echo "  到 https://console.anthropic.com 取得 sk-ant-... 開頭的 key"
+        key=$(prompt_secret "貼入 Anthropic API Key")
+        [[ -n "$key" ]] && put_secret "anthropic-key" "$key"
     fi
 fi
 echo ""
@@ -136,4 +137,4 @@ echo "  cd config-templates && cp .env.example .env  # 填入非機密欄位"
 echo "  cd .. && ./scripts/start.sh                   # 啟動系統"
 echo ""
 echo "驗證 Keychain 項目:"
-echo "  security find-generic-password -s 'chengfu-ai-anthropic-key' -w"
+echo "  security find-generic-password -s 'chengfu-ai-openai-key' -w"

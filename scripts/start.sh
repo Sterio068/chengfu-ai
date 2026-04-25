@@ -79,16 +79,23 @@ read_kc() {
 
 echo "[1/3] 從 Keychain 讀取機密..."
 
-ANTHROPIC_API_KEY=$(read_kc "anthropic-key")
-if [[ -z "$ANTHROPIC_API_KEY" ]]; then
-    echo "❌ 必要機密 'chengfu-ai-anthropic-key' 未設定" >&2
+OPENAI_API_KEY="$(read_kc "openai-key")"
+ANTHROPIC_API_KEY="$(read_kc "anthropic-key")"
+if [[ -z "$OPENAI_API_KEY" && -z "$ANTHROPIC_API_KEY" ]]; then
+    echo "❌ 至少需要設定一組 AI API Key(openai-key 或 anthropic-key)" >&2
     echo "   執行:./scripts/setup-keychain.sh" >&2
     exit 1
 fi
+if [[ -z "$OPENAI_API_KEY" ]]; then
+    echo "  ⚠ OpenAI Key 未設定 · 前端 OpenAI 引擎不可用"
+fi
+if [[ -z "$ANTHROPIC_API_KEY" ]]; then
+    echo "  ⚠ Claude Key 未設定 · 前端 Claude 備援不可用"
+fi
+export OPENAI_API_KEY
 export ANTHROPIC_API_KEY
 
 # 選配機密(空值不出錯)
-export OPENAI_API_KEY="$(read_kc "openai-key")"
 export EMAIL_PASSWORD="$(read_kc "email-password")"
 
 # 必要金鑰(產生過才有)

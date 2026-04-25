@@ -64,7 +64,7 @@ if [[ -n "$MEILI_KEY" ]]; then
     # Trigger dump · 拿 task uid(`|| echo ""` 避免網路抖動退出整支 backup)
     DUMP_RESP=$(docker exec chengfu-meili wget -qO- \
         --header="Authorization: Bearer ${MEILI_KEY}" \
-        --post-data='' http://localhost:7700/dumps 2>/dev/null || echo "")
+        --post-data='' http://127.0.0.1:7700/dumps 2>/dev/null || echo "")
     TASK_UID=$(echo "$DUMP_RESP" | jq -r '.taskUid // empty' 2>/dev/null || echo "")
     if [[ -n "$TASK_UID" && "$TASK_UID" != "null" ]]; then
         # Poll task status 最多 120 秒
@@ -72,7 +72,7 @@ if [[ -n "$MEILI_KEY" ]]; then
         for i in $(seq 1 24); do
             TASK_JSON=$(docker exec chengfu-meili wget -qO- \
                 --header="Authorization: Bearer ${MEILI_KEY}" \
-                http://localhost:7700/tasks/${TASK_UID} 2>/dev/null || echo "")
+                http://127.0.0.1:7700/tasks/${TASK_UID} 2>/dev/null || echo "")
             MEILI_STATUS=$(echo "$TASK_JSON" | jq -r '.status // empty' 2>/dev/null || echo "")
             if [[ "$MEILI_STATUS" == "succeeded" ]]; then
                 break
@@ -90,7 +90,7 @@ if [[ -n "$MEILI_KEY" ]]; then
                 # Meili dump 檔名格式 <hash>.dump · 從 task result 讀 dumpUid
                 TASK_JSON2=$(docker exec chengfu-meili wget -qO- \
                     --header="Authorization: Bearer ${MEILI_KEY}" \
-                    http://localhost:7700/tasks/${TASK_UID} 2>/dev/null || echo "")
+                    http://127.0.0.1:7700/tasks/${TASK_UID} 2>/dev/null || echo "")
                 DUMP_UID=$(echo "$TASK_JSON2" | jq -r '.details.dumpUid // empty' 2>/dev/null || echo "")
                 DUMP_FILE_PATTERN="${PROJECT_DIR}/config-templates/data/meili/dumps/${DUMP_UID}.dump"
                 if [[ -n "$DUMP_UID" && -f "$DUMP_FILE_PATTERN" ]]; then
