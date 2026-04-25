@@ -495,7 +495,9 @@ export const app = {
     const header = activeView.querySelector(".view-header, .main-header");
     if (!header) return;
     if (header.querySelector(".view-help-btn")) return;
-    if (getComputedStyle(header).position === "static") header.style.position = "relative";
+    // 若 header 已有 .header-actions 區 · ❓ 加進那裡(同行 · 不重疊)
+    // 否則 absolute 定位到 top-right
+    const actions = header.querySelector(".header-actions");
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "view-help-btn";
@@ -503,7 +505,14 @@ export const app = {
     btn.title = "看本頁教學";
     btn.setAttribute("aria-label", "看本頁教學");
     btn.onclick = () => window.helpTip?.showFor(view);
-    header.appendChild(btn);
+    if (actions) {
+      // inline 模式 · 加 class 給 CSS 切換 absolute → static
+      btn.classList.add("inline");
+      actions.insertBefore(btn, actions.firstChild);
+    } else {
+      if (getComputedStyle(header).position === "static") header.style.position = "relative";
+      header.appendChild(btn);
+    }
   },
 
   openCreateSource() { knowledge.openCreateModal(); },

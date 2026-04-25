@@ -127,10 +127,33 @@ frontend_build() {
 
 backend_tests() {
   cd "$ROOT_DIR"
-  # F-08 對應 · 確保 host python3 有齊全 test deps · pip install --user 不污染系統
-  # 跳過已安裝套件 · 第一次跑會慢 30s · 後續快
-  python3 -m pip install --quiet --user -r backend/accounting/requirements.txt 2>/dev/null || true
-  python3 -m pytest -q
+  # F-08 對應 · 確保 host python3 有齊全 test deps
+  # 策略:
+  # 1. 優先用既有 venv(.venv/bin/python · backend/accounting/.venv)
+  # 2. 否則建一個 .venv-release-verify · 第一次跑慢 · 之後快
+  # 3. macOS Python 3.13/3.14 PEP 668 不允許 pip install --user · 必走 venv
+  local VENV=""
+  if [ -d "$ROOT_DIR/.venv" ] && [ -x "$ROOT_DIR/.venv/bin/python" ]; then
+    VENV="$ROOT_DIR/.venv"
+  elif [ -d "$ROOT_DIR/backend/accounting/.venv" ] && [ -x "$ROOT_DIR/backend/accounting/.venv/bin/python" ]; then
+    VENV="$ROOT_DIR/backend/accounting/.venv"
+  else
+    # 沒既有 venv · 自己建一個
+    VENV="$ROOT_DIR/.venv-release-verify"
+    if [ ! -x "$VENV/bin/python" ]; then
+      local PY3=""
+      for cand in python3.13 python3.12 python3.11 python3; do
+        if command -v "$cand" >/dev/null 2>&1; then PY3="$cand"; break; fi
+      done
+      [ -z "$PY3" ] && { echo "❌ 找不到 python3"; return 1; }
+      echo "  建 venv($($PY3 --version))..."
+      "$PY3" -m venv "$VENV" 2>&1 | tail -3 || { echo "❌ venv 建立失敗"; return 1; }
+    fi
+  fi
+  echo "  使用 venv:$VENV"
+  "$VENV/bin/python" -m pip install --quiet --upgrade pip 2>/dev/null || true
+  "$VENV/bin/python" -m pip install --quiet -r backend/accounting/requirements.txt 2>&1 | tail -3 || true
+  "$VENV/bin/python" -m pytest -q
 }
 
 e2e_tests() {
