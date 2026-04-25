@@ -192,4 +192,33 @@
 body {
   padding-top: var(--menubar-h);
   font-family: var(--font-system);
+  /* CJK 字型優化(2026-04-26 USER · 中文標籤美化) */
+  /* 1. CJK 與英數混排時 · 字距微調 · 視覺更舒服 */
+  letter-spacing: 0.005em;
+  /* 2. OpenType features · 啟動 PingFang TC 標準字符替換 + kerning */
+  font-feature-settings: "kern" 1, "palt" 1;
+  /* 3. 中文反鋸齒 · macOS 預設 subpixel · Retina 上更清 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 4. 中文行距預留更鬆(漢字高 · 1.5 太擠) */
+  line-height: 1.6;
+  /* 5. 文字渲染品質 · 取 legibility 寧願犧牲一點速度 */
+  text-rendering: optimizeLegibility;
+}
+
+/* CJK 標籤類元素 · 字距更鬆(用於 sidebar / dock tooltip / button) */
+.cjk-label,
+.dock-icon-tooltip,
+.sidebar-label,
+.brand-name,
+.brand-sub,
+.help-role-label {
+  letter-spacing: 0.05em;  /* 漢字字距 0.05em 是視覺甜蜜點 */
+  font-weight: 500;
+}
+
+/* 純英數類(API key / hash / code)· 字距收緊 */
+code, kbd, .secret-preview, .agent-id, .commit-sha {
+  letter-spacing: 0;
+  font-feature-settings: "tnum" 1;  /* tabular numbers · 對齊用 */
 }

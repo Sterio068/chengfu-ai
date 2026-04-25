@@ -135,29 +135,60 @@
   transform: translateX(-50%) scale(1);
 }
 
-/* Tooltip · hover 上方浮現 */
+/* Tooltip · macOS Sequoia 風(暗色 vibrancy + 白字 + 微 chevron) */
 .dock-icon-tooltip {
   position: absolute;
-  bottom: calc(100% + 12px);
+  bottom: calc(100% + 14px);
   left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  padding: 4px 10px;
-  background: var(--bg-elevated);
-  color: var(--label-primary);
-  font-size: 12px;
+  transform: translateX(-50%) translateY(6px);
+  padding: 6px 12px;
+  background: rgba(50, 50, 50, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 13px;
   font-weight: 500;
-  border-radius: var(--r-sm);
-  box-shadow: var(--shadow-popover);
+  letter-spacing: 0.05em;        /* CJK 字距甜蜜點 */
+  line-height: 1.4;
+  border-radius: 8px;
+  border: 0.5px solid rgba(255, 255, 255, 0.1);  /* 高光邊 · macOS 玻璃效果 */
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.32),
+    0 0 0 0.5px rgba(0, 0, 0, 0.4);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+  transition:
+    opacity var(--dur-fast) var(--ease-out-quart),
+    transform var(--dur-normal) var(--ease-spring);
+}
+
+/* Tooltip 下方小尖角 · macOS native style */
+.dock-icon-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid rgba(50, 50, 50, 0.92);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
 }
 
 .dock-icon:hover .dock-icon-tooltip,
 .dock-icon:focus-visible .dock-icon-tooltip {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Light theme · tooltip 仍保暗色(macOS 默認 tooltip 永遠暗) */
+@supports not (backdrop-filter: blur(20px)) {
+  .dock-icon-tooltip {
+    background: rgba(50, 50, 50, 0.96);
+  }
 }
 
 /* Focus ring · 鍵盤導航 */
