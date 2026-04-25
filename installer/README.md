@@ -8,19 +8,28 @@
 
 雙擊 **`ChengFu-AI-Installer.dmg`** · 從 Finder 視窗拖出 **`ChengFu-AI-Installer.app`** 到桌面或 `/Applications/`。
 
-**雙擊 `.app` 啟動** · 跟隨對話框輸入(5 個問題):
+**雙擊 `.app` 啟動**。
+
+若這台 Mac mini 已安裝過,安裝器會先偵測既有 `config-templates/.env` 與 macOS Keychain:
+- 選「沿用既有」:不重填 API Key / 網域 / admin / NAS,直接沿用既有 Mongo 帳號、對話與 Agent。
+- 選「重新設定」:走第一次安裝流程,可更換 API Key、admin email、網域或 NAS。
+
+第一次安裝或選「重新設定」時,跟隨對話框輸入(7 個步驟):
 
 | 對話框 | 輸入什麼 |
 |---|---|
-| 1/5 · Anthropic API Key | 從 <https://console.anthropic.com> 拿 · `sk-ant-xxx...` 格式(隱藏輸入) |
-| 2/5 · 公司域名 | 例 `ai.chengfu.com.tw` · 留空用本機 `localhost` |
-| 3/5 · 管理員 email | 預設 `sterio068@gmail.com` · 直接 Enter |
-| 4/5 · NAS 路徑 | 例 `/Volumes/chengfu-nas/projects` · 留空用本機測試 |
-| 5/5 · 確認啟動 | 確認設定 · 按「啟動安裝」 |
+| 1/7 · OpenAI API Key | 從 <https://platform.openai.com/api-keys> 拿 · `sk-...` 格式(隱藏輸入) |
+| 2/7 · Anthropic API Key | Claude 備援用 · 可留空,前端仍可先用 OpenAI |
+| 3/7 · 公司域名 | 例 `ai.chengfu.com.tw` · 留空用本機 `localhost`，仍維持 production 安全模式 |
+| 4/7 · 管理員 email | 必填 · 請輸入承富公司管理信箱 |
+| 5/7 · 管理員密碼 | 至少 8 字 · 用於第一個 admin 登入 |
+| 6/7 · 顯示名稱 | LibreChat 左上角顯示名稱 |
+| 7/7 · NAS 路徑 | 例 `/Volumes/chengfu-nas/projects` · 留空用本機測試 |
 
 之後自動完成:
-1. 寫入 macOS Keychain(API key + JWT + CREDS + Meili + Internal token 共 7 項)
-2. 建 `.env` · 注入 prod fail-closed env(R7+R8)
+0. 若本機沒有 ChengFu repo,先從 `.dmg` 內建的 `ChengFu-source.tar.gz` 展開新版程式碼
+1. 寫入或沿用 macOS Keychain(API key + JWT + CREDS + Meili + Internal token 共 7 項)
+2. 建 `.env` 或沿用既有 `.env`(只做 CR→LF 正規化)· 保留 Mongo volume 內既有資料
 3. 開 Terminal 視窗(讓 IT 看 docker 進度)
 4. 抓 5 個 image @sha256 pinned
 5. 啟動 6 容器
@@ -28,7 +37,7 @@
 7. 跑 smoke test
 8. **彈最終對話框** · 印維運手冊 + 開瀏覽器到 `http://localhost/`
 
-**失敗了?** 重雙擊 `.app` · idempotent · 跳過已完成步驟。
+**失敗了?** 重雙擊 `.app` · idempotent · 選「沿用既有」會跳過已完成的帳號 / Agent 建立。若 Mongo volume 已被清空,請選「重新設定」。
 
 ---
 
@@ -46,8 +55,9 @@ cd installer
 **打包流程:**
 1. `osacompile` 把 `ChengFu-AI-Installer.applescript` 轉成 .app
 2. 套 icon(若有 `installer/icon.icns`)
-3. 改 `Info.plist` 中文名 + 版本 1.1.0
+3. 改 `Info.plist` 中文名 + 版本 1.3.0
 4. `hdiutil create` 包成 .dmg(含 .app + 「讀我.txt」)
+5. `.dmg` 會內含 `ChengFu-source.tar.gz`,避免 GitHub 尚未更新時安裝到舊版
 
 **測試:**
 ```bash
@@ -81,12 +91,17 @@ hdiutil attach installer/dist/ChengFu-AI-Installer.dmg
 
 > 「ChengFu-AI-Installer.app」未經驗證 · 無法開啟
 
-**繞法 A · IT 操作(推薦):**
+**繞法 A · Finder 右鍵開啟(最簡單):**
+1. 在 Finder 對 `ChengFu-AI-Installer.app` 按右鍵或 Control+點按
+2. 選「開啟」
+3. macOS 再問一次時,按「開啟」
+
+**繞法 B · 系統設定放行:**
 1. 關掉警告
 2. 系統設定 → 隱私權與安全性 → 拉到底找「ChengFu-AI-Installer.app 已被擋」
 3. 按「強制打開」
 
-**繞法 B · 終端機(Sterio 用):**
+**繞法 C · 終端機(Sterio 用):**
 ```bash
 sudo xattr -dr com.apple.quarantine ~/Desktop/ChengFu-AI-Installer.app
 ```
@@ -114,4 +129,4 @@ installer/
 
 - `.env` template 內容若改 · 同步改 `ChengFu-AI-Installer.applescript` 的 `envContent` block
 - 5 個 docker image 名若改 · 不影響 .applescript(透過 docker-compose 抓)
-- repo 路徑邏輯:精靈先試 `~/ChengFu` `~/Workspace/ChengFu` `~/Desktop/ChengFu` `~/Documents/ChengFu` · 找不到自動 clone
+- repo 路徑邏輯:精靈先試 `~/Workspace/ChengFu` `~/ChengFu` `~/Desktop/ChengFu` `~/Documents/ChengFu` · 找不到就展開 `.dmg` 內建 source 快照 · 再找不到才自動 clone / 手動指定
