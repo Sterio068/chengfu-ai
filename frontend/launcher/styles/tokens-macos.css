@@ -75,8 +75,8 @@
   --space-16: 64px;
   --space-20: 80px;
 
-  /* macOS standard heights */
-  --menubar-h:        0;        /* default 0 · [data-pwa="1"] 才 24px */
+  /* macOS standard heights · USER 反饋 2026-04-26 · 永遠顯示 menubar(不只 PWA) */
+  --menubar-h:        28px;     /* macOS Sequoia 標準 24-28 · Sonoma 後 28 */
   --dock-h:           72px;     /* 56 icon + 16 padding */
   --dock-icon:        56px;
   --dock-icon-hover:  80px;     /* scale 1.43 · macOS Sequoia 默認 */
@@ -180,10 +180,12 @@
 }
 
 /* ============================================================
-   PWA 全螢幕模式 · menubar 顯示
+   PWA 全螢幕模式 · menubar 永遠顯示(不再 gated)
+   保留變數做為將來「自動隱藏」flag 用
    ============================================================ */
 [data-pwa="1"] {
-  --menubar-h: 24px;
+  /* 進 PWA 後可加更厚 menubar 或不同樣式 · 目前同 default */
+  --menubar-h: 28px;
 }
 
 /* ============================================================
