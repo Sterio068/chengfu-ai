@@ -5122,6 +5122,13 @@ button:focus-visible,
   color: var(--accent);
   transform: scale(1.05);
 }
+/* header 已有 .header-actions 時 · ❓ 改 inline 排在 actions 前 · 不重疊 */
+.view-help-btn.inline {
+  position: static;
+  width: 28px; height: 28px;
+  font-size: 13px;
+  margin-right: 4px;
+}
 
 /* A+E · 任務式 FTUE · backdrop + bubble */
 .tutorial-backdrop {
