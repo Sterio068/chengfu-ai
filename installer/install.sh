@@ -159,6 +159,19 @@ fi
 # ============================================================
 step "4/6 · 啟動 Docker 容器(約 1-3 分鐘)"
 
+# 4.1 · .env 不存在 → 從 .env.example 複製(機密走 Keychain · 此檔只有預設值)
+ENV_FILE="config-templates/.env"
+ENV_EXAMPLE="config-templates/.env.example"
+if [ ! -f "$ENV_FILE" ]; then
+    if [ ! -f "$ENV_EXAMPLE" ]; then
+        err "找不到 $ENV_EXAMPLE · repo 可能不完整"
+        exit 1
+    fi
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+    ok "建 .env(從 .env.example · 機密由 Keychain 注入)"
+fi
+
+# 4.2 · 啟容器
 bash ./scripts/start.sh 2>&1 | sed 's/^/  /' || {
     err "start.sh 失敗"
     echo "       看 docker compose -f config-templates/docker-compose.yml logs"
