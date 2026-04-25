@@ -7,30 +7,35 @@
    layered z-index: --z-menubar(600 · 比 dock 500 高)
    ============================================================ */
 
+/* USER 反饋 2026-04-26:menubar 改永遠顯示(不再 PWA-gated) */
 .macos-menubar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: var(--menubar-h, 0);
+  height: var(--menubar-h, 28px);
   z-index: var(--z-menubar, 600);
   background: var(--vibrancy-light);
   backdrop-filter: var(--blur-vibrancy);
   -webkit-backdrop-filter: var(--blur-vibrancy);
   border-bottom: 0.5px solid var(--separator);
-  display: none;  /* default 隱藏 · PWA 才秀 */
-  align-items: center;
-  padding: 0 12px;
+  display: flex;          /* 永遠顯示 · 不再 PWA gate */
+  align-items: stretch;
+  padding: 0 var(--space-2);
   font-size: 13px;
   font-weight: 500;
+  letter-spacing: 0.04em;  /* CJK 美化 */
   color: var(--label-primary);
   user-select: none;
   pointer-events: auto;
+  gap: 0;
 }
 
-/* PWA mode 才 display */
-[data-pwa="1"] .macos-menubar {
-  display: flex;
+/* mobile 隱(已有 mobile bottom nav · menubar 太擠) */
+@media (max-width: 768px) {
+  .macos-menubar {
+    display: none;
+  }
 }
 
 /* fallback · backdrop-filter 不支援(Firefox 老版)→ 半透明 fallback */
@@ -47,4 +52,204 @@
   [data-theme="dark"] .macos-menubar {
     background: rgba(30, 30, 30, 0.95);
   }
+}
+
+/* ============================================================
+   Menubar 內容 · 左側 menu items + 右側 status
+   ============================================================ */
+.menubar-left,
+.menubar-right {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.menubar-right {
+  margin-left: auto;
+  gap: var(--space-1);
+}
+
+.menubar-item {
+  background: transparent;
+  border: 0;
+  padding: 0 var(--space-3);
+  height: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--dur-fast);
+}
+
+.menubar-item.bold {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.menubar-item:hover,
+.menubar-item.open {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .menubar-item:hover,
+[data-theme="dark"] .menubar-item.open {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   Status items(右側)
+   ============================================================ */
+.menubar-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--space-2);
+  height: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--label-primary);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.menubar-status-item.readonly {
+  cursor: default;
+}
+
+.menubar-status-item:not(.readonly):hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .menubar-status-item:not(.readonly):hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.status-icon {
+  font-size: 13px;
+}
+
+.status-chevron {
+  font-size: 9px;
+  color: var(--label-tertiary);
+}
+
+.status-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.status-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 通知 · badge 紅點(若 admin 看到) */
+.menubar-status-item.notif {
+  position: relative;
+}
+
+.menubar-status-item.notif.has-update::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  animation: notif-pulse 2s infinite;
+}
+
+@keyframes notif-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   Dropdown menu(macOS NSMenu 風)
+   ============================================================ */
+.menubar-dropdown {
+  position: fixed;
+  z-index: var(--z-overlay, 700);
+  min-width: 220px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  user-select: none;
+}
+
+[data-theme="dark"] .menubar-dropdown {
+  background: rgba(50, 50, 50, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.menubar-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  color: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.menubar-dropdown-item:hover,
+.menubar-dropdown-item:focus-visible {
+  background: var(--accent);
+  color: white;
+  outline: none;
+}
+
+.menubar-dropdown-item.danger:hover {
+  background: var(--color-danger);
+}
+
+.dd-label {
+  flex: 1;
+}
+
+.dd-shortcut {
+  font-size: 11px;
+  color: var(--label-tertiary);
+  letter-spacing: 0;
+  font-family: var(--font-system);
+  font-feature-settings: "tnum" 1;
+}
+
+.menubar-dropdown-item:hover .dd-shortcut,
+.menubar-dropdown-item:focus-visible .dd-shortcut {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.menubar-dropdown-sep {
+  height: 1px;
+  background: var(--separator);
+  margin: 4px 6px;
 }

@@ -50,6 +50,8 @@ import { activateLauncherView, isRoutableView, routeFromHash } from "./modules/r
 import "./modules/macos/pwa-detect.js";
 // v1.4 macOS · Dock(底部 · vibrancy · hover magnification · default seed 7 agents)
 import { dock as macosDock } from "./modules/macos/dock.js";
+// v1.4 macOS · Menubar(頂部 · 6 menu + 5 status item)· Sprint B Phase 3
+import { menubar as macosMenubar } from "./modules/macos/menubar.js";
 import { shortcuts } from "./modules/shortcuts.js";
 import { health } from "./modules/health.js";
 import { mobile } from "./modules/mobile.js";
@@ -185,6 +187,12 @@ export const app = {
       macosDock.init();
     } catch (e) {
       console.warn("[macos] dock init failed", e);
+    }
+    // v1.4 macOS · Menubar(頂部)· Sprint B Phase 3
+    try {
+      macosMenubar.init();
+    } catch (e) {
+      console.warn("[macos] menubar init failed", e);
     }
 
     // 首次訪問 onboarding

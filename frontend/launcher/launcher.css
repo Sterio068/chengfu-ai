@@ -144,7 +144,8 @@ kbd {
 .app {
   display: grid;
   grid-template-columns: 260px 1fr 340px;
-  height: 100vh;
+  /* v1.4 macOS · 避讓頂部 menubar(28px)· body 已 padding-top */
+  height: calc(100vh - var(--menubar-h, 0px));
 }
 
 @media (max-width: 1200px) {
