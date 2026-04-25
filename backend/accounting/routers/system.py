@@ -48,6 +48,17 @@ def quota_check(email: Optional[str] = current_user_email_dep()):
     )
 
 
+@router.get("/usage-summary")
+def usage_summary(email: Optional[str] = current_user_email_dep()):
+    """Launcher 首頁用量卡 · 取代 LibreChat 可能不存在的 /api/balance。"""
+    from main import _users_col
+    from services import admin_metrics
+    monthly_limit = int(os.getenv("USER_MONTHLY_TOKEN_LIMIT", "1500000"))
+    return admin_metrics.user_month_token_usage(
+        get_db(), _users_col, email, monthly_limit=monthly_limit
+    )
+
+
 # ============================================================
 # /quota/preflight · nginx auth_request gate
 # ============================================================
@@ -56,7 +67,7 @@ def _quota_preflight_impl(request: Request,
     """Codex R7#9 + R8#3 · nginx auth_request 用 · 看 user 是否仍在預算內
 
     回應 contract:
-    - 204 No Content · 通過(允許 LibreChat /api/ask)
+    - 204 No Content · 通過(允許 LibreChat /api/agents/chat)
     - 429 Too Many Requests · 擋 · 帶 X-Quota-* response headers 給 nginx error_page 用
     - 401 · 沒驗到身份(prod 嚴格擋 · dev 視為通過 · 給 launcher 開發空間)
     """

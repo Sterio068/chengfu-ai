@@ -27,7 +27,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from ._deps import require_user_dep
+from ._deps import _is_admin_user, require_user_dep
 
 
 router = APIRouter(tags=["memory"])
@@ -48,6 +48,25 @@ def _meeting_oid(meeting_id: str) -> ObjectId:
         return ObjectId(meeting_id)
     except (InvalidId, TypeError):
         raise HTTPException(400, "meeting_id 格式錯誤")
+
+
+def _authorized_project_oid(db, project_id: str, email: str) -> ObjectId:
+    try:
+        p_oid = ObjectId(project_id)
+    except Exception:
+        raise HTTPException(400, "project_id 格式錯")
+    q = {"_id": p_oid}
+    if not _is_admin_user(email):
+        q["$or"] = [
+            {"owner": email},
+            {"collaborators": email},
+            {"next_owner": email},
+        ]
+    if db.projects.find_one(q, {"_id": 1}):
+        return p_oid
+    if db.projects.find_one({"_id": p_oid}, {"_id": 1}):
+        raise HTTPException(403, "只能綁定自己的專案")
+    raise HTTPException(404, "project 不存在")
 
 
 class SummarizeRequest(BaseModel):
@@ -355,6 +374,8 @@ async def transcribe_audio(
     - PDPA:處理完刪 tmp audio raw · 只留 transcript + structured
     """
     from main import db
+    if project_id:
+        _authorized_project_oid(db, project_id, email)
 
     # 驗 mime + size
     mime = (audio.content_type or "").lower()
@@ -474,19 +495,18 @@ def push_to_handoff(meeting_id: str, email: str = require_user_dep()):
         for a in action_items
     ]
 
-    try:
-        p_oid = ObjectId(project_id)
-    except Exception:
-        raise HTTPException(400, "project_id 格式錯")
+    p_oid = _authorized_project_oid(db, project_id, email)
 
     r = db.projects.update_one(
         {"_id": p_oid},
-        {"$set": {
-            f"handoff.next_actions": next_actions,
-            f"handoff.source_meeting_id": meeting_id,
-            f"handoff.updated_by": email,
-            f"handoff.updated_at": datetime.now(timezone.utc),
-        }},
+        {
+            "$addToSet": {"handoff.meeting_next_actions": {"$each": next_actions}},
+            "$set": {
+                f"handoff.source_meeting_id": meeting_id,
+                f"handoff.updated_by": email,
+                f"handoff.updated_at": datetime.now(timezone.utc),
+            },
+        },
     )
     if r.matched_count == 0:
         raise HTTPException(404, "project 不存在")

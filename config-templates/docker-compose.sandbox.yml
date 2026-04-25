@@ -24,7 +24,7 @@
 #      SMOKE_BASE_URL=http://localhost:8080 ./scripts/smoke-librechat.sh
 #
 #   5. 跑 admin/librechat-contract 確認 transactions schema 沒變
-#      curl -H "X-User-Email: sterio068@gmail.com" \
+#      curl -H "X-User-Email: admin@chengfu.local" \
 #           http://localhost:8081/admin/librechat-contract
 #
 #   6. 全綠才升 production · 紅旗回滾:

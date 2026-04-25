@@ -32,21 +32,22 @@ v1.1 後上架 Chrome Web Store,10 位同仁可直接搜尋安裝。
 | 業務看同業新聞 | 選文字 → ⌘⇧C → 主管家判斷是否要做回應新聞稿 |
 | 財務看報價 Email | 選金額 → 右鍵 → 財務試算毛利 |
 
-## 需要 icon 檔(承富設計師產)
+## Icon 檔
 
-`icons/` 目錄下需要:
+目前 manifest 不引用 icon,避免開發模式安裝時因缺圖檔失敗。
+上架 Chrome Web Store 前再補 `icons/` 目錄:
 - icon16.png(16 × 16)
 - icon48.png(48 × 48)
 - icon128.png(128 × 128)
 
-暫時使用 Chrome 預設圖示,上架前需替換。
+補完後再把 `default_icon` 加回 `manifest.json`。
 
 ## 隱私
 
 - 擴充功能**不會**把資料傳給第三方
 - 只會傳到設定的承富 AI 位址(localhost / 公司內網 / Cloudflare Tunnel)
 - 不儲存歷史內容
-- 權限只有 `activeTab`(只看當前分頁) + `contextMenus` + `storage`(存設定)
+- 權限只有 `activeTab`(只看當前分頁) + `contextMenus` + `scripting`(快捷鍵讀選取文字) + `storage`(存設定)
 
 ## 開發計畫
 

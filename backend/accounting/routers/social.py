@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from ._deps import require_admin_dep, require_user_dep
+from ._deps import require_admin_dep, require_permission_dep, require_user_dep
 from services.social_providers import PublishError, publish
 
 
@@ -92,7 +92,10 @@ class ScheduledPostPatch(BaseModel):
 # CRUD
 # ============================================================
 @router.post("/social/posts")
-def create_post(p: ScheduledPost, email: str = require_user_dep()):
+def create_post(
+    p: ScheduledPost,
+    email: str = require_permission_dep("social.post_own"),
+):
     from main import db
 
     if p.platform == "instagram" and not p.image_url:
@@ -123,7 +126,7 @@ def list_posts(
     platform: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=500),
     skip: int = Query(default=0, ge=0),
-    email: str = require_user_dep(),
+    email: str = require_permission_dep("social.post_own"),
 ):
     """同事只看自己的 · admin 看全部(以後加 /admin/social/posts)"""
     from main import db, serialize
@@ -140,7 +143,7 @@ def list_posts(
 
 
 @router.get("/social/posts/{post_id}")
-def get_post(post_id: str, email: str = require_user_dep()):
+def get_post(post_id: str, email: str = require_permission_dep("social.post_own")):
     from main import db, serialize
     doc = db.scheduled_posts.find_one({"_id": _oid(post_id)})
     if not doc:
@@ -151,7 +154,11 @@ def get_post(post_id: str, email: str = require_user_dep()):
 
 
 @router.put("/social/posts/{post_id}")
-def update_post(post_id: str, p: ScheduledPostPatch, email: str = require_user_dep()):
+def update_post(
+    post_id: str,
+    p: ScheduledPostPatch,
+    email: str = require_permission_dep("social.post_own"),
+):
     """只能改 queued 狀態 · 已 publish 過不能改
 
     R22#2 · CAS update · 用 _id+author+status:queued 條件 · 防 dispatcher 中間 claim
@@ -185,7 +192,7 @@ def update_post(post_id: str, p: ScheduledPostPatch, email: str = require_user_d
 
 
 @router.delete("/social/posts/{post_id}")
-def cancel_post(post_id: str, email: str = require_user_dep()):
+def cancel_post(post_id: str, email: str = require_permission_dep("social.post_own")):
     """軟刪 · status=cancelled · 已 publish 或 publishing 中不給刪
 
     R22#2 · CAS · 防 dispatcher 中間 publish 後使用者來不及看到 status 變
@@ -208,7 +215,7 @@ def cancel_post(post_id: str, email: str = require_user_dep()):
 
 
 @router.post("/social/posts/{post_id}/publish-now")
-def publish_now(post_id: str, email: str = require_user_dep()):
+def publish_now(post_id: str, email: str = require_permission_dep("social.post_own")):
     """繞過排程立刻發 · 內部呼 provider"""
     from main import db
     oid = _oid(post_id)

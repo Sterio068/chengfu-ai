@@ -74,6 +74,23 @@ def test_survey_create_success_with_gps(client):
     assert doc["location"]["address_hint"] == "台北 101"
 
 
+def test_survey_rejects_other_project(client):
+    """建立場勘時不能綁別人的 project_id"""
+    import main
+    from datetime import datetime, timezone
+    proj_id = main.projects_col.insert_one({
+        "name": "alice site project",
+        "owner": "alice@chengfu.local",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }).inserted_id
+    r = client.post("/site-survey",
+        files=[("images", ("f.jpg", FAKE_JPG, "image/jpeg"))],
+        data={"project_id": str(proj_id)},
+        headers=USER)
+    assert r.status_code == 403
+
+
 def test_survey_get_not_owner_403(client):
     import main
     from datetime import datetime, timezone
@@ -109,6 +126,7 @@ def test_push_to_handoff(client):
     from datetime import datetime, timezone
     proj_id = main.projects_col.insert_one({
         "name": "場勘測試",
+        "owner": "pm@chengfu.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
@@ -134,10 +152,38 @@ def test_push_to_handoff(client):
     proj = main.projects_col.find_one({"_id": proj_id})
     # R23#4 · 獨立欄位不覆寫人工 constraints
     assert proj["handoff"]["site_issues"] == ["入口有高差"]
-    # asset_refs 用 $push · append(原 project 沒 handoff · 從空 list 開始)
-    refs = proj["handoff"]["asset_refs"]
+    # site_asset_refs 用 $addToSet · append(原 project 沒 handoff · 從空 list 開始)
+    refs = proj["handoff"]["site_asset_refs"]
     assert len(refs) == 1
     assert "室內" in refs[0]["ref"]
+
+
+def test_push_to_handoff_rejects_other_project(client):
+    """自己的場勘不能 push 到別人的 project handoff"""
+    import main
+    from datetime import datetime, timezone
+    proj_id = main.projects_col.insert_one({
+        "name": "別人專案",
+        "owner": "alice@chengfu.local",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }).inserted_id
+
+    sid = main.db.site_surveys.insert_one({
+        "owner": "pm@chengfu.local",
+        "project_id": str(proj_id),
+        "status": "done",
+        "structured": {
+            "venue": {"type": "室內", "size_estimate": "50 坪"},
+            "issues": ["不該寫入"],
+        },
+        "created_at": datetime.now(timezone.utc),
+    }).inserted_id
+
+    r = client.post(f"/site-survey/{sid}/push-to-handoff", headers=USER)
+    assert r.status_code == 403
+    proj = main.projects_col.find_one({"_id": proj_id})
+    assert not proj.get("handoff")
 
 
 # ============================================================

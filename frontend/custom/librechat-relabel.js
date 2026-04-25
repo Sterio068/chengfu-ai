@@ -87,11 +87,33 @@
     "New Chat": "新對話",
     "New Agent": "新增助手",
     "Send a message": "把你想問的打進來…",
+    "Search": "搜尋",
+    "Conversations": "對話紀錄",
+    "Conversation": "對話",
+    "Create": "建立",
+    "Save": "儲存",
+    "Cancel": "取消",
+    "Delete": "刪除",
+    "Edit": "編輯",
+    "Continue": "繼續",
+    "Submit": "送出",
     "Regenerate": "重新產生",
     "Stop generating": "停止",
     "Files": "檔案",
     "Upload File": "上傳檔案",
+    "Email address": "電子郵件",
     "Upload files": "上傳檔案",
+    "Email": "電子郵件",
+    "Password": "密碼",
+    "Forgot password?": "忘記密碼?",
+    "Sign in": "登入",
+    "Log in": "登入",
+    "Login": "登入",
+    "Register": "註冊",
+    "Welcome back": "歡迎回來",
+    "Continue with Google": "使用 Google 繼續",
+    "Privacy policy": "隱私權政策",
+    "Terms of service": "服務條款",
     "Settings": "設定",
     "Profile": "個人資料",
     "Logout": "登出",
@@ -99,7 +121,12 @@
     "Dark": "深色",
     "Light": "淺色",
     "System": "跟隨系統",
+    "Toggle theme": "切換深淺色",
   };
+
+  function escapeRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
 
   // ============================== 文字節點替換 ==============================
   function replaceText(node) {
@@ -109,7 +136,8 @@
       let newTxt = txt;
       for (const [en, tw] of Object.entries(TERMS)) {
         // 完整單字才取代(避免「prompts」取代到其他字裡)
-        const re = new RegExp(`\\b${en}\\b`, "g");
+        const pattern = /^[A-Za-z0-9 ]+$/.test(en) ? `\\b${escapeRegExp(en)}\\b` : escapeRegExp(en);
+        const re = new RegExp(pattern, "g");
         newTxt = newTxt.replace(re, tw);
       }
       if (newTxt !== txt) node.nodeValue = newTxt;
@@ -130,11 +158,13 @@
 
   // ============================== 「回承富首頁」按鈕 ==============================
   function addHomeButton() {
+    // 登入頁未有 session,點首頁只會被 Launcher 再導回 /login,對新同仁像壞連結。
+    if (window.location.pathname === "/login") return;
     if (document.querySelector(".chengfu-home-btn")) return;
     const btn = document.createElement("button");
     btn.className = "chengfu-home-btn";
     btn.innerHTML = "← 承富首頁";
-    btn.title = "回到 5 Workspace 首頁";
+    btn.title = "回到 5 個工作區首頁";
     btn.onclick = () => { window.location.href = "/"; };
     document.body.appendChild(btn);
   }
@@ -204,7 +234,7 @@
         }),
       });
     } catch (e) {
-      console.warn("Feedback API 未就緒,只存 localStorage");
+      console.warn("回饋介接未就緒,只存本機暫存");
     }
   }
 

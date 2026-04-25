@@ -211,7 +211,7 @@ services:
     container_name: chengfu-uptime
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     volumes:
       - ./data/uptime:/app/data
     networks:

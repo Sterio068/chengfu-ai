@@ -175,7 +175,7 @@ def l3_preflight(payload: ContentCheck, request: Request):
     4. L3_HARD_STOP=0 (預設) → 回 200 + warning · 由前端 confirm 流程繼續
 
     前端 chat.js send() 必呼叫此 endpoint · 若 403 直接擋下
-    curl 直接打 /api/ask/agents 不過此 endpoint · 但會留 LibreChat layer audit
+    curl 直接打 /api/agents/chat 不過此 endpoint · 但會留 LibreChat layer audit
     """
     text = payload.text or ""
     hits = []

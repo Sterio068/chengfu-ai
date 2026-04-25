@@ -1,39 +1,42 @@
 #!/usr/bin/env python3
 """
-承富 AI 系統 · Agent 批次建立(主管家 + 10 核心,可選延伸)
+承富 AI 系統 · Agent 批次建立(主管家 + 9 專家,可選延伸)
 
 讀取 config-templates/presets/*.json,透過 LibreChat API 建立對應 Agent。
-Agent 名稱會自動加上 Workspace emoji prefix(🎯 投標 / 🎪 活動 / 🎨 設計 / 📣 公關 / 📊 營運)。
+Agent 名稱會自動加上 Workspace emoji prefix 與 AI 引擎尾綴(OpenAI / Claude)。
 主管家(00)單獨以「✨ 主管家」標示。
 
-Agent 分層(Decision 1-B):
-  - core(v1.0 預設)   : 主管家 + 01 02 03 04 05 06 07 10 15 25(共 11 個)
-  - extended(v1.1 啟用): 08 09 11-14 16-24 26-29(共 19 個)
+Agent 分層:
+  - core(v1.0 預設)   : 主管家 + 9 個職能專家(共 10 個)
+  - extended(v1.1 啟用): legacy/reference prompt,視需求再建
 
 前置:
   1. LibreChat 已啟動
   2. Admin 帳號已建立(首位註冊者自動為 admin)
 
 使用:
-  # v1.0 預設(只建 core 11 個)
+  # v1.0 預設(只建 core 10 個 · OpenAI + Claude 雙版本)
   LIBRECHAT_ADMIN_EMAIL=... LIBRECHAT_ADMIN_PASSWORD=... python3 scripts/create-agents.py
+
+  # 只建 OpenAI 版
+  python3 scripts/create-agents.py --provider openai
 
   # v1.1 升級:加 extended
   python3 scripts/create-agents.py --tier extended
 
-  # 全部 30 個
+  # 全部 production + extended 參考 prompt
   python3 scripts/create-agents.py --tier all
 
   # 乾跑(不實際建立)
   python3 scripts/create-agents.py --dry-run
 
   # 只建指定編號
-  python3 scripts/create-agents.py --only 00,01,25
+  python3 scripts/create-agents.py --only 00,01
 
 注意:
-  - 重複執行會建立重複 Agent(API 不強制 unique name)
-  - Prompt Caching 透過 .env 的 ANTHROPIC_ENABLE_PROMPT_CACHE=true 啟用
-  - 主管家(00)統一用 Opus,其他依 JSON 指定
+  - 重複執行會依 Agent name PATCH 更新,不會重複建立同名 Agent
+  - OpenAI 是承富新版主力;Claude 是備援 / 長文件既有工作流
+  - Prompt Caching 透過 .env 的 ANTHROPIC_ENABLE_PROMPT_CACHE=true 啟用(Claude 版)
 """
 from __future__ import annotations  # Python 3.9 以下相容
 
@@ -76,6 +79,26 @@ WORKSPACE = {
 # Core = 全部 10 個(v1.0 必建)
 CORE_SET = {"00", "01", "02", "03", "04", "05", "06", "07", "08", "09"}
 # 舊的 legacy/ 下還有 29 個原始 JSON 可參考,但 v1.0 不再建立它們為獨立 Agent
+
+PROVIDER_CONFIG = {
+    "openai": {
+        "api_provider": "openAI",
+        "label": "OpenAI",
+        "high_model": os.environ.get("CHENGFU_OPENAI_HIGH_MODEL", "gpt-5.4"),
+        "standard_model": os.environ.get("CHENGFU_OPENAI_STANDARD_MODEL", "gpt-5.4-mini"),
+        "fast_model": os.environ.get("CHENGFU_OPENAI_FAST_MODEL", "gpt-5.4-nano"),
+    },
+    "anthropic": {
+        "api_provider": "anthropic",
+        "label": "Claude",
+        "high_model": os.environ.get("CHENGFU_ANTHROPIC_HIGH_MODEL", "claude-opus-4-7"),
+        "standard_model": os.environ.get("CHENGFU_ANTHROPIC_STANDARD_MODEL", "claude-sonnet-4-6"),
+        "fast_model": os.environ.get("CHENGFU_ANTHROPIC_FAST_MODEL", "claude-haiku-4-5"),
+    },
+}
+
+HIGH_REASONING_SET = {"00", "01", "03", "08"}
+FAST_SET = {"05"}
 
 
 def find_workspace(num: str) -> str:
@@ -143,15 +166,44 @@ def login() -> str:
 _SAFE_TOOLS = {"file_search", "execute_code"}
 
 
-def preset_json_to_agent(data: dict) -> dict:
+def select_model(num: str, provider: str, data: dict) -> str:
+    cfg = PROVIDER_CONFIG[provider]
+    if provider == "anthropic":
+        return data.get("model") or (cfg["high_model"] if num in HIGH_REASONING_SET else cfg["standard_model"])
+    if num in HIGH_REASONING_SET:
+        return cfg["high_model"]
+    if num in FAST_SET:
+        return cfg["fast_model"]
+    return cfg["standard_model"]
+
+
+def provider_instructions(provider: str, instructions: str) -> str:
+    if provider != "openai":
+        return instructions
+    note = (
+        "【AI 引擎說明】\n"
+        "你目前在承富 AI 內使用 OpenAI 模型。若下方舊版 prompt 提到 Claude、Claude Skills 或 Anthropic,請理解為承富平台技能庫與既有工作流名稱,不要自稱 Claude。"
+        "回答一律使用繁體中文、台灣用語與承富品牌語氣。\n\n"
+    )
+    return note + instructions
+
+
+def preset_json_to_agent(data: dict, provider: str = "openai") -> dict:
     """Convert 1 個 preset JSON → LibreChat v0.8.4 Agent payload."""
+    if provider not in PROVIDER_CONFIG:
+        raise ValueError(f"Unsupported provider:{provider}")
     preset_id = data["presetId"]
     num = preset_id.split("-")[1].zfill(2) if "-" in preset_id else "00"
     ws = find_workspace(num)
+    provider_cfg = PROVIDER_CONFIG[provider]
+    model = select_model(num, provider, data)
 
     # 移除 "承富 · " 前綴,因為 workspace emoji 已替代
     bare_title = data["title"].replace("承富 · ", "").strip()
-    agent_name = f"{ws} · {bare_title}"
+    if bare_title in ws:
+        agent_name = f"{ws} · {provider_cfg['label']}"
+    else:
+        agent_name = f"{ws} · {bare_title} · {provider_cfg['label']}"
 
     # tools · 只送白名單內的 · 其他被 filterAuthorizedTools 靜默過濾
     raw_tools = data.get("capabilities") or ["file_search", "execute_code"]
@@ -162,7 +214,8 @@ def preset_json_to_agent(data: dict) -> dict:
     # 在 description 尾端保留 preset metadata(zod schema 沒這欄位,會被 strip)
     desc_with_meta = (
         f"{data.get('description', '')}\n\n"
-        f"— {ws} · #{num} · preset={preset_id} · tier={get_tier(num)}"
+        f"— {ws} · #{num} · preset={preset_id} · tier={get_tier(num)} · "
+        f"provider={provider} · model={model}"
     )
 
     # LibreChat v0.8.4 agentCreateSchema 允許的欄位:
@@ -173,11 +226,11 @@ def preset_json_to_agent(data: dict) -> dict:
     # 不允許 · 會被 zod 靜默 strip:isCollaborative / metadata / projectIds
     # (全公司共享要用 PATCH 設 projectIds · 見 share_agent_globally)
     payload = {
-        "provider": "anthropic",
-        "model": data.get("model", "claude-sonnet-4-6"),
+        "provider": provider_cfg["api_provider"],
+        "model": model,
         "name": agent_name,
         "description": desc_with_meta,
-        "instructions": data["promptPrefix"],
+        "instructions": provider_instructions(provider, data["promptPrefix"]),
         "model_parameters": {
             "temperature": data.get("temperature", 0.7),
             "maxOutputTokens": data.get("max_tokens", 4096),
@@ -281,20 +334,29 @@ def main() -> int:
         type=str,
         choices=["core", "extended", "all"],
         default="core",
-        help="建哪一層 Agent(預設 core = 主管家 + 10 核心)",
+        help="建哪一層 Agent(預設 core = 主管家 + 9 專家)",
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "anthropic", "both"],
+        default=os.environ.get("CHENGFU_AGENT_PROVIDER", "both"),
+        help="建立哪個 AI 引擎版本(預設 both = OpenAI + Claude,供前端切換)",
     )
     args = parser.parse_args()
 
     only = set(s.strip().zfill(2) for s in args.only.split(",")) if args.only else None
+    provider_ids = ["openai", "anthropic"] if args.provider == "both" else [args.provider]
 
     presets = load_presets(only=only, tier=args.tier)
     if not presets:
         sys.exit(f"❌ 找不到符合條件的 preset JSON(tier={args.tier}, only={only})")
 
-    print(f"📋 tier={args.tier} · 找到 {len(presets)} 個 preset:")
+    print(f"📋 tier={args.tier} · provider={args.provider} · 找到 {len(presets)} 個 preset:")
     for f, data in presets:
         num = f.stem.split("-")[0]
         print(f"   [{get_tier(num):8s}] {f.stem}")
+    print(f"   將建立/更新 {len(presets) * len(provider_ids)} 個 Agent 版本")
     print()
 
     if not args.dry_run:
@@ -318,54 +380,56 @@ def main() -> int:
 
     success, fail, skipped = 0, 0, 0
     for f, data in presets:
-        agent = preset_json_to_agent(data)
-        if args.dry_run:
-            print(f"[DRY-RUN] {agent['name']}")
-            print(f"          model={agent['model']} temp={agent['model_parameters']['temperature']}")
-            print(f"          instructions 長度={len(agent['instructions'])} 字")
-            success += 1
-            continue
-
-        # Codex R3.9 · 已存在 · 走 PATCH 更新而非 POST 新建
-        existing_agent = existing_by_name.get(agent["name"])
-        if existing_agent:
-            agent_id = existing_agent.get("id") or existing_agent.get("_id")
-            try:
-                api("PATCH", f"/api/agents/{agent_id}", token=token, data=agent)
-                print(f"🔄 更新現有 {agent['name']} (id={agent_id})")
-                # 不重共享 · 沿用舊 projectIds
+        for provider in provider_ids:
+            agent = preset_json_to_agent(data, provider=provider)
+            if args.dry_run:
+                print(f"[DRY-RUN] {agent['name']}")
+                print(f"          provider={provider} api_provider={agent['provider']}")
+                print(f"          model={agent['model']} temp={agent['model_parameters']['temperature']}")
+                print(f"          instructions 長度={len(agent['instructions'])} 字")
                 success += 1
                 continue
-            except Exception as e:
-                print(f"⚠ PATCH {agent['name']} 失敗 · skip: {e}")
-                skipped += 1
-                continue
 
-        try:
-            resp = api("POST", "/api/agents", token=token, data=agent)
-            agent_id = resp.get("id") or resp.get("_id") or "unknown"
-            print(f"✅ 新建 {agent['name']}")
-            print(f"   agent_id={agent_id}")
-            # 建立後 · 共享給全公司 · v4.4 起 · 共享失敗視為錯誤(避免表面成功實質沒共享)
-            if agent_id != "unknown":
-                if share_agent_globally(token, agent_id):
-                    print("   🌐 已共享給全公司")
-                else:
-                    # 若要停掉 hard-fail(某些 LibreChat 升版 projectIds 改變),
-                    # 設環境變數 CHENGFU_SHARE_SOFT_FAIL=1
-                    if os.environ.get("CHENGFU_SHARE_SOFT_FAIL") != "1":
-                        print(f"❌ {agent['name']} 共享失敗 · agent 已建但未對全公司可見")
-                        print("   原因通常是:instance project id 找不到 · 或 Mongo 手動加 projectIds")
-                        print("   請見 docs/LIBRECHAT-UPGRADE-CHECKLIST.md 第 5a 步")
-                        fail += 1
-                        continue
+            # Codex R3.9 · 已存在 · 走 PATCH 更新而非 POST 新建
+            existing_agent = existing_by_name.get(agent["name"])
+            if existing_agent:
+                agent_id = existing_agent.get("id") or existing_agent.get("_id")
+                try:
+                    api("PATCH", f"/api/agents/{agent_id}", token=token, data=agent)
+                    print(f"🔄 更新現有 {agent['name']} (id={agent_id})")
+                    # 不重共享 · 沿用舊 projectIds
+                    success += 1
+                    continue
+                except Exception as e:
+                    print(f"⚠ PATCH {agent['name']} 失敗 · skip: {e}")
+                    skipped += 1
+                    continue
+
+            try:
+                resp = api("POST", "/api/agents", token=token, data=agent)
+                agent_id = resp.get("id") or resp.get("_id") or "unknown"
+                print(f"✅ 新建 {agent['name']}")
+                print(f"   agent_id={agent_id}")
+                # 建立後 · 共享給全公司 · v4.4 起 · 共享失敗視為錯誤(避免表面成功實質沒共享)
+                if agent_id != "unknown":
+                    if share_agent_globally(token, agent_id):
+                        print("   🌐 已共享給全公司")
                     else:
-                        print("   ⚠ 共享失敗但 SOFT_FAIL=1 · 略過")
-            success += 1
-        except Exception as e:
-            print(f"❌ {agent['name']}")
-            print(f"   {e}")
-            fail += 1
+                        # 若要停掉 hard-fail(某些 LibreChat 升版 projectIds 改變),
+                        # 設環境變數 CHENGFU_SHARE_SOFT_FAIL=1
+                        if os.environ.get("CHENGFU_SHARE_SOFT_FAIL") != "1":
+                            print(f"❌ {agent['name']} 共享失敗 · agent 已建但未對全公司可見")
+                            print("   原因通常是:instance project id 找不到 · 或 Mongo 手動加 projectIds")
+                            print("   請見 docs/LIBRECHAT-UPGRADE-CHECKLIST.md 第 5a 步")
+                            fail += 1
+                            continue
+                        else:
+                            print("   ⚠ 共享失敗但 SOFT_FAIL=1 · 略過")
+                success += 1
+            except Exception as e:
+                print(f"❌ {agent['name']}")
+                print(f"   {e}")
+                fail += 1
 
     print()
     print("=" * 44)
@@ -376,7 +440,7 @@ def main() -> int:
     if not args.dry_run and fail == 0:
         print()
         print("下一步:")
-        print("  1. 登入 LibreChat,到「Agents」頁面確認 29 個 Agent 都在")
+        print("  1. 登入 LibreChat,到「Agents」頁面確認 10 個職能 Agent 版本都在")
         print("  2. 編輯 config-templates/librechat.yaml 的 modelSpecs.list")
         print("     把 agent_id 填入,讓 5 Workspace 分組入口生效")
         print("  3. 上傳承富知識庫:./scripts/upload-knowledge-base.py")

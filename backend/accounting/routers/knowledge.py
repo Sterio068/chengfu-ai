@@ -28,7 +28,7 @@ from bson import ObjectId
 from services import knowledge_indexer
 from services.knowledge_extract import extract as extract_file
 
-from ._deps import require_admin_dep
+from ._deps import require_admin_dep, require_user_dep
 
 
 router = APIRouter(tags=["knowledge"])
@@ -477,7 +477,8 @@ def reindex_source_endpoint(source_id: str, force: bool = False,
 @router.get("/knowledge/list")
 def knowledge_list(source_id: Optional[str] = None, project: Optional[str] = None,
                    conversation_id: Optional[str] = None,
-                   request: Request = None):
+                   request: Request = None,
+                   _user: str = require_user_dep()):
     """列資料源 / 列某 source 下的 top-level 資料夾 / 列某資料夾下的檔
 
     Round 9 Q3 · 無 source_id 時依 agent_num 過濾
@@ -565,6 +566,7 @@ def knowledge_read(
     rel_path: str,
     request: Request,
     conversation_id: Optional[str] = None,
+    _user: str = require_user_dep(),
 ):
     """讀某 source 內某檔的 metadata + 抽字內容
 
@@ -653,6 +655,7 @@ def knowledge_search(
     conversation_id: Optional[str] = None,
     limit: int = Query(default=20, ge=1, le=100),
     request: Request = None,
+    _user: str = require_user_dep(),
 ):
     """全文搜尋 · 經 Meili · source_id / project 可過濾"""
     meili = _get_meili_client()

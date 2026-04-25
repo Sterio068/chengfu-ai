@@ -1,0 +1,254 @@
+#!/bin/bash
+# ============================================================
+# 承富 AI · 正式交付版總驗收
+# ============================================================
+# 用法:
+#   ./scripts/release-verify.sh [base_url]
+#
+# 可用 env:
+#   BASE_URL=http://localhost
+#   RESET_LIBRECHAT=1      # 預設 1,跑 E2E 前重啟 LibreChat 清 in-memory login limiter
+#   RUN_E2E=1              # 預設 1
+# ============================================================
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BASE_URL="${1:-${BASE_URL:-http://localhost}}"
+RESET_LIBRECHAT="${RESET_LIBRECHAT:-1}"
+RUN_E2E="${RUN_E2E:-1}"
+STAMP="$(date +%Y-%m-%d-%H%M%S)"
+REPORT_DIR="${ROOT_DIR}/reports/release"
+MANIFEST="${REPORT_DIR}/release-manifest-${STAMP}.md"
+DMG="${ROOT_DIR}/installer/dist/ChengFu-AI-Installer.dmg"
+
+mkdir -p "$REPORT_DIR"
+
+PASS=0
+FAIL=0
+FAILED_STEPS=()
+
+log() {
+  echo "$@"
+  echo "$@" >> "$MANIFEST"
+}
+
+run_step() {
+  local name="$1"
+  shift
+  echo ""
+  echo "═══ $name ═══"
+  if "$@"; then
+    echo "✅ $name"
+    echo "- ✅ $name" >> "$MANIFEST"
+    PASS=$((PASS + 1))
+  else
+    echo "❌ $name"
+    echo "- ❌ $name" >> "$MANIFEST"
+    FAILED_STEPS+=("$name")
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+wait_lc_ready() {
+  for _ in {1..60}; do
+    if curl -sf "${BASE_URL}/api/config" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+reset_limiter_if_possible() {
+  if [[ "$RESET_LIBRECHAT" != "1" ]]; then
+    return 0
+  fi
+  if docker ps --filter name=chengfu-librechat --filter status=running -q | grep -q .; then
+    docker restart chengfu-librechat >/dev/null
+    wait_lc_ready
+  fi
+}
+
+check_sensitive_files_absent() {
+  local found=0
+  for path in \
+    "${ROOT_DIR}/scripts/passwords.txt" \
+    "${ROOT_DIR}/config-templates/users.json"
+  do
+    if [[ -e "$path" ]]; then
+      echo "敏感暫存檔不可存在:$path"
+      found=1
+    fi
+  done
+  return "$found"
+}
+
+scan_known_secret_literal() {
+  local secret="${E2E_ADMIN_PASSWORD:-${LIBRECHAT_ADMIN_PASSWORD:-}}"
+  if [[ -z "$secret" && "$(uname -s)" == "Darwin" ]]; then
+    secret="$(security find-generic-password -s chengfu-ai-admin-install-password -w 2>/dev/null || true)"
+  fi
+
+  if [[ -z "$secret" ]]; then
+    echo "無可比對的 Keychain/E2E 密碼,跳過實值掃描"
+    return 0
+  fi
+
+  local matches
+  matches="$(rg -l --fixed-strings "$secret" "$ROOT_DIR" \
+    --glob '!**/node_modules/**' \
+    --glob '!config-templates/.env' \
+    --glob '!reports/release/**' \
+    --glob '!installer/dist/**' || true)"
+
+  if [[ -n "$matches" ]]; then
+    echo "$matches"
+    return 1
+  fi
+
+  return 0
+}
+
+frontend_audit() {
+  cd "${ROOT_DIR}/frontend/launcher"
+  npm audit --omit=dev
+}
+
+e2e_audit() {
+  cd "${ROOT_DIR}/tests/e2e"
+  npm audit --omit=dev
+}
+
+frontend_build() {
+  cd "${ROOT_DIR}/frontend/launcher"
+  npm run build
+}
+
+backend_tests() {
+  cd "$ROOT_DIR"
+  # F-08 對應 · 確保 host python3 有齊全 test deps · pip install --user 不污染系統
+  # 跳過已安裝套件 · 第一次跑會慢 30s · 後續快
+  python3 -m pip install --quiet --user -r backend/accounting/requirements.txt 2>/dev/null || true
+  python3 -m pytest -q
+}
+
+e2e_tests() {
+  if [[ "$RUN_E2E" != "1" ]]; then
+    echo "RUN_E2E!=1,skip"
+    return 0
+  fi
+  cd "${ROOT_DIR}/tests/e2e"
+  npm test -- --reporter=line
+}
+
+smoke_main() {
+  cd "$ROOT_DIR"
+  ./scripts/smoke-test.sh "$BASE_URL"
+}
+
+smoke_lc() {
+  cd "$ROOT_DIR"
+  ./scripts/smoke-librechat.sh "$BASE_URL"
+}
+
+installer_build() {
+  cd "$ROOT_DIR"
+  ./installer/build.sh
+}
+
+inspect_dmg() {
+  [[ -f "$DMG" ]] || return 1
+  local mount_dir
+  local result=0
+  mount_dir="$(mktemp -d /tmp/chengfu-release-dmg.XXXXXX)"
+  if ! hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" "$DMG"; then
+    rmdir "$mount_dir" >/dev/null 2>&1 || true
+    return 1
+  fi
+
+  if [[ ! -f "$mount_dir/ChengFu-source.tar.gz" ]] || [[ ! -f "$mount_dir/讀我.txt" ]]; then
+    result=1
+  elif ! grep -Eq '右鍵|Control' "$mount_dir/讀我.txt"; then
+    echo "讀我.txt 缺 Gatekeeper 右鍵開啟說明"
+    result=1
+  elif tar -tzf "$mount_dir/ChengFu-source.tar.gz" | grep -E \
+    '(^\./config-templates/\.env$|(^|/)passwords\.txt$|(^|/)users\.json$|^\./config-templates/uploads/|^\./config-templates/images/|^\./reports/|test-results)' \
+    | head -20; then
+    result=1
+  fi
+
+  hdiutil detach -quiet "$mount_dir" >/dev/null 2>&1 || true
+  rmdir "$mount_dir" >/dev/null 2>&1 || true
+  return "$result"
+}
+
+diff_check() {
+  cd "$ROOT_DIR"
+  git diff --check -- frontend/launcher backend/accounting scripts installer tests/e2e config-templates reports
+}
+
+write_header() {
+  cat > "$MANIFEST" <<EOF
+# 承富 AI · 正式交付版驗收 Manifest
+
+時間:$(date '+%Y-%m-%d %H:%M:%S %Z')
+Base URL:${BASE_URL}
+Git HEAD:$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
+Reset LibreChat limiter:${RESET_LIBRECHAT}
+Run E2E:${RUN_E2E}
+
+## 驗收步驟
+EOF
+}
+
+write_footer() {
+  {
+    echo ""
+    echo "## 結果"
+    echo ""
+    echo "- Passed:${PASS}"
+    echo "- Failed:${FAIL}"
+    if [[ -f "$DMG" ]]; then
+      echo "- DMG:installer/dist/ChengFu-AI-Installer.dmg"
+      echo "- DMG Size:$(du -h "$DMG" | awk '{print $1}')"
+      echo "- DMG SHA-256:$(shasum -a 256 "$DMG" | awk '{print $1}')"
+    fi
+    if [[ ${#FAILED_STEPS[@]} -gt 0 ]]; then
+      echo "- Failed Steps:${FAILED_STEPS[*]}"
+      echo ""
+      echo "結論:不可交付,請先修復失敗步驟。"
+    else
+      echo ""
+      echo "結論:正式交付版驗收通過。"
+    fi
+  } >> "$MANIFEST"
+}
+
+write_header
+
+run_step "敏感暫存檔不存在" check_sensitive_files_absent
+run_step "已知密碼字串不在 source" scan_known_secret_literal
+run_step "frontend npm audit" frontend_audit
+run_step "e2e npm audit" e2e_audit
+run_step "frontend build" frontend_build
+run_step "backend pytest" backend_tests
+run_step "重置 LibreChat login limiter" reset_limiter_if_possible
+run_step "Playwright E2E" e2e_tests
+run_step "主系統 smoke" smoke_main
+run_step "LibreChat route contract smoke" smoke_lc
+run_step "installer build" installer_build
+run_step "DMG 內容與敏感檔抽查" inspect_dmg
+run_step "git diff whitespace check" diff_check
+
+write_footer
+
+echo ""
+echo "============================================"
+echo "  正式交付驗收結果:$PASS passed / $FAIL failed"
+echo "  Manifest:$MANIFEST"
+echo "============================================"
+
+if [[ "$FAIL" -gt 0 ]]; then
+  exit 1
+fi

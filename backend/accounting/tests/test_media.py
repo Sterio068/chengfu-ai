@@ -46,11 +46,22 @@ def test_create_and_list_contact(client):
     assert r.status_code == 200
     contact_id = r.json()["id"]
 
-    # list
+    # admin 看得到完整聯絡資訊
+    r = client.get("/media/contacts", headers=ADMIN)
+    assert r.status_code == 200
+    admin_items = r.json()["items"]
+    assert any(c["email"] == "li@businessweekly.com.tw" for c in admin_items)
+
+    # 一般同仁只看到名單與類別,聯絡資訊需管理員授權
     r = client.get("/media/contacts", headers=USER)
     assert r.status_code == 200
     items = r.json()["items"]
-    assert any(c["email"] == "li@businessweekly.com.tw" for c in items)
+    contact = next(c for c in items if c["id"] == contact_id)
+    assert contact["name"] == "李記者"
+    assert contact["email"] == "需管理員授權"
+    assert contact["phone"] is None
+    assert contact["notes"] is None
+    assert contact["contact_redacted"] is True
 
 
 def test_duplicate_email_conflict(client):

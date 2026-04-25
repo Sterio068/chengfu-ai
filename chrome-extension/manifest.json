@@ -7,23 +7,14 @@
   "permissions": [
     "activeTab",
     "contextMenus",
+    "scripting",
     "storage"
-  ],
-  "host_permissions": [
-    "http://localhost/*",
-    "http://承富-ai.local/*",
-    "https://ai.*/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
+    "default_popup": "popup.html"
   },
   "commands": {
     "send-to-chengfu": {

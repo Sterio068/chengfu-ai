@@ -149,12 +149,50 @@ TITLE_PRESETS = {
 }
 
 
+# vNext Phase D · 誠實揭露哪些權限已由 backend 真正擋下
+# 其他 permission 目前仍是營運配置 / UI 分流資料,不可誤導 admin 以為已完整 RBAC。
+ENFORCEMENT_STATUS = {
+    "mode": "progressive",
+    "summary": "ADMIN 與高風險資料入口已由後端強制；細部 chengfu_permissions 逐步展開。",
+    "enforced_permissions": [
+        "admin.dashboard",
+        "admin.audit",
+        "admin.pdpa",
+        "accounting.view",
+        "accounting.edit",
+        "knowledge.manage",
+        "media_crm.edit",
+        "media_crm.export",
+        "social.post_own",
+        "site.survey",
+    ],
+    "advisory_permissions": [
+        "tender.view",
+        "tender.evaluate",
+        "crm.view_own",
+        "crm.view_all",
+        "crm.edit_all",
+        "project.create",
+        "project.edit_own",
+        "project.edit_all",
+        "design.generate",
+        "media_assets.manage",
+        "press.draft",
+        "social.post_all",
+        "media_crm.view",
+        "meeting.upload",
+        "knowledge.search",
+    ],
+}
+
+
 @router.get("/users/permission-catalog")
 def get_permission_catalog(_admin: str = require_admin_dep()):
     """UI 開建 user modal 時拿 · 28 個 permission + 7 個 preset"""
     return {
         "catalog": PERMISSION_CATALOG,
         "presets": TITLE_PRESETS,
+        "enforcement": ENFORCEMENT_STATUS,
     }
 
 

@@ -32,6 +32,23 @@ def client():
         c = TestClient(main.app, headers={"X-User-Email": "test@chengfu.local"})
         # 觸發 startup
         c.get("/healthz")
+        main.db.users.update_one(
+            {"email": "test@chengfu.local"},
+            {"$set": {
+                "email": "test@chengfu.local",
+                "name": "Test User",
+                "role": "USER",
+                "chengfu_active": True,
+                "chengfu_permissions": [
+                    "accounting.view", "accounting.edit",
+                    "project.create", "project.edit_own",
+                    "social.post_own", "site.survey",
+                    "knowledge.search", "design.generate",
+                    "meeting.upload", "press.draft",
+                ],
+            }},
+            upsert=True,
+        )
         yield c
 
 
@@ -138,11 +155,15 @@ def test_list_projects(client):
 def test_handoff_card_roundtrip(client):
     """B2 · Handoff 4 格卡 · 存 + 取 + 預設值"""
     # 建一個 project
-    r = client.post("/projects", json={"name": "handoff test proj"})
+    r = client.post(
+        "/projects",
+        json={"name": "handoff test proj"},
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
     pid = r.json()["id"]
 
     # 初始 handoff 應該是空
-    r = client.get(f"/projects/{pid}/handoff")
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
     assert r.status_code == 200
     body = r.json()
     assert body["project_name"] == "handoff test proj"
@@ -167,7 +188,7 @@ def test_handoff_card_roundtrip(client):
     assert r.json()["ok"] is True
 
     # 取回來必一致
-    r = client.get(f"/projects/{pid}/handoff")
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
     h = r.json()["handoff"]
     assert h["goal"] == "中秋節社群活動主視覺"
     assert len(h["constraints"]) == 3
@@ -175,6 +196,81 @@ def test_handoff_card_roundtrip(client):
     assert h["asset_refs"][0]["type"] == "nas"
     assert h["updated_by"] == "pm@chengfu.local"
     assert "updated_at" in h
+
+
+def test_handoff_card_update_preserves_system_handoff_fields(client):
+    """Round 2 · PM 手動更新 4 格卡時,不得清掉場勘 / workflow 等系統交棒欄位"""
+    import main as main_mod
+    from bson import ObjectId
+
+    r = client.post(
+        "/projects",
+        json={"name": "handoff preserve test"},
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    pid = r.json()["id"]
+    main_mod.db.projects.update_one(
+        {"_id": ObjectId(pid)},
+        {"$set": {
+            "handoff.site_issues": ["入口有高差"],
+            "handoff.site_venue": "松菸 4 號倉庫",
+            "handoff.workflow_draft": {"preset_id": "tender-full", "step_count": 3},
+            "handoff.site_asset_refs": [
+                {"type": "note", "label": "場勘彙整", "ref": "室內 · 50 坪"},
+            ],
+            "handoff.asset_refs": [
+                {"type": "url", "label": "舊素材", "ref": "https://old.example.com"},
+            ],
+            "handoff.meeting_next_actions": ["寫提案 · Alice · 期限 4/25"],
+            "handoff.next_actions": ["舊人工待辦"],
+        }},
+    )
+
+    r = client.put(
+        f"/projects/{pid}/handoff",
+        json={
+            "goal": "只更新人工交棒卡",
+            "asset_refs": [{"type": "url", "label": "新素材", "ref": "https://new.example.com"}],
+            "next_actions": ["PM 確認需求"],
+        },
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 200
+
+    proj = main_mod.db.projects.find_one({"_id": ObjectId(pid)})
+    handoff = proj["handoff"]
+    assert handoff["goal"] == "只更新人工交棒卡"
+    assert handoff["site_issues"] == ["入口有高差"]
+    assert handoff["site_venue"] == "松菸 4 號倉庫"
+    assert handoff["workflow_draft"]["preset_id"] == "tender-full"
+    assert {"type": "url", "label": "新素材", "ref": "https://new.example.com"} in handoff["asset_refs"]
+    assert {"type": "url", "label": "舊素材", "ref": "https://old.example.com"} not in handoff["asset_refs"]
+    assert {"type": "note", "label": "場勘彙整", "ref": "室內 · 50 坪"} in handoff["site_asset_refs"]
+    assert "舊人工待辦" not in handoff["next_actions"]
+    assert "寫提案 · Alice · 期限 4/25" in handoff["meeting_next_actions"]
+    assert "PM 確認需求" in handoff["next_actions"]
+
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
+    merged = r.json()["handoff"]
+    assert {"type": "note", "label": "場勘彙整", "ref": "室內 · 50 坪"} in merged["asset_refs"]
+    assert "寫提案 · Alice · 期限 4/25" in merged["next_actions"]
+
+
+def test_handoff_card_forbids_non_owner(client):
+    """知道 project id 也不能改別人的交棒卡"""
+    r = client.post(
+        "/projects",
+        json={"name": "owner only"},
+        headers={"X-User-Email": "alice@chengfu.local"},
+    )
+    pid = r.json()["id"]
+
+    r = client.put(
+        f"/projects/{pid}/handoff",
+        json={"goal": "偷改"},
+        headers={"X-User-Email": "bob@chengfu.local"},
+    )
+    assert r.status_code == 403
 
 
 def test_handoff_card_project_not_found(client):
@@ -191,6 +287,101 @@ def test_handoff_card_bad_project_id(client):
     """非 ObjectId 格式 · 回 400"""
     r = client.put("/projects/not-an-objectid/handoff", json={"goal": "x"})
     assert r.status_code == 400
+
+
+def test_project_collaborator_can_access_and_update_handoff(client):
+    """vNext · project collaborators 是真正協作邊界,不是只顯示在 UI"""
+    r = client.post(
+        "/projects",
+        json={
+            "name": "collab handoff project",
+            "collaborators": ["bob@chengfu.local"],
+            "next_owner": "bob@chengfu.local",
+        },
+        headers={"X-User-Email": "alice@chengfu.local"},
+    )
+    assert r.status_code == 200
+    pid = r.json()["id"]
+
+    r = client.get("/projects", headers={"X-User-Email": "bob@chengfu.local"})
+    assert r.status_code == 200
+    assert any(p["_id"] == pid for p in r.json())
+
+    r = client.put(
+        f"/projects/{pid}/handoff",
+        json={"goal": "Bob 接手整理送件清單"},
+        headers={"X-User-Email": "bob@chengfu.local"},
+    )
+    assert r.status_code == 200
+
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "bob@chengfu.local"})
+    assert r.status_code == 200
+    assert r.json()["handoff"]["goal"] == "Bob 接手整理送件清單"
+
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "charlie@chengfu.local"})
+    assert r.status_code == 403
+
+
+def test_project_collaborator_cannot_delete_project(client):
+    """vNext · 協作者可交棒,但專案刪除仍保留給 owner/admin."""
+    r = client.post(
+        "/projects",
+        json={
+            "name": "collab protected delete",
+            "collaborators": ["bob@chengfu.local"],
+            "next_owner": "bob@chengfu.local",
+        },
+        headers={"X-User-Email": "alice@chengfu.local"},
+    )
+    assert r.status_code == 200
+    pid = r.json()["id"]
+
+    r = client.delete(f"/projects/{pid}", headers={"X-User-Email": "bob@chengfu.local"})
+    assert r.status_code == 403
+
+    r = client.delete(f"/projects/{pid}", headers={"X-User-Email": "alice@chengfu.local"})
+    assert r.status_code == 200
+    assert r.json()["deleted"] == 1
+
+
+def test_handoff_append_from_chat_answer(client):
+    """vNext · Chat 回答可一鍵存回專案 handoff,形成 GPT 網頁版沒有的接續閉環"""
+    r = client.post(
+        "/projects",
+        json={"name": "chat append project"},
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    pid = r.json()["id"]
+
+    r = client.post(
+        f"/projects/{pid}/handoff/append",
+        json={
+            "target": "next_action",
+            "text": "PM 明天 10:00 前補齊預算表",
+            "source_conversation_id": "conv-chat-1",
+        },
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+    r = client.post(
+        f"/projects/{pid}/handoff/append",
+        json={
+            "target": "asset_ref",
+            "label": "AI 回答摘要",
+            "text": "建議書應先補受眾分層與 KPI",
+            "source_conversation_id": "conv-chat-1",
+        },
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 200
+
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
+    h = r.json()["handoff"]
+    assert "PM 明天 10:00 前補齊預算表" in h["next_actions"]
+    assert {"type": "note", "label": "AI 回答摘要", "ref": "建議書應先補受眾分層與 KPI"} in h["asset_refs"]
+    assert h["source_conversation_id"] == "conv-chat-1"
 
 
 # ============================================================
@@ -650,6 +841,24 @@ def test_knowledge_list_public(client, tmp_source_dir):
     assert ".DS_Store" not in names
 
 
+def test_knowledge_read_api_requires_login(client, tmp_source_dir):
+    """知識庫名稱 / 搜尋 / 讀檔都屬內部資料 · 未登入不可讀"""
+    r = client.post(
+        "/admin/sources",
+        json={"name": "auth required test", "path": tmp_source_dir},
+        headers=ADMIN_HEADERS,
+    )
+    sid = r.json()["id"]
+    no_user = {"X-User-Email": ""}
+
+    assert client.get("/knowledge/list", headers=no_user).status_code == 403
+    assert client.get("/knowledge/search?q=建議書", headers=no_user).status_code == 403
+    assert client.get(
+        f"/knowledge/read?source_id={sid}&rel_path=readme.md",
+        headers=no_user,
+    ).status_code == 403
+
+
 def test_knowledge_read_path_traversal_blocked(client, tmp_source_dir):
     """../../../etc/passwd 被擋"""
     r = client.post(
@@ -818,11 +1027,10 @@ def test_agent_num_spoof_via_header_blocked_in_prod(client, tmp_source_dir, monk
     _kr._AGENT_NUM_FROM_CONVO_CACHE.clear()
     _kr._AGENT_FORBIDDEN_CACHE["ts"] = 0.0  # 清 cache
 
-    # 攻擊者只送 X-Agent-Num · 沒 conversation_id · prod mode 完全忽略 header
+    # 攻擊者只送 X-Agent-Num · 沒 conversation_id · prod mode 完全忽略 header;
+    # v1.3 hardening 後 knowledge API 也必須先登入,因此直接 403。
     r = client.get("/knowledge/list", headers={"X-Agent-Num": "11"})
-    names = [s["name"] for s in r.json()["sources"]]
-    # spoof header 沒效 · agent_num=None · 機敏 source 仍藏起
-    assert "機敏勿擾" not in names
+    assert r.status_code == 403
 
 
 def test_agent_num_derive_unknown_conversation_returns_none(client, tmp_source_dir):
@@ -1822,6 +2030,10 @@ def test_um_get_permission_catalog(client):
     body = r.json()
     assert "catalog" in body
     assert "presets" in body
+    assert body["enforcement"]["mode"] == "progressive"
+    assert "knowledge.manage" in body["enforcement"]["enforced_permissions"]
+    assert "accounting.edit" in body["enforcement"]["enforced_permissions"]
+    assert "site.survey" in body["enforcement"]["enforced_permissions"]
     # 至少 7 組 · 全部攤平至少 20 個 permission
     assert len(body["catalog"]) >= 7
     all_keys = [item["key"] for g in body["catalog"] for item in g["items"]]
@@ -1953,3 +2165,301 @@ def test_um_admin_cannot_deactivate_self(client):
     r = client.delete("/admin/users/sterio068@gmail.com", headers=ADMIN_HEADERS)
     assert r.status_code == 400
     assert "lockout" in r.json()["detail"].lower()
+
+
+# ============================================================
+# I · Orchestrator / Workflow(vNext Phase E)
+# ============================================================
+def test_orchestrator_preset_detail(client):
+    """Phase E · workflow preset 回傳 step 明細供前端人工確認"""
+    r = client.get("/orchestrator/workflow/presets/tender-full")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == "tender-full"
+    assert body["mode"] == "draft_first"
+    assert body["requires_human_review"] is True
+    assert len(body["steps"]) >= 3
+    assert body["steps"][0]["id"] == "step_0"
+
+
+def test_orchestrator_prepare_preset(client):
+    """Phase E · prepare 不直接送 Agent,只產生主管家草稿 prompt"""
+    r = client.post(
+        "/orchestrator/workflow/prepare-preset/tender-full",
+        json={"initial_input": "測試標案:活動企劃與媒體宣傳"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["mode"] == "draft_first"
+    assert body["requires_human_review"] is True
+    assert "supervisor_prompt" in body
+    assert "測試標案" in body["supervisor_prompt"]
+    assert all(step["human_review"] is True for step in body["steps"])
+
+
+def test_orchestrator_prepare_preset_can_save_project_workflow_draft(client):
+    """Round 2 · workflow 仍是 draft-first,但可先寫入專案交棒卡供 PM 接續"""
+    import main as main_mod
+    from bson import ObjectId
+
+    r = client.post("/projects", json={"name": "workflow draft project"})
+    pid = r.json()["id"]
+
+    r = client.post(
+        "/orchestrator/workflow/prepare-preset/tender-full",
+        json={
+            "initial_input": "測試標案:文化局活動整合",
+            "project_id": pid,
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["mode"] == "draft_first"
+    assert body["saved_to_project"]["project_id"] == pid
+
+    proj = main_mod.db.projects.find_one({"_id": ObjectId(pid)})
+    draft = proj["handoff"]["workflow_draft"]
+    assert draft["preset_id"] == "tender-full"
+    assert "主管家" in draft["supervisor_prompt"]
+    assert draft["created_by"] == "test@chengfu.local"
+    assert main_mod.db.audit_log.count_documents({
+        "action": "workflow_prepare_preset",
+        "resource": pid,
+    }) == 1
+
+
+def test_orchestrator_prepare_preset_forbids_other_project(client):
+    """workflow draft 不能寫入別人的 project handoff"""
+    r = client.post(
+        "/projects",
+        json={"name": "alice workflow project"},
+        headers={"X-User-Email": "alice@chengfu.local"},
+    )
+    pid = r.json()["id"]
+
+    r = client.post(
+        "/orchestrator/workflow/prepare-preset/tender-full",
+        json={
+            "initial_input": "測試標案:跨專案偷寫",
+            "project_id": pid,
+        },
+        headers={"X-User-Email": "bob@chengfu.local"},
+    )
+    assert r.status_code == 403
+
+
+def test_orchestrator_prepare_preset_allows_project_collaborator(client):
+    """vNext · workflow draft 可由下一棒/協作者寫入專案交棒卡."""
+    import main as main_mod
+    from bson import ObjectId
+
+    r = client.post(
+        "/projects",
+        json={
+            "name": "collab workflow project",
+            "collaborators": ["bob@chengfu.local"],
+            "next_owner": "bob@chengfu.local",
+        },
+        headers={"X-User-Email": "alice@chengfu.local"},
+    )
+    pid = r.json()["id"]
+
+    r = client.post(
+        "/orchestrator/workflow/prepare-preset/tender-full",
+        json={
+            "initial_input": "測試標案:協作者接續 workflow",
+            "project_id": pid,
+        },
+        headers={"X-User-Email": "bob@chengfu.local"},
+    )
+    assert r.status_code == 200
+
+    proj = main_mod.db.projects.find_one({"_id": ObjectId(pid)})
+    assert proj["handoff"]["workflow_draft"]["created_by"] == "bob@chengfu.local"
+
+
+def test_orchestrator_records_workflow_adoption(client):
+    """vNext · Workflow 草稿被採用/拒絕要能進月報與學習迴路"""
+    import main as main_mod
+
+    r = client.post(
+        "/projects",
+        json={"name": "workflow adoption project"},
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    pid = r.json()["id"]
+
+    r = client.post(
+        "/orchestrator/workflow/adoptions",
+        json={
+            "preset_id": "tender-full",
+            "preset_name": "投標完整閉環",
+            "status": "adopted",
+            "project_id": pid,
+            "note": "主管家草稿可直接接續",
+        },
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["status"] == "adopted"
+    assert main_mod.db.workflow_adoptions.count_documents({
+        "preset_id": "tender-full",
+        "status": "adopted",
+        "user": "pm@chengfu.local",
+    }) == 1
+    assert main_mod.db.audit_log.count_documents({
+        "action": "workflow_adoption",
+        "user": "pm@chengfu.local",
+    }) == 1
+
+
+def test_orchestrator_workflow_adoption_forbids_other_project(client):
+    """workflow adoption 若綁 project_id,不可污染別人的專案採用紀錄."""
+    r = client.post(
+        "/projects",
+        json={"name": "alice adoption project"},
+        headers={"X-User-Email": "alice@chengfu.local"},
+    )
+    pid = r.json()["id"]
+
+    r = client.post(
+        "/orchestrator/workflow/adoptions",
+        json={
+            "preset_id": "tender-full",
+            "status": "adopted",
+            "project_id": pid,
+        },
+        headers={"X-User-Email": "bob@chengfu.local"},
+    )
+    assert r.status_code == 403
+
+
+def test_orchestrator_extract_agent_text_from_sse():
+    """LibreChat v0.8 /api/agents/chat SSE parser · 取最後 text"""
+    from orchestrator import _extract_agent_text
+
+    raw = (
+        'data: {"text":"你"}\n\n'
+        'data: {"text":"你好"}\n\n'
+        'data: [DONE]\n\n'
+    )
+    assert _extract_agent_text(raw) == "你好"
+
+
+def test_orchestrator_run_workflow_disabled_by_default(client):
+    """Phase E · 直接多 Agent 執行預設關閉,避免繞過人審草稿"""
+    r = client.post("/orchestrator/workflow/run", json={
+        "name": "x",
+        "steps": [{"agent_id": "01", "prompt_template": "{initial_input}"}],
+        "initial_input": "hello",
+    })
+    assert r.status_code == 403
+    assert "prepare-preset" in r.json()["detail"]
+
+
+def test_orchestrator_run_preset_disabled_by_default(client):
+    """Phase E · preset run 也預設關閉,只開 prepare-preset"""
+    r = client.post(
+        "/orchestrator/workflow/run-preset/tender-full",
+        json={"initial_input": "測試標案"},
+    )
+    assert r.status_code == 403
+    assert "prepare-preset" in r.json()["detail"]
+
+
+# ============================================================
+# J · Fine-grained permissions(vNext Round 2)
+# ============================================================
+def test_permission_accounting_edit_denied_without_permission(client):
+    """沒有 accounting.edit 的同仁不能新增交易"""
+    import main as main_mod
+    main_mod.db.users.update_one(
+        {"email": "noperm@chengfu.local"},
+        {"$set": {
+            "email": "noperm@chengfu.local",
+            "role": "USER",
+            "chengfu_active": True,
+            "chengfu_permissions": ["knowledge.search"],
+        }},
+        upsert=True,
+    )
+    r = client.post("/transactions", headers={"X-User-Email": "noperm@chengfu.local"}, json={
+        "date": "2026-04-24",
+        "memo": "no permission test",
+        "debit_account": "1102",
+        "credit_account": "4111",
+        "amount": 1,
+    })
+    assert r.status_code == 403
+    assert "accounting.edit" in r.json()["detail"]
+
+
+def test_permission_inactive_user_blocked_globally(client):
+    """停用帳號即使有 permission 也不能打一般受保護 endpoint"""
+    import main as main_mod
+    main_mod.db.users.update_one(
+        {"email": "inactive@chengfu.local"},
+        {"$set": {
+            "email": "inactive@chengfu.local",
+            "role": "USER",
+            "chengfu_active": False,
+            "chengfu_permissions": ["accounting.view", "accounting.edit"],
+        }},
+        upsert=True,
+    )
+    r = client.get("/accounts", headers={"X-User-Email": "inactive@chengfu.local"})
+    assert r.status_code == 403
+    assert "停用" in r.json()["detail"]
+
+
+def test_permission_inactive_admin_allowlist_blocked(client):
+    """停用管理員即使在 ADMIN_EMAILS allowlist 也不能進 admin endpoint"""
+    import main as main_mod
+    main_mod.db.users.update_one(
+        {"email": "sterio068@gmail.com"},
+        {"$set": {
+            "email": "sterio068@gmail.com",
+            "role": "ADMIN",
+            "chengfu_active": False,
+        }},
+        upsert=True,
+    )
+    try:
+        r = client.get("/admin/adoption", headers=ADMIN_HEADERS)
+        assert r.status_code == 403
+        assert "停用" in r.json()["detail"]
+        r2 = client.get("/accounts", headers=ADMIN_HEADERS)
+        assert r2.status_code == 403
+        assert "停用" in r2.json()["detail"]
+    finally:
+        main_mod.db.users.update_one(
+            {"email": "sterio068@gmail.com"},
+            {"$set": {
+                "email": "sterio068@gmail.com",
+                "role": "ADMIN",
+                "chengfu_active": True,
+            }},
+            upsert=True,
+        )
+
+
+def test_permission_user_lookup_failure_fails_closed(client, monkeypatch):
+    """users collection 查詢失敗時不能 fallback 成 legacy 權限"""
+    import routers._deps as deps
+
+    class BrokenUsers:
+        def find_one(self, *args, **kwargs):
+            raise RuntimeError("mongo unavailable")
+
+    monkeypatch.setattr(deps, "get_users_col", lambda: BrokenUsers())
+    r = client.get("/accounts", headers={"X-User-Email": "legacy@chengfu.local"})
+    assert r.status_code == 503
+    assert "權限查詢失敗" in r.json()["detail"]
+
+
+def test_permission_admin_bypasses_accounting_permission(client):
+    """ADMIN 即使未設定 chengfu_permissions 仍可進高風險 endpoint"""
+    r = client.get("/accounts", headers=ADMIN_HEADERS)
+    assert r.status_code == 200

@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from ._deps import require_user_dep
+from ._deps import _is_admin_user, _serialize, require_permission_dep, require_user_dep
 
 
 router = APIRouter(tags=["site-survey"])
@@ -57,6 +57,25 @@ def _oid(survey_id: str) -> ObjectId:
         return ObjectId(survey_id)
     except (InvalidId, TypeError):
         raise HTTPException(400, "survey_id 格式錯誤")
+
+
+def _authorized_project_oid(db, project_id: str, email: str) -> ObjectId:
+    try:
+        p_oid = ObjectId(project_id)
+    except Exception:
+        raise HTTPException(400, "project_id 格式錯")
+    q = {"_id": p_oid}
+    if not _is_admin_user(email):
+        q["$or"] = [
+            {"owner": email},
+            {"collaborators": email},
+            {"next_owner": email},
+        ]
+    if db.projects.find_one(q, {"_id": 1}):
+        return p_oid
+    if db.projects.find_one({"_id": p_oid}, {"_id": 1}):
+        raise HTTPException(403, "只能綁定自己的專案")
+    raise HTTPException(404, "project 不存在")
 
 
 def _validate_gps(lat: Optional[float], lng: Optional[float], acc: Optional[float]):
@@ -256,7 +275,7 @@ async def create_survey(
     gps_accuracy: Optional[float] = Form(default=None),
     address_hint: Optional[str] = Form(default=None),
     project_id: Optional[str] = Form(default=None),
-    email: str = require_user_dep(),
+    email: str = require_permission_dep("site.survey"),
 ):
     """上傳場勘 · 回 survey_id · 前端 polling /site-survey/{id}
 
@@ -272,6 +291,8 @@ async def create_survey(
         raise HTTPException(400, f"最多 {MAX_IMAGES_PER_SURVEY} 張 · 目前 {len(images)}")
 
     _validate_gps(gps_lat, gps_lng, gps_accuracy)
+    if project_id:
+        _authorized_project_oid(db, project_id, email)
 
     # R23#1 · 驗 + 落 tmp file · 不一次全塞 memory
     # Day 2.3 · HEIC 自動轉 JPEG(用 Pillow + pillow-heif · iPhone 友好)
@@ -393,7 +414,7 @@ async def create_survey(
 
 
 @router.get("/site-survey/{survey_id}")
-def get_survey(survey_id: str, email: str = require_user_dep()):
+def get_survey(survey_id: str, email: str = require_permission_dep("site.survey")):
     from main import db
     doc = db.site_surveys.find_one({"_id": _oid(survey_id)})
     if not doc:
@@ -406,6 +427,7 @@ def get_survey(survey_id: str, email: str = require_user_dep()):
         "location": doc.get("location", {}),
         "media": doc.get("media", []),
         "structured": doc.get("structured", {}),
+        "audio_notes": _serialize(doc.get("audio_notes", [])),
         "image_count": doc.get("image_count"),
         "error": doc.get("error"),
         "project_id": doc.get("project_id"),
@@ -417,7 +439,7 @@ def get_survey(survey_id: str, email: str = require_user_dep()):
 def list_surveys(
     project_id: Optional[str] = None,
     limit: int = Query(default=20, ge=1, le=100),
-    email: str = require_user_dep(),
+    email: str = require_permission_dep("site.survey"),
 ):
     from main import db
     q = {"owner": email}
@@ -438,7 +460,7 @@ def list_surveys(
 
 
 @router.post("/site-survey/{survey_id}/push-to-handoff")
-def push_to_handoff(survey_id: str, email: str = require_user_dep()):
+def push_to_handoff(survey_id: str, email: str = require_permission_dep("site.survey")):
     """場勘結果推進 project.handoff"""
     from main import db
     doc = db.site_surveys.find_one({"_id": _oid(survey_id)})
@@ -462,17 +484,14 @@ def push_to_handoff(survey_id: str, email: str = require_user_dep()):
                f"入口 {len(s.get('entrances',[]))} 處 · 洗手間 {s.get('toilets_count','未見')}",
     }
 
-    try:
-        p_oid = ObjectId(project_id)
-    except Exception:
-        raise HTTPException(400, "project_id 格式錯")
+    p_oid = _authorized_project_oid(db, project_id, email)
 
     # R23#4 · 不覆寫人工欄位(asset_refs / constraints)
     # 改:addToSet asset_refs(append 不 dup)+ 獨立欄位存場勘 issues
     r = db.projects.update_one(
         {"_id": p_oid},
         {
-            "$push": {"handoff.asset_refs": survey_note},
+            "$addToSet": {"handoff.site_asset_refs": survey_note},
             "$set": {
                 "handoff.site_survey_id": survey_id,
                 "handoff.site_issues": issues,
@@ -491,12 +510,11 @@ def push_to_handoff(survey_id: str, email: str = require_user_dep()):
 # B4(v1.3)· audio_note · 現場 PM 錄音 → Whisper STT → 存 db
 # ============================================================
 def _process_audio_note(survey_id_str: str, audio_path: str, mime: str,
-                         duration_sec: Optional[float]):
+                         duration_sec: Optional[float], note_id: ObjectId):
     """背景 task · 跑 Whisper STT · 結果 push 到 site_surveys.audio_notes[]
     重用 routers/memory.py 同 Whisper chain · 失敗回 status:failed 不 raise"""
     from main import db
     from routers.memory import _retry, _openai_key_for_stt
-    note_id = ObjectId()  # 預先產 · 給前端引用
     try:
         try:
             import openai
@@ -516,29 +534,23 @@ def _process_audio_note(survey_id_str: str, audio_path: str, mime: str,
         except Exception as e:
             logger.error("[site-audio] Whisper 失敗 sid=%s · %s", survey_id_str, e)
             db.site_surveys.update_one(
-                {"_id": ObjectId(survey_id_str)},
-                {"$push": {"audio_notes": {
-                    "_id": note_id,
-                    "status": "failed",
-                    "error": f"STT 失敗: {str(e)[:200]}",
-                    "mime": mime,
-                    "duration_sec": duration_sec,
-                    "created_at": datetime.now(timezone.utc),
-                }}},
+                {"_id": ObjectId(survey_id_str), "audio_notes._id": note_id},
+                {"$set": {
+                    "audio_notes.$.status": "failed",
+                    "audio_notes.$.error": f"STT 失敗: {str(e)[:200]}",
+                    "audio_notes.$.updated_at": datetime.now(timezone.utc),
+                }},
             )
             return
 
         db.site_surveys.update_one(
-            {"_id": ObjectId(survey_id_str)},
-            {"$push": {"audio_notes": {
-                "_id": note_id,
-                "status": "done",
-                "transcript": transcript,
-                "mime": mime,
-                "duration_sec": duration_sec,
-                "created_at": datetime.now(timezone.utc),
+            {"_id": ObjectId(survey_id_str), "audio_notes._id": note_id},
+            {"$set": {
+                "audio_notes.$.status": "done",
+                "audio_notes.$.transcript": transcript,
+                "audio_notes.$.updated_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
             }},
-             "$set": {"updated_at": datetime.now(timezone.utc)}},
         )
         logger.info("[site-audio] sid=%s · transcript len=%d", survey_id_str, len(transcript or ""))
     finally:
@@ -555,7 +567,7 @@ async def upload_audio_note(
     background_tasks: BackgroundTasks,
     audio: UploadFile = File(...),
     duration_sec: Optional[float] = Form(default=None),
-    email: str = require_user_dep(),
+    email: str = require_permission_dep("site.survey"),
 ):
     """B4 · 加 audio note 給該 survey · STT 背景跑
 
@@ -619,8 +631,22 @@ async def upload_audio_note(
         os.remove(tmp_path)
         raise HTTPException(400, "audio 太小 · 至少 1KB(可能錄到空)")
 
+    note_id = ObjectId()
+    db.site_surveys.update_one(
+        {"_id": oid},
+        {"$push": {"audio_notes": {
+            "_id": note_id,
+            "status": "processing",
+            "mime": audio.content_type,
+            "duration_sec": duration_sec,
+            "size_bytes": raw_size,
+            "created_at": datetime.now(timezone.utc),
+        }},
+         "$set": {"updated_at": datetime.now(timezone.utc)}},
+    )
+
     # 背景跑 STT(同 memory.py pattern)
     background_tasks.add_task(
-        _process_audio_note, survey_id, tmp_path, audio.content_type, duration_sec,
+        _process_audio_note, survey_id, tmp_path, audio.content_type, duration_sec, note_id,
     )
-    return {"status": "processing", "size_bytes": raw_size}
+    return {"note_id": str(note_id), "status": "processing", "size_bytes": raw_size}

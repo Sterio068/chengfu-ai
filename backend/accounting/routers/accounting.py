@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from ._deps import require_user_dep
+from ._deps import require_permission_dep, require_user_dep
 
 
 # R27#2 · router-wide require login · nginx 直接公開 /api-accounting/* · 沒登入禁讀寫
@@ -149,7 +149,7 @@ class Quote(BaseModel):
 # Endpoints · 科目
 # ============================================================
 @router.post("/accounts/seed")
-def seed_accounts():
+def seed_accounts(_user: str = require_permission_dep("accounting.edit")):
     """初始化預設科目(冪等)"""
     from main import accounts_col
     created = 0
@@ -161,7 +161,10 @@ def seed_accounts():
 
 
 @router.get("/accounts")
-def list_accounts(type: Optional[AccountType] = None):
+def list_accounts(
+    type: Optional[AccountType] = None,
+    _user: str = require_permission_dep("accounting.view"),
+):
     from main import accounts_col, serialize
     q = {"active": True}
     if type:
@@ -170,7 +173,7 @@ def list_accounts(type: Optional[AccountType] = None):
 
 
 @router.post("/accounts")
-def create_account(acc: Account):
+def create_account(acc: Account, _user: str = require_permission_dep("accounting.edit")):
     from main import accounts_col
     if accounts_col.find_one({"code": acc.code}):
         raise HTTPException(400, f"科目編號 {acc.code} 已存在")
@@ -182,7 +185,7 @@ def create_account(acc: Account):
 # Endpoints · 交易
 # ============================================================
 @router.post("/transactions")
-def create_transaction(tx: Transaction):
+def create_transaction(tx: Transaction, _user: str = require_permission_dep("accounting.edit")):
     from main import accounts_col, transactions_col
     for code in [tx.debit_account, tx.credit_account]:
         if not accounts_col.find_one({"code": code}):
@@ -201,6 +204,7 @@ def list_transactions(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     limit: int = 50,
+    _user: str = require_permission_dep("accounting.view"),
 ):
     from main import transactions_col, serialize
     q = {}
@@ -214,7 +218,7 @@ def list_transactions(
 
 
 @router.delete("/transactions/{tx_id}")
-def delete_transaction(tx_id: str):
+def delete_transaction(tx_id: str, _user: str = require_permission_dep("accounting.edit")):
     """R15 · 用 _tx_oid · 補 404"""
     from main import transactions_col
     r = transactions_col.delete_one({"_id": _tx_oid(tx_id)})
@@ -236,7 +240,7 @@ def _next_invoice_no():
 
 
 @router.post("/invoices")
-def create_invoice(inv: Invoice):
+def create_invoice(inv: Invoice, _user: str = require_permission_dep("accounting.edit")):
     from main import invoices_col
     data = inv.model_dump()
     if not data.get("invoice_no"):
@@ -256,7 +260,11 @@ def create_invoice(inv: Invoice):
 
 
 @router.get("/invoices")
-def list_invoices(status: Optional[str] = None, project_id: Optional[str] = None):
+def list_invoices(
+    status: Optional[str] = None,
+    project_id: Optional[str] = None,
+    _user: str = require_permission_dep("accounting.view"),
+):
     from main import invoices_col, serialize
     q = {}
     if status:    q["status"] = status
@@ -277,7 +285,7 @@ def _next_quote_no():
 
 
 @router.post("/quotes")
-def create_quote(quote: Quote):
+def create_quote(quote: Quote, _user: str = require_permission_dep("accounting.edit")):
     from main import quotes_col
     data = quote.model_dump()
     if not data.get("quote_no"):
@@ -297,7 +305,10 @@ def create_quote(quote: Quote):
 
 
 @router.get("/quotes")
-def list_quotes(status: Optional[str] = None):
+def list_quotes(
+    status: Optional[str] = None,
+    _user: str = require_permission_dep("accounting.view"),
+):
     from main import quotes_col, serialize
     q = {}
     if status: q["status"] = status
@@ -339,7 +350,10 @@ def _update_project_finance(project_id: str):
 
 
 @router.get("/projects/{project_id}/finance")
-def get_project_finance(project_id: str):
+def get_project_finance(
+    project_id: str,
+    _user: str = require_permission_dep("accounting.view"),
+):
     from main import projects_finance_col, serialize
     _update_project_finance(project_id)
     p = projects_finance_col.find_one({"project_id": project_id})
@@ -350,7 +364,11 @@ def get_project_finance(project_id: str):
 # Endpoints · 報表
 # ============================================================
 @router.get("/reports/pnl")
-def pnl_report(date_from: str, date_to: str):
+def pnl_report(
+    date_from: str,
+    date_to: str,
+    _user: str = require_permission_dep("accounting.view"),
+):
     """損益表(收入 - 費用)· Audit perf #2 · 一次撈 accounts dict 取代 find_one 迴圈
 
     NB: admin router monthly_report / dashboard 也會 from routers.accounting import pnl_report
@@ -383,7 +401,7 @@ def pnl_report(date_from: str, date_to: str):
 
 
 @router.get("/reports/aging")
-def aging_report():
+def aging_report(_user: str = require_permission_dep("accounting.view")):
     """應收帳款帳齡"""
     from main import invoices_col
     today = date.today()

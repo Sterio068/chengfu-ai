@@ -7,13 +7,21 @@
 # 用法:
 #   ./scripts/smoke-test.sh [base_url]
 #
-# 預設 base_url = http://localhost:3080
+# 預設 base_url = http://localhost
 
 set -uo pipefail
 
 BASE_URL="${1:-http://localhost}"
 PASS=0
 FAIL=0
+BROWSER_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+if [[ -z "${LIBRECHAT_ADMIN_EMAIL:-}" && "$(uname -s)" == "Darwin" ]]; then
+    LIBRECHAT_ADMIN_EMAIL="$(security find-generic-password -s chengfu-ai-admin-install-email -w 2>/dev/null || true)"
+fi
+if [[ -z "${LIBRECHAT_ADMIN_PASSWORD:-}" && "$(uname -s)" == "Darwin" ]]; then
+    LIBRECHAT_ADMIN_PASSWORD="$(security find-generic-password -s chengfu-ai-admin-install-password -w 2>/dev/null || true)"
+fi
 
 check() {
     local desc="$1" cmd="$2"
@@ -39,13 +47,16 @@ check "nginx 容器運行中"        "docker ps --filter name=chengfu-nginx --fi
 check "LibreChat 容器運行中" "docker ps --filter name=chengfu-librechat --filter status=running -q | grep -q ."
 check "MongoDB 容器運行中"   "docker ps --filter name=chengfu-mongo --filter status=running -q | grep -q ."
 check "Meilisearch 容器運行中" "docker ps --filter name=chengfu-meili --filter status=running -q | grep -q ."
+check "Accounting 容器運行中" "docker ps --filter name=chengfu-accounting --filter status=running -q | grep -q ."
+check "Uptime Kuma 容器運行中" "docker ps --filter name=chengfu-uptime --filter status=running -q | grep -q ."
 
 echo ""
 echo "[網路連線]"
 check "nginx /healthz"           "curl -sf ${BASE_URL}/healthz"
 check "承富 Launcher /"          "[[ \$(curl -sf ${BASE_URL}/) == *承富* ]]"
 check "LibreChat API /api/config" "curl -sf ${BASE_URL}/api/config"
-check "LibreChat /chat"          "curl -sf ${BASE_URL}/chat -o /dev/null -w '%{http_code}' | grep -qE '200|301|302'"
+check "Accounting /api-accounting/healthz" "curl -sf ${BASE_URL}/api-accounting/healthz"
+check "Route A /c/new redirects" "curl -sI ${BASE_URL}/c/new -o /dev/null -w '%{http_code}' | grep -q '^302$'"
 
 echo ""
 echo "[資源佔用]"
@@ -58,9 +69,13 @@ echo "  MongoDB 記憶體:$MONGO_MEM"
 if [[ -n "${LIBRECHAT_ADMIN_EMAIL:-}" && -n "${LIBRECHAT_ADMIN_PASSWORD:-}" ]]; then
     echo ""
     echo "[API 功能 · 已提供 admin 憑證]"
+    COOKIE_JAR="$(mktemp)"
     LOGIN_RES=$(curl -sf -X POST "${BASE_URL}/api/auth/login" \
+        -c "$COOKIE_JAR" \
         -H "Content-Type: application/json" \
+        -H "User-Agent: ${BROWSER_UA}" \
         -d "{\"email\":\"${LIBRECHAT_ADMIN_EMAIL}\",\"password\":\"${LIBRECHAT_ADMIN_PASSWORD}\"}" 2>/dev/null || echo "")
+    TOKEN=$(printf '%s' "$LOGIN_RES" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
     if [[ -n "$LOGIN_RES" && "$LOGIN_RES" == *"token"* ]]; then
         echo "  [$(($PASS + $FAIL + 1))] Admin 登入 ... ✅ PASS"
         PASS=$((PASS + 1))
@@ -68,10 +83,19 @@ if [[ -n "${LIBRECHAT_ADMIN_EMAIL:-}" && -n "${LIBRECHAT_ADMIN_PASSWORD:-}" ]]; 
         echo "  [$(($PASS + $FAIL + 1))] Admin 登入 ... ❌ FAIL"
         FAIL=$((FAIL + 1))
     fi
+    if [[ -n "$TOKEN" ]]; then
+        check "Authenticated /api/agents" "curl -sf '${BASE_URL}/api/agents' -b '$COOKIE_JAR' -H 'Authorization: Bearer $TOKEN' -H 'User-Agent: ${BROWSER_UA}' -H 'Accept: application/json' | python3 -c 'import sys,json;d=json.load(sys.stdin);a=d if isinstance(d,list) else d.get(\"data\",[]);assert len(a) >= 1'"
+        check "Authenticated /api-accounting/projects" "curl -sf '${BASE_URL}/api-accounting/projects' -b '$COOKIE_JAR' -H 'Authorization: Bearer $TOKEN' -H 'User-Agent: ${BROWSER_UA}'"
+    else
+        echo "  [$(($PASS + $FAIL + 1))] Authenticated API ... ❌ FAIL"
+        FAIL=$((FAIL + 1))
+    fi
+    rm -f "$COOKIE_JAR"
 else
     echo ""
     echo "[API 功能]"
-    echo "  ⚠ 略過(需設 LIBRECHAT_ADMIN_EMAIL / LIBRECHAT_ADMIN_PASSWORD 環境變數)"
+    echo "  ❌ FAIL · 需設 LIBRECHAT_ADMIN_EMAIL / LIBRECHAT_ADMIN_PASSWORD 或 macOS Keychain E2E 憑證"
+    FAIL=$((FAIL + 1))
 fi
 
 # ------------------ 備份檢查 ------------------
