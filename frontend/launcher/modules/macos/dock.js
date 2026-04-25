@@ -128,6 +128,69 @@ function _renderIcon(item, idx) {
     _showContextMenu(e, item, idx);
   });
 
+  // ===== Drag & Drop reorder · HTML5 native(0 dep)=====
+  btn.draggable = true;
+  btn.addEventListener("dragstart", (e) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(idx));
+    btn.classList.add("dragging");
+  });
+  btn.addEventListener("dragend", () => {
+    btn.classList.remove("dragging");
+    document.querySelectorAll(".dock-icon.drop-target").forEach(el => el.classList.remove("drop-target"));
+  });
+  btn.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    btn.classList.add("drop-target");
+  });
+  btn.addEventListener("dragleave", () => {
+    btn.classList.remove("drop-target");
+  });
+  btn.addEventListener("drop", (e) => {
+    e.preventDefault();
+    btn.classList.remove("drop-target");
+    const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+    const toIdx = parseInt(btn.dataset.idx, 10);
+    if (Number.isFinite(fromIdx) && Number.isFinite(toIdx) && fromIdx !== toIdx) {
+      dockStore.reorder(fromIdx, toIdx);
+    }
+  });
+
+  // ===== Keyboard a11y · Tab / Arrow / Enter / Esc =====
+  btn.addEventListener("keydown", (e) => {
+    const focusables = Array.from(_dockEl.querySelectorAll(".dock-icon"));
+    const cur = focusables.indexOf(btn);
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      focusables[(cur + 1) % focusables.length]?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      focusables[(cur - 1 + focusables.length) % focusables.length]?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      focusables[0]?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      focusables[focusables.length - 1]?.focus();
+    } else if (e.key === "Escape") {
+      btn.blur();
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      // 鍵盤等同右鍵移除
+      e.preventDefault();
+      const removed = dockStore.unpin(item.type, item.id);
+      if (removed && window.toast) window.toast.info(`已從 Dock 移除 · ${item.label}`);
+    } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+      e.preventDefault();
+      const rect = btn.getBoundingClientRect();
+      _showContextMenu(
+        { clientX: rect.left + rect.width / 2, clientY: rect.top, preventDefault() {} },
+        item,
+        idx,
+      );
+    }
+  });
+
   return btn;
 }
 

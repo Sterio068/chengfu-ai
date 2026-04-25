@@ -158,10 +158,32 @@
   transform: translateX(-50%) translateY(0);
 }
 
-/* Focus ring · 鍵盤導航(commit 8 全套) */
+/* Focus ring · 鍵盤導航 */
 .dock-icon:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+/* Drag · 被拖的 icon 半透明 */
+.dock-icon.dragging {
+  opacity: 0.4;
+  transform: scale(1.05);
+}
+
+/* Drop target · drop 位置高亮 */
+.dock-icon.drop-target::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--r-xl);
+  pointer-events: none;
+  animation: dock-drop-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dock-drop-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* Separator(三組之間用 · 目前只一組 · Sprint B 加 active chats 才用) */
