@@ -20,13 +20,72 @@ logger = logging.getLogger("chengfu")
 # Pricing(可追溯)· 更新時改 PRICE_VERSION 日期
 # ============================================================
 PRICE_VERSION = "2026-04-21"
-PRICE_SOURCE = "https://www.anthropic.com/pricing"
-PRICE_NOTE = "USD per 1M tokens · 半年內請定期確認 Anthropic 是否調價"
-ANTHROPIC_PRICING_USD = {
+PRICE_SOURCE = "https://developers.openai.com/api/docs/models · https://www.anthropic.com/pricing"
+PRICE_NOTE = "USD per 1M tokens · 半年內請定期確認 OpenAI / Anthropic 是否調價"
+MODEL_PRICING_USD = {
+    "gpt-5.4":           {"input": 2.50, "output": 15.0},
+    "gpt-5.4-mini":      {"input": 0.75, "output": 4.50},
+    "gpt-5.4-nano":      {"input": 0.20, "output": 1.25},
     "claude-opus-4-7":    {"input": 15.0,  "output": 75.0},
     "claude-sonnet-4-6":  {"input":  3.0,  "output": 15.0},
     "claude-haiku-4-5":   {"input":  0.25, "output":  1.25},
 }
+ANTHROPIC_PRICING_USD = MODEL_PRICING_USD  # backward-compatible alias for old imports/tests
+
+
+def token_group_fields(input_key: str = "tin", output_key: str = "tout") -> dict:
+    """LibreChat v0.8 兼容:rawAmount 可能是 dict,也可能是 signed number + tokenType."""
+    raw_is_object = {"$eq": [{"$type": "$rawAmount"}, "object"]}
+    raw_number = {"$abs": {"$ifNull": ["$rawAmount", 0]}}
+    return {
+        input_key: {"$sum": {"$cond": [
+            raw_is_object,
+            {"$ifNull": ["$rawAmount.prompt", 0]},
+            {"$cond": [{"$eq": ["$tokenType", "prompt"]}, raw_number, 0]},
+        ]}},
+        output_key: {"$sum": {"$cond": [
+            raw_is_object,
+            {"$ifNull": ["$rawAmount.completion", 0]},
+            {"$cond": [{"$eq": ["$tokenType", "completion"]}, raw_number, 0]},
+        ]}},
+    }
+
+
+def token_pair(doc: dict) -> tuple[int, int]:
+    """Return (input_tokens, output_tokens) across LibreChat transaction schemas."""
+    raw = doc.get("rawAmount", None)
+    if isinstance(raw, dict):
+        return int(raw.get("prompt") or 0), int(raw.get("completion") or 0)
+    if isinstance(raw, (int, float)):
+        amount = abs(int(raw))
+        if doc.get("tokenType") == "prompt":
+            return amount, 0
+        if doc.get("tokenType") == "completion":
+            return 0, amount
+    return 0, 0
+
+
+def transaction_token_stats(db, from_dt: datetime, user=None,
+                            group_user: bool = False) -> list[dict]:
+    """Aggregate token usage in Python so tests and prod both support old/new schemas."""
+    query = {"createdAt": {"$gte": from_dt}}
+    if user is not None:
+        query["user"] = user
+    projection = {"rawAmount": 1, "tokenType": 1, "model": 1, "user": 1, "createdAt": 1}
+    agg: dict = {}
+    for doc in db.transactions.find(query, projection):
+        model = doc.get("model") or ""
+        tin, tout = token_pair(doc)
+        key = (str(doc.get("user", "")), model) if group_user else model
+        if key not in agg:
+            item = {"model": model, "tin": 0, "tout": 0, "count": 0}
+            if group_user:
+                item["user"] = str(doc.get("user", ""))
+            agg[key] = item
+        agg[key]["tin"] += tin
+        agg[key]["tout"] += tout
+        agg[key]["count"] += 1
+    return list(agg.values())
 
 
 # ============================================================
@@ -47,18 +106,22 @@ def probe_tx_schema(db) -> dict:
     _SCHEMA_CACHED["checked"] = True
     try:
         doc = db.transactions.find_one(
-            {}, {"rawAmount": 1, "model": 1, "user": 1, "createdAt": 1}
+            {}, {"rawAmount": 1, "tokenType": 1, "model": 1, "user": 1, "createdAt": 1}
         )
         if not doc:
             _SCHEMA_CACHED["ok"] = True
             _SCHEMA_CACHED["issue"] = "transactions 尚無資料(正常)"
         else:
             missing = []
-            raw = doc.get("rawAmount") or {}
-            if not isinstance(raw, dict):
-                missing.append("rawAmount(non-dict)")
-            elif "prompt" not in raw and "completion" not in raw:
-                missing.append("rawAmount.prompt|completion")
+            raw = doc.get("rawAmount", None)
+            if isinstance(raw, dict):
+                if "prompt" not in raw and "completion" not in raw:
+                    missing.append("rawAmount.prompt|completion")
+            elif isinstance(raw, (int, float)):
+                if doc.get("tokenType") not in ("prompt", "completion"):
+                    missing.append("tokenType(prompt|completion)")
+            else:
+                missing.append("rawAmount")
             for k in ("model", "user", "createdAt"):
                 if k not in doc:
                     missing.append(k)
@@ -75,10 +138,12 @@ def tx_fingerprint(db, limit: int = 10) -> list[dict]:
     fp = []
     try:
         for doc in db.transactions.find({}).sort("createdAt", -1).limit(limit):
-            raw = doc.get("rawAmount") or {}
+            raw = doc.get("rawAmount", None)
             fp.append({
                 "has_rawAmount": isinstance(raw, dict),
+                "rawAmount_type": type(raw).__name__,
                 "rawAmount_keys": sorted(list(raw.keys())) if isinstance(raw, dict) else [],
+                "tokenType": doc.get("tokenType"),
                 "has_user": "user" in doc,
                 "has_model": "model" in doc,
                 "has_createdAt": "createdAt" in doc,
@@ -95,7 +160,8 @@ def tx_fingerprint(db, limit: int = 10) -> list[dict]:
 def price_ntd(model: str, tokens_in: int, tokens_out: int,
               usd_to_ntd: float = 32.5) -> float:
     """依模型 + 台幣匯率算 NT$"""
-    p = ANTHROPIC_PRICING_USD.get(model) or ANTHROPIC_PRICING_USD["claude-sonnet-4-6"]
+    fallback = "claude-sonnet-4-6" if str(model).startswith("claude") else "gpt-5.4-mini"
+    p = MODEL_PRICING_USD.get(model) or MODEL_PRICING_USD[fallback]
     usd = (tokens_in / 1_000_000) * p["input"] + (tokens_out / 1_000_000) * p["output"]
     return round(usd * usd_to_ntd, 2)
 
@@ -120,20 +186,47 @@ def user_month_spend_ntd(db, users_col, email: str,
         uid = u["_id"]
         now = datetime.now(timezone.utc)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        pipeline = [
-            {"$match": {"createdAt": {"$gte": month_start}, "user": uid}},
-            {"$group": {
-                "_id": "$model",
-                "tin":  {"$sum": "$rawAmount.prompt"},
-                "tout": {"$sum": "$rawAmount.completion"},
-            }},
-        ]
-        stats = list(db.transactions.aggregate(pipeline))
-        spent = sum(price_ntd(s["_id"] or "", s.get("tin", 0) or 0,
+        stats = transaction_token_stats(db, month_start, user=uid)
+        spent = sum(price_ntd(s.get("model") or "", s.get("tin", 0) or 0,
                               s.get("tout", 0) or 0, usd_to_ntd) for s in stats)
         return {"ok": True, "spent_ntd": spent, "user_found": True}
     except Exception as e:
         return {"ok": False, "spent_ntd": 0.0, "reason": f"data_source_error: {type(e).__name__}: {e}"}
+
+
+def user_month_token_usage(db, users_col, email: Optional[str],
+                           monthly_limit: int = 1_500_000) -> dict:
+    """Launcher 用量卡 · 回 token usage,避免依賴 LibreChat 私有 /api/balance endpoint."""
+    if not email:
+        return {"ok": False, "monthlyUsage": 0, "monthlyLimit": monthly_limit, "reason": "no_email"}
+    try:
+        u = users_col.find_one({"email": email}, {"_id": 1})
+        if not u:
+            return {
+                "ok": True,
+                "monthlyUsage": 0,
+                "monthlyLimit": monthly_limit,
+                "user_found": False,
+                "reason": "user_not_in_librechat",
+            }
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        stats = transaction_token_stats(db, month_start, user=u["_id"])
+        used = sum((s.get("tin", 0) or 0) + (s.get("tout", 0) or 0) for s in stats)
+        return {
+            "ok": True,
+            "monthlyUsage": int(used),
+            "monthlyLimit": monthly_limit,
+            "month": now.strftime("%Y-%m"),
+            "user_found": True,
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "monthlyUsage": 0,
+            "monthlyLimit": monthly_limit,
+            "reason": f"data_source_error: {type(e).__name__}: {e}",
+        }
 
 
 # ============================================================
@@ -146,16 +239,8 @@ def budget_status(db, monthly_budget_ntd: float,
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     try:
-        pipeline = [
-            {"$match": {"createdAt": {"$gte": month_start}}},
-            {"$group": {
-                "_id": "$model",
-                "tin":  {"$sum": "$rawAmount.prompt"},
-                "tout": {"$sum": "$rawAmount.completion"},
-            }},
-        ]
-        stats = list(db.transactions.aggregate(pipeline))
-        spent = sum(price_ntd(s["_id"] or "", s.get("tin", 0) or 0,
+        stats = transaction_token_stats(db, month_start)
+        spent = sum(price_ntd(s.get("model") or "", s.get("tin", 0) or 0,
                               s.get("tout", 0) or 0, usd_to_ntd) for s in stats)
     except Exception as e:
         # v1.3 batch6 · HIGH · 別吞 budget 計算錯 · 否則 dashboard 顯示假 NT$ 0
@@ -181,20 +266,11 @@ def top_users(db, users_col, days: int = 30, limit: int = 10,
     """Top N 用量同仁"""
     try:
         from_dt = datetime.now(timezone.utc) - timedelta(days=days)
-        pipeline = [
-            {"$match": {"createdAt": {"$gte": from_dt}}},
-            {"$group": {
-                "_id": {"user": "$user", "model": "$model"},
-                "tin":  {"$sum": "$rawAmount.prompt"},
-                "tout": {"$sum": "$rawAmount.completion"},
-                "count": {"$sum": 1},
-            }},
-        ]
-        raw = list(db.transactions.aggregate(pipeline))
+        raw = transaction_token_stats(db, from_dt, group_user=True)
         agg = {}
         for r in raw:
-            uid = str(r["_id"].get("user", ""))
-            model = r["_id"].get("model", "")
+            uid = str(r.get("user", ""))
+            model = r.get("model", "")
             cost = price_ntd(model, r.get("tin", 0) or 0,
                              r.get("tout", 0) or 0, usd_to_ntd)
             if uid not in agg:
@@ -324,16 +400,14 @@ def cost_by_model(db, days: int = 30, usd_to_ntd: float = 32.5) -> dict:
     else:
         try:
             from_dt = datetime.now(timezone.utc) - timedelta(days=days)
-            pipeline = [
-                {"$match": {"createdAt": {"$gte": from_dt}}},
-                {"$group": {
-                    "_id": "$model",
-                    "input_tokens":  {"$sum": "$rawAmount.prompt"},
-                    "output_tokens": {"$sum": "$rawAmount.completion"},
-                    "count":         {"$sum": 1},
-                }},
-            ]
-            stats = list(db.transactions.aggregate(pipeline))
+            stats = []
+            for s in transaction_token_stats(db, from_dt):
+                stats.append({
+                    "_id": s.get("model"),
+                    "input_tokens": s.get("tin", 0),
+                    "output_tokens": s.get("tout", 0),
+                    "count": s.get("count", 0),
+                })
             result["by_model"] = stats
         except Exception as e:
             result["anthropic_error"] = str(e)

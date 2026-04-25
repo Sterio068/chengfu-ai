@@ -363,7 +363,7 @@ def _user_or_ip(request: Request) -> str:
 
 _limiter = Limiter(
     key_func=_user_or_ip,
-    default_limits=[os.getenv("RATE_LIMIT_DEFAULT", "120/minute")],
+    default_limits=[os.getenv("RATE_LIMIT_DEFAULT", "2000/minute")],
     storage_uri="memory://",  # v1.2 改 Redis 才能多 worker 一致
 )
 app.state.limiter = _limiter
@@ -425,18 +425,6 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(RequestIDMiddleware)
-
-# Orchestrator(v2.0 · 主管家跨 Agent 呼叫)
-# Audit fix · tech-debt #1 · 不再 silent · ImportError 必 log + 顯示哪邊壞
-try:
-    from orchestrator import router as orchestrator_router
-    app.include_router(orchestrator_router)
-    logger.info("orchestrator router loaded · D-010 主管家上線")
-except ImportError as e:
-    logger.warning(
-        "orchestrator 未載入 · D-010/D-011 主管家功能 OFF · 原因: %s",
-        e,
-    )
 
 # ============================================================
 # Helpers
@@ -616,13 +604,27 @@ def require_admin(request: Request,
         )
 
     if email in _admin_allowlist:
+        try:
+            u = _users_col.find_one({"email": email}, {"chengfu_active": 1})
+            if u and u.get("chengfu_active") is False:
+                raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("[auth] admin allowlist users.find_one fail email=%s · %s", email, e)
+            raise HTTPException(503, "使用者權限查詢失敗 · 請稍後再試")
         return email
     try:
         u = _users_col.find_one({"email": email})
+        if u and u.get("chengfu_active") is False:
+            raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
         if u and (u.get("role") or "").upper() == "ADMIN":
             return email
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("[auth] users.find_one fail email=%s · %s", email, e)
+        raise HTTPException(503, "使用者權限查詢失敗 · 請稍後再試")
     raise HTTPException(403, f"需要管理員權限 · {email} 不在白名單內")
 
 
@@ -653,6 +655,19 @@ pnl_report = _accounting_router.pnl_report
 # ============================================================
 from routers import projects as _projects_router
 app.include_router(_projects_router.router)
+
+
+# Orchestrator(v2.0 · 主管家跨 Agent 呼叫)
+# 放在 auth helper 定義之後載入,避免 require_user_dep import main.current_user_email 時循環。
+try:
+    from orchestrator import router as orchestrator_router
+    app.include_router(orchestrator_router)
+    logger.info("orchestrator router loaded · D-010 主管家上線")
+except ImportError as e:
+    logger.warning(
+        "orchestrator 未載入 · D-010/D-011 主管家功能 OFF · 原因: %s",
+        e,
+    )
 
 
 # ============================================================

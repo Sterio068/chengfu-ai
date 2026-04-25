@@ -58,6 +58,20 @@ def test_probe_tx_schema_ok(db):
     assert s["issue"] == ""
 
 
+def test_probe_tx_schema_ok_signed_number(db):
+    """LibreChat v0.8+ 也可能用 rawAmount signed number + tokenType."""
+    db.transactions.insert_one({
+        "rawAmount": -100,
+        "tokenType": "prompt",
+        "model": "gpt-5.4-mini",
+        "user": "user_abc",
+        "createdAt": datetime.now(timezone.utc),
+    })
+    s = admin_metrics.probe_tx_schema(db)
+    assert s["ok"] is True
+    assert s["issue"] == ""
+
+
 def test_probe_tx_schema_missing_field(db):
     """若 LibreChat 改 schema 去掉 rawAmount · ok=False"""
     db.transactions.insert_one({
@@ -90,6 +104,55 @@ def test_budget_status_with_data(db):
     # Sonnet: 4M × 3 + 2M × 15 = 12 + 30 = 42 USD × 32.5 = NT$ 1365
     assert r["spent_ntd"] == 1365
     assert r["alert_level"] == "ok"  # < 80%
+
+
+def test_budget_status_with_signed_number_schema(db):
+    now = datetime.now(timezone.utc)
+    db.transactions.insert_many([
+        {
+            "rawAmount": -4_000_000,
+            "tokenType": "prompt",
+            "model": "gpt-5.4-mini",
+            "user": "x",
+            "createdAt": now,
+        },
+        {
+            "rawAmount": -2_000_000,
+            "tokenType": "completion",
+            "model": "gpt-5.4-mini",
+            "user": "x",
+            "createdAt": now,
+        },
+    ])
+    r = admin_metrics.budget_status(db, monthly_budget_ntd=12000)
+    # GPT-5.4 mini: 4M × 0.75 + 2M × 4.5 = 12 USD × 32.5 = NT$ 390
+    assert r["data_source_ok"] is True
+    assert r["spent_ntd"] == 390
+
+
+def test_user_month_token_usage_signed_number_schema(db, users_col):
+    uid = users_col.insert_one({"email": "staff@x.com"}).inserted_id
+    now = datetime.now(timezone.utc)
+    db.transactions.insert_many([
+        {
+            "rawAmount": -100,
+            "tokenType": "prompt",
+            "model": "gpt-5.4-mini",
+            "user": uid,
+            "createdAt": now,
+        },
+        {
+            "rawAmount": -40,
+            "tokenType": "completion",
+            "model": "gpt-5.4-mini",
+            "user": uid,
+            "createdAt": now,
+        },
+    ])
+    r = admin_metrics.user_month_token_usage(db, users_col, "staff@x.com", monthly_limit=999)
+    assert r["ok"] is True
+    assert r["monthlyUsage"] == 140
+    assert r["monthlyLimit"] == 999
 
 
 def test_budget_status_over_budget(db):

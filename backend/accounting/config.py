@@ -99,7 +99,7 @@ def _load_from_env() -> ChengfuSettings:
         allow_legacy_auth_headers=os.getenv("ALLOW_LEGACY_AUTH_HEADERS", "") == "1",
         admin_allowlist=frozenset(_parse_email_set(
             "ADMIN_EMAILS",
-            os.getenv("ADMIN_EMAIL", "sterio068@gmail.com"),
+            os.getenv("ADMIN_EMAIL", ""),
         )),
         quota_mode=os.getenv("QUOTA_MODE", "soft_warn"),  # type: ignore
         quota_override_emails=frozenset(_parse_email_set("QUOTA_OVERRIDE_EMAILS")),

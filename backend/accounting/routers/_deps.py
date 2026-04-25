@@ -57,6 +57,14 @@ def get_users_col():
     return _users_col
 
 
+def _find_user_for_auth(email: str, projection: dict) -> Optional[dict]:
+    """Read users collection for authz decisions; DB errors must fail closed."""
+    try:
+        return get_users_col().find_one({"email": email}, projection)
+    except Exception:
+        raise HTTPException(503, "使用者權限查詢失敗 · 請稍後再試")
+
+
 # ============================================================
 # Auth dep factories · 統一命名 · 避免每個 router 自己定義
 # ============================================================
@@ -85,6 +93,9 @@ def require_user_dep():
     def _check(caller: Optional[str] = Depends(current_user_email)) -> str:
         if not caller:
             raise HTTPException(403, "未識別使用者 · 請從 launcher 登入")
+        u = _find_user_for_auth(caller, {"chengfu_active": 1})
+        if u and u.get("chengfu_active") is False:
+            raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
         return caller
 
     return Depends(_check)
@@ -100,3 +111,88 @@ def require_admin_dep():
     """
     from main import require_admin
     return Depends(require_admin)
+
+
+# ============================================================
+# Fine-grained permissions · vNext Round 2
+# ============================================================
+LEGACY_DEFAULT_PERMISSIONS = {
+    # 舊 LibreChat user 尚未透過 v1.3 同仁管理 UI 指派權限時,保留低風險日常入口
+    "tender.view",
+    "tender.evaluate",
+    "crm.view_own",
+    "project.create",
+    "project.edit_own",
+    "design.generate",
+    "press.draft",
+    "social.post_own",
+    "meeting.upload",
+    "site.survey",
+    "knowledge.search",
+}
+
+
+def _is_admin_user(email: str) -> bool:
+    """Admin bypass shared by require_permission_dep.
+
+    不呼叫 main.require_admin,避免 require_permission 回傳 403 時也觸發 strict admin cookie 訊息。
+    """
+    if not email:
+        return False
+    user_doc = _find_user_for_auth(email, {"role": 1, "chengfu_active": 1})
+    if user_doc and user_doc.get("chengfu_active") is False:
+        return False
+    try:
+        from main import _admin_allowlist
+        if email in _admin_allowlist:
+            return True
+    except Exception:
+        pass
+    return bool(user_doc and (user_doc.get("role") or "").upper() == "ADMIN")
+
+
+def user_permissions(email: str) -> set[str]:
+    """Return effective chengfu permissions for a user.
+
+    - ADMIN bypass is handled by callers.
+    - Missing chengfu_permissions means legacy LibreChat account; grant only low-risk defaults.
+    - Explicit empty list means no permissions.
+    """
+    u = _find_user_for_auth(email, {"chengfu_permissions": 1, "chengfu_active": 1})
+    if u and u.get("chengfu_active") is False:
+        return set()
+    if u and "chengfu_permissions" in u:
+        return set(u.get("chengfu_permissions") or [])
+    return set(LEGACY_DEFAULT_PERMISSIONS)
+
+
+def require_permission_dep(permission: str):
+    """factory: require a fine-grained chengfu permission.
+
+    用法:
+        def create_tx(_user: str = require_permission_dep("accounting.edit")):
+            ...
+    """
+    from main import current_user_email
+
+    def _check(
+        request: Request,
+        caller: Optional[str] = Depends(current_user_email),
+    ) -> str:
+        if not caller:
+            raise HTTPException(403, "未識別使用者 · 請從 launcher 登入")
+        u = _find_user_for_auth(caller, {"chengfu_active": 1})
+        if u and u.get("chengfu_active") is False:
+            raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
+        if _is_admin_user(caller):
+            request.state.permission_bypass = "admin"
+            return caller
+        perms = user_permissions(caller)
+        if "*" in perms or permission in perms:
+            return caller
+        raise HTTPException(
+            403,
+            f"需要權限 {permission} · 請找 Champion 或管理員調整同仁權限",
+        )
+
+    return Depends(_check)

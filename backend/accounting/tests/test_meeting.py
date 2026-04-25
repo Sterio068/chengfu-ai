@@ -62,11 +62,19 @@ def test_transcribe_rejects_oversized(client):
 
 def test_transcribe_success_returns_meeting_id(client):
     """有效 mime + size · 回 meeting_id + status=transcribing · DB 有紀錄"""
+    import main
+    from datetime import datetime, timezone
+    proj_id = main.projects_col.insert_one({
+        "name": "meeting upload project",
+        "owner": "pm@chengfu.local",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }).inserted_id
     fake_audio = b"ID3" + b"\x00" * 2048  # 2KB · MP3 header-like
     r = client.post(
         "/memory/transcribe",
         files={"audio": ("test.mp3", fake_audio, "audio/mpeg")},
-        data={"project_id": "proj_abc"},
+        data={"project_id": str(proj_id)},
         headers={"X-User-Email": "pm@chengfu.local"},
     )
     assert r.status_code == 200
@@ -75,7 +83,6 @@ def test_transcribe_success_returns_meeting_id(client):
     assert body["status"] == "transcribing"
 
     # 驗 DB
-    import main
     doc = main.db.meetings.find_one({"_id__from_str": body["meeting_id"]}) or \
           main.db.meetings.find_one({"owner": "pm@chengfu.local"})
     assert doc is not None
@@ -83,6 +90,26 @@ def test_transcribe_success_returns_meeting_id(client):
     assert doc["status"] in ("transcribing", "done", "failed")  # background 可能已動
     # PDPA · _tmp_audio_path 存在(還沒清)
     assert "_tmp_audio_path" in doc or doc.get("status") in ("done", "failed")
+
+
+def test_transcribe_rejects_other_project(client):
+    """上傳會議時不能綁別人的 project_id"""
+    import main
+    from datetime import datetime, timezone
+    proj_id = main.projects_col.insert_one({
+        "name": "alice project",
+        "owner": "alice@chengfu.local",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }).inserted_id
+    fake_audio = b"ID3" + b"\x00" * 2048
+    r = client.post(
+        "/memory/transcribe",
+        files={"audio": ("test.mp3", fake_audio, "audio/mpeg")},
+        data={"project_id": str(proj_id)},
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 403
 
 
 def test_get_meeting_not_owner_403(client):
@@ -133,6 +160,7 @@ def test_push_to_handoff(client):
     # Seed project
     proj_id = main.projects_col.insert_one({
         "name": "push-handoff-test",
+        "owner": "pm@chengfu.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
@@ -163,10 +191,39 @@ def test_push_to_handoff(client):
     # 驗 project handoff
     proj = main.projects_col.find_one({"_id": proj_id})
     assert proj is not None
-    actions = proj.get("handoff", {}).get("next_actions", [])
+    actions = proj.get("handoff", {}).get("meeting_next_actions", [])
     assert len(actions) == 2
     assert "寫提案" in actions[0]
     assert "聯絡廠商" in actions[1]
+
+
+def test_push_to_handoff_rejects_other_project(client):
+    """自己的會議不能 push 到別人的 project handoff"""
+    import main
+    from datetime import datetime, timezone
+
+    proj_id = main.projects_col.insert_one({
+        "name": "other owner project",
+        "owner": "alice@chengfu.local",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }).inserted_id
+
+    mid = main.db.meetings.insert_one({
+        "owner": "pm@chengfu.local",
+        "project_id": str(proj_id),
+        "status": "done",
+        "structured": {"action_items": [{"who": "PM", "what": "不該寫入"}]},
+        "created_at": datetime.now(timezone.utc),
+    }).inserted_id
+
+    r = client.post(
+        f"/memory/meetings/{mid}/push-to-handoff",
+        headers={"X-User-Email": "pm@chengfu.local"},
+    )
+    assert r.status_code == 403
+    proj = main.projects_col.find_one({"_id": proj_id})
+    assert not proj.get("handoff")
 
 
 def test_push_to_handoff_not_done_400(client):

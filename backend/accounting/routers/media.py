@@ -31,7 +31,7 @@ from pymongo.errors import DuplicateKeyError
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from ._deps import require_admin_dep, require_user_dep
+from ._deps import _is_admin_user, require_admin_dep, require_user_dep
 
 
 router = APIRouter(tags=["media"])
@@ -103,14 +103,23 @@ def list_contacts(
         pat = {"$regex": search, "$options": "i"}
         q["$or"] = [{"name": pat}, {"outlet": pat}, {"notes": pat}]
 
-    # 非 admin 遮 phone 欄(R14#2 PDPA · Level 02 電話)
+    # 非 admin 遮聯絡資訊(PDPA Level 02 · email/phone/notes 不直接外露)
     projection = None
-    from main import _admin_allowlist
-    if _user not in _admin_allowlist:
-        projection = {"phone": 0}
+    is_admin = _is_admin_user(_user)
+    if not is_admin:
+        projection = {"email": 0, "phone": 0, "notes": 0}
 
     cursor = db.media_contacts.find(q, projection).sort("name", 1).skip(skip).limit(limit)
     items = serialize(list(cursor))
+    for item in items:
+        if "_id" in item and "id" not in item:
+            item["id"] = item["_id"]
+    if not is_admin:
+        for item in items:
+            item["email"] = "需管理員授權"
+            item["phone"] = None
+            item["notes"] = None
+            item["contact_redacted"] = True
     total = db.media_contacts.count_documents(q)
     return {"items": items, "total": total, "skip": skip, "limit": limit,
             "has_more": (skip + len(items)) < total}
