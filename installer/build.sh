@@ -124,12 +124,21 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
   承富 AI 系統 v1.3/vNext · Mac 安裝精靈
 ═══════════════════════════════════════════════════
 
+⚠ 重要 · 第一次打開請看這裡 ⚠
+
+  macOS 對網路下載的 .app 預設擋(Gatekeeper · App 已被修改或損毀)
+  解法:雙擊「打開我.command」自動清 quarantine + 跑安裝
+
+  若不要用 .command(老派方式):
+   • 對「ChengFu-AI-Installer.app」按右鍵 →「打開」→ 跳警告再按「打開」
+   • 或:系統設定 → 隱私權與安全性 → 找到被擋的 app →「仍要打開」
+
+═══════════════════════════════════════════════════
+
 【使用方法】
 
-  1. 雙擊「ChengFu-AI-Installer.app」開始安裝
-     若 macOS 顯示「未經驗證」或無法開啟:
-     • 推薦:在 Finder 對 app 按右鍵(或 Control+點按)→「開啟」→ 再按「開啟」
-     • 或:系統設定 → 隱私權與安全性 → 找到被擋的 app →「強制打開」
+  1. 雙擊「打開我.command」(推薦)
+     或對「ChengFu-AI-Installer.app」按右鍵 →「打開」
   2. 若已安裝過,會先偵測既有 .env + Keychain:
      • 選「沿用既有」:不重填 API Key / 網域 / admin / NAS
      • 選「重新設定」:走完整 7 步驟,可更換設定
@@ -192,6 +201,55 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
   GitHub:https://github.com/Sterio068/chengfu-ai
 EOF
 echo -e "  ${GREEN}✓${NC} 寫進「讀我.txt」"
+
+# 「打開我.command」· 自動清 quarantine + 跑安裝精靈
+# 雙擊 .command 比較穩 · 避免承富 IT 卡在 Gatekeeper
+cat > "$DMG_STAGING/打開我.command" << 'CMDEOF'
+#!/bin/bash
+# ============================================================
+# 一鍵清 macOS Gatekeeper quarantine + 跑承富 AI 安裝精靈
+# ============================================================
+clear
+echo "═══════════════════════════════════════════════════"
+echo "  承富 AI · 一鍵打開"
+echo "═══════════════════════════════════════════════════"
+echo ""
+
+DMG_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_PATH="${DMG_DIR}/ChengFu-AI-Installer.app"
+
+if [ ! -d "$APP_PATH" ]; then
+    echo "❌ 找不到 ChengFu-AI-Installer.app"
+    echo "   請確認此 .command 跟 .app 在同一資料夾"
+    read -p "按 Enter 結束..."
+    exit 1
+fi
+
+echo "▌ 1. 清 macOS quarantine attribute..."
+# DMG 內無法寫 · 拷到 /Applications 後再清
+TARGET="/Applications/ChengFu-AI-Installer.app"
+if [ -d "$TARGET" ]; then
+    echo "  · 目標已存在 · 覆蓋"
+    rm -rf "$TARGET"
+fi
+echo "  · 拷到 /Applications/"
+cp -R "$APP_PATH" "$TARGET" 2>&1 | tail -3
+
+echo "  · xattr -cr"
+xattr -cr "$TARGET" 2>/dev/null || sudo xattr -cr "$TARGET"
+
+echo ""
+echo "▌ 2. 打開安裝精靈..."
+open "$TARGET"
+
+echo ""
+echo "✅ 完成 · 安裝精靈視窗已打開"
+echo "   若沒跳出 · 自己去 /Applications/ 雙擊"
+echo ""
+read -p "按 Enter 關閉此視窗..."
+CMDEOF
+chmod +x "$DMG_STAGING/打開我.command"
+echo -e "  ${GREEN}✓${NC} 加「打開我.command」(避 Gatekeeper)"
 
 # 用 hdiutil 建 .dmg
 hdiutil create -volname "$DMG_VOL_NAME" \
