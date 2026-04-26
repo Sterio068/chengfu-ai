@@ -90,6 +90,44 @@ def cost_summary(days: int = Query(default=30, ge=1, le=365),
     return admin_metrics.cost_by_model(db, days, usd_to_ntd=_USD_TO_NTD)
 
 
+@router.get("/admin/cost/today")
+def cost_today(_admin: str = require_admin_dep()):
+    """今日 + 本月 USD 用量 · 給 macOS Notification Center / menubar widget
+
+    回 schema:
+      { today_usd, month_usd, budget_usd | null }
+    """
+    from datetime import timedelta
+    from main import db, _USD_TO_NTD, _MONTHLY_BUDGET_NTD
+    from services.admin_metrics import transaction_token_stats, price_ntd
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    def _spent_usd(from_dt):
+        try:
+            stats = transaction_token_stats(db, from_dt)
+            spent_ntd = sum(
+                price_ntd(s.get("model") or "", s.get("tin", 0) or 0,
+                          s.get("tout", 0) or 0, _USD_TO_NTD) for s in stats
+            )
+            return round(spent_ntd / _USD_TO_NTD, 2) if _USD_TO_NTD else 0.0
+        except Exception as e:
+            logger.warning("[cost/today] aggregate fail: %s", e)
+            return 0.0
+
+    return {
+        "today_usd": _spent_usd(today_start),
+        "month_usd": _spent_usd(month_start),
+        "budget_usd": (
+            round(_MONTHLY_BUDGET_NTD / _USD_TO_NTD, 2)
+            if _MONTHLY_BUDGET_NTD and _USD_TO_NTD else None
+        ),
+        "month": now.strftime("%Y-%m"),
+    }
+
+
 @router.get("/admin/adoption")
 def adoption_summary(days: int = Query(default=7, ge=1, le=365),
                      _admin: str = require_admin_dep()):

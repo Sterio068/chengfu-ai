@@ -40,6 +40,8 @@ import {
 } from "./modules/config.js";
 import { escapeHtml, formatDate, greetingFor, timeAgo, formatMoney, skeletonCards, localizeVisibleText } from "./modules/util.js";
 import { refreshAuthWithLock, authFetch, setUserEmail } from "./modules/auth.js";
+// v1.7 · 暴露 authFetch 給 ESM 外的模組(branding.js inline form / 未來 plugin)
+if (typeof window !== "undefined") window.authFetch = authFetch;
 import { Projects } from "./modules/projects.js";
 import { modal } from "./modules/modal.js";
 import { toast } from "./modules/toast.js";
