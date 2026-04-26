@@ -1,30 +1,30 @@
 /**
- * Dashboard F++ v1.5 · 主畫面 IA 重構(誠實版)
+ * Dashboard F++ v1.6 · 主畫面 IA 完整版(含 AI 入口)
  * =====================================
  * 設計:design_handoff_main_screen_ia/README.md
  * 路線:F++ macOS Finder + iOS App 卡 混合
  *
+ * v1.5(誠實版)→ v1.6(完整版)變更:
+ *   ✅ AI banner 上線(信心度 + 來源對話 + cta)
+ *   ✅ Smart Folder「+ 自訂條件」橘色可點 → 開 Builder modal
+ *   ✅ Today widget「待回應」變「主管家建議 N」→ 開 AI Inbox 抽屜
+ *   ✅ 每條建議帶:類型 chip + 來源(可點)+ 信心度條
+ *   ✅ 信心 < 80% 不上 banner · 只在 Inbox · 帶 dimmed
+ *   ✅ 「不再提示這類」記憶
+ *
  * 結構(由上而下):
  *   1. Toolbar(承 logo · 上下頁 · 視圖切換 · inline composer · 搜尋 · ?)
- *   2. Mini-Today(時間 + 問候 + 3 widget)· 只 root
- *   3. Path bar(麵包屑 + demo 切換)
- *   4. Smart Folder segments(全部 / 今天回過 / @我 / 待我審 / 3 天沒動 / 工作區 / + 自訂(v1.6 dimmed))
- *   5. Main grid · 21 對話圖示
- *   6. Status bar(在 dock 上方 · 連線 / 用量 / 待回應 / 鍵盤提示)
+ *   2. AI banner(v1.6 · 有建議才出)
+ *   3. Mini-Today(時間 + 問候 + 3 widget)
+ *   4. Path bar(麵包屑)
+ *   5. Smart Folder segments(含「+ 自訂條件」可點 + 自訂 chips)
+ *   6. Main grid
+ *   7. Status bar
  *
- * 鍵盤:
- *   j/↓ k/↑ h/← l/→ · 移動選擇
- *   space · Quick Look
- *   enter · 開啟對話(暫:跳工作包頁)
- *   ? · toggle 鍵盤提示
- *   esc · 關 Quick Look / popover
- *
- * v1.5 誠實處理:
- *   - AI banner 拿掉(v1.6 才有)
- *   - 「+ 自訂 (v1.6)」segment dimmed dashed
- *   - 「待回應 3 · ✨ 看建議 (v1.6)」widget 點 → 預告 popover
+ * 鍵盤同 v1.5。
  */
 import { escapeHtml } from "../util.js";
+import { authFetch } from "../auth.js";
 
 // Mock data · 21 對話 · 與設計一致
 const MOCK_ITEMS = [
@@ -62,18 +62,63 @@ const SEGMENTS = [
   { k: "ws-3",    l: "設計 4",         active: false, smart: false },
 ];
 
+// v1.6 · AI 建議(初版 mock · 後端 ready 後改 fetch)
+const MOCK_AI_SUGGESTIONS = [
+  { id: 1, type: "deadline", text: "RFP 提到 3 個截止日 (5/15、5/22、6/01)", cta: "排進日曆", src: "中秋禮盒 · 14:32", confidence: 0.92 },
+  { id: 2, type: "reply",    text: "客戶 A 上週四問的 3 個問題還沒回",         cta: "看草稿",   src: "客戶 A · 4 天前", confidence: 0.88 },
+  { id: 3, type: "stale",    text: "春節提案 11 天沒動 · 要結案嗎?",          cta: "檢視",    src: "春節提案",       confidence: 0.71 },
+];
+
+// v1.6 · 「不再提示」記憶 · localStorage
+const SUPPRESS_KEY = "chengfu_ai_suppress_types_v1";
+function _getSuppressed() {
+  try { return new Set(JSON.parse(localStorage.getItem(SUPPRESS_KEY) || "[]")); }
+  catch { return new Set(); }
+}
+function _suppress(type) {
+  const s = _getSuppressed();
+  s.add(type);
+  localStorage.setItem(SUPPRESS_KEY, JSON.stringify([...s]));
+}
+
 let _state = {
   view: "grid",      // grid / list / column
-  selected: 0,       // current selected index
+  selected: 0,
   segment: "all",
   showHints: true,
   quickLook: false,
-  v15TeasePop: false,
   initialized: false,
+  // v1.6
+  builderOpen: false,
+  inboxOpen: false,
+  bannerDismissedIds: new Set(),
+  customFolders: JSON.parse(localStorage.getItem("chengfu_custom_folders_v1") || "[]"),
+  builderConditions: [
+    { f: "工作區",     op: "=", v: "投標", removable: false },
+    { f: "回應狀態",   op: "=", v: "待我回", removable: true },
+    { f: "上次活動",   op: "<", v: "7 天", removable: true },
+  ],
+  builderName: "Q1 客戶 · 高優先",
+  aiSuggestions: [],   // 從 fetch 進來
 };
 
 let _root = null;
 let _items = MOCK_ITEMS;
+
+// 啟動時 fetch AI 建議(後端 ready 才回真資料 · 否則 fallback mock)
+async function _fetchSuggestions() {
+  try {
+    const r = await authFetch("/api-accounting/admin/ai-suggestions");
+    if (r.ok) {
+      const data = await r.json();
+      _state.aiSuggestions = (data.suggestions || []).filter(s => {
+        return !_getSuppressed().has(s.type);
+      });
+      return;
+    }
+  } catch { /* 後端沒準備好 · 用 mock */ }
+  _state.aiSuggestions = MOCK_AI_SUGGESTIONS.filter(s => !_getSuppressed().has(s.type));
+}
 
 // ============================================================
 // Render
@@ -82,6 +127,7 @@ function _render() {
   if (!_root) return;
   _root.innerHTML = `
     ${_renderToolbar()}
+    ${_renderAiBanner()}
     ${_renderMiniToday()}
     ${_renderPathBar()}
     ${_renderSegments()}
@@ -95,6 +141,44 @@ function _render() {
   _bindWidgets();
   _bindHints();
   _bindSegments();
+  _bindAiBanner();
+}
+
+// v1.6 · AI Banner · 只顯示信心 > 80% 的最高優先建議
+function _renderAiBanner() {
+  const top = _state.aiSuggestions.find(s =>
+    s.confidence > 0.8 && !_state.bannerDismissedIds.has(s.id)
+  );
+  if (!top) return "";
+  const others = _state.aiSuggestions.filter(s =>
+    s.id !== top.id && !_state.bannerDismissedIds.has(s.id)
+  ).length;
+  return `
+    <div class="fpp-ai-banner" data-fpp-banner>
+      <span class="fpp-ai-icon">✨</span>
+      <span class="fpp-ai-text">主管家:${escapeHtml(top.text)} · 要我${escapeHtml(top.cta)}嗎?</span>
+      ${_renderConfidenceBar(top.confidence)}
+      <button class="fpp-ai-source" data-fpp-source="${escapeHtml(top.src)}" title="點看來源對話">
+        來源:${escapeHtml(top.src)} ↗
+      </button>
+      <span class="fpp-banner-spacer"></span>
+      ${others > 0 ? `<button class="fpp-ai-more" data-fpp-banner-more>看其他 ${others} 條</button>` : ""}
+      <button class="fpp-ai-cta" data-fpp-banner-cta="${top.id}">${escapeHtml(top.cta)}</button>
+      <button class="fpp-ai-later" data-fpp-banner-later="${top.id}">之後再說</button>
+      <button class="fpp-ai-close" data-fpp-banner-close aria-label="關閉">×</button>
+    </div>
+  `;
+}
+
+function _renderConfidenceBar(value) {
+  const filled = value > 0.85 ? 3 : value > 0.7 ? 2 : 1;
+  const segs = [0, 1, 2].map(i => {
+    const cls = i < filled
+      ? (filled === 3 ? "high" : filled === 2 ? "mid" : "low")
+      : "empty";
+    return `<span class="fpp-conf-seg ${cls}"></span>`;
+  }).join("");
+  return `<span class="fpp-conf">${segs}<span class="fpp-conf-pct">${Math.round(value * 100)}%</span></span>`;
 }
 
 function _renderToolbar() {
@@ -171,11 +255,11 @@ function _renderMiniToday() {
         </div>
         <div class="fpp-widget fpp-widget-accent" data-fpp-widget="inbox">
           <div class="fpp-widget-row">
-            <span class="fpp-widget-big">3</span>
+            <span class="fpp-widget-big">${_state.aiSuggestions.length}</span>
             <span class="fpp-widget-unit">件</span>
-            <span class="fpp-widget-cta">✨ 看建議 (v1.6)</span>
+            <span class="fpp-widget-cta">✨ 看建議</span>
           </div>
-          <div class="fpp-widget-label">待回應</div>
+          <div class="fpp-widget-label">主管家建議</div>
         </div>
       </div>
     </div>
@@ -192,16 +276,25 @@ function _renderPathBar() {
 }
 
 function _renderSegments() {
+  // SEGMENTS · 加 customFolders(在 smart 之後 · 工作區之前)
+  const built = [
+    ...SEGMENTS.slice(0, 5),
+    ..._state.customFolders.map(c => ({ k: c.k, l: c.l, active: false, smart: true, custom: true })),
+    ...SEGMENTS.slice(5),
+  ];
   return `
     <div class="fpp-segments" role="tablist">
-      ${SEGMENTS.map(s => `
+      ${built.map(s => `
         <button class="fpp-segment ${s.active ? "active" : ""} ${s.smart ? "smart" : ""}"
-                data-fpp-segment="${s.k}" role="tab" aria-selected="${s.active}">
+                data-fpp-segment="${s.k}" ${s.custom ? `data-fpp-custom="${s.k}"` : ""}
+                role="tab" aria-selected="${s.active}">
           ${escapeHtml(s.l)}
+          ${s.custom ? `<span class="fpp-seg-edit" data-fpp-seg-edit="${s.k}" title="編輯">⋯</span>` : ""}
         </button>
       `).join("")}
-      <button class="fpp-segment fpp-segment-disabled"
-              title="v1.6 開放" aria-disabled="true">+ 自訂 (v1.6)</button>
+      <!-- v1.6 · 「+ 自訂條件」橘色可點 → 開 Builder -->
+      <button class="fpp-segment fpp-segment-add" data-fpp-builder-open
+              title="新增 Smart Folder">+ 自訂條件</button>
       <span class="fpp-segments-hint">橘色 · Smart Folder 條件查詢</span>
     </div>
   `;
@@ -290,20 +383,100 @@ function _bindGrid() {
 
 function _bindSegments() {
   _root.querySelectorAll("[data-fpp-segment]").forEach(b => {
-    b.addEventListener("click", () => {
+    b.addEventListener("click", (e) => {
+      // 內部 edit 按鈕點擊不觸發 segment 切換
+      if (e.target.closest("[data-fpp-seg-edit]")) return;
       const k = b.dataset.fppSegment;
       SEGMENTS.forEach(s => s.active = (s.k === k));
       _state.segment = k;
       _render();
     });
   });
+  // v1.6 · 「+ 自訂條件」開 Builder
+  _root.querySelector("[data-fpp-builder-open]")?.addEventListener("click", () => {
+    _openBuilder();
+  });
+  // v1.6 · 編輯 custom folder
+  _root.querySelectorAll("[data-fpp-seg-edit]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const k = btn.dataset.fppSegEdit;
+      const folder = _state.customFolders.find(f => f.k === k);
+      if (folder) {
+        _state.builderName = folder.name || folder.l;
+        _state.builderConditions = folder.conditions || _state.builderConditions;
+      }
+      _openBuilder(k);
+    });
+  });
 }
 
 function _bindWidgets() {
   _root.querySelector('[data-fpp-widget="inbox"]')?.addEventListener("click", () => {
-    _state.v15TeasePop = true;
-    _renderTease();
+    _openInbox();
   });
+}
+
+// v1.6 · AI banner 點擊事件
+function _bindAiBanner() {
+  const banner = _root.querySelector("[data-fpp-banner]");
+  if (!banner) return;
+
+  banner.querySelector("[data-fpp-banner-close]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const top = _state.aiSuggestions.find(s => s.confidence > 0.8);
+    if (top) _state.bannerDismissedIds.add(top.id);
+    _renderBannerOnly();
+  });
+  banner.querySelector("[data-fpp-banner-cta]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const id = parseInt(e.currentTarget.dataset.fppBannerCta, 10);
+    _executeSuggestion(id);
+  });
+  banner.querySelector("[data-fpp-banner-later]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const id = parseInt(e.currentTarget.dataset.fppBannerLater, 10);
+    _state.bannerDismissedIds.add(id);
+    _renderBannerOnly();
+  });
+  banner.querySelector("[data-fpp-banner-more]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    _openInbox();
+  });
+  banner.querySelector("[data-fpp-source]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    _showSourceJump(e.currentTarget.dataset.fppSource);
+  });
+}
+
+function _renderBannerOnly() {
+  // 重 render 整 dashboard · 因為 banner 變動會影響 layout
+  _render();
+}
+
+function _executeSuggestion(id) {
+  const s = _state.aiSuggestions.find(x => x.id === id);
+  if (!s) return;
+  // MVP · 顯示 toast + 移除該建議
+  window.toast?.success?.(`已${s.cta} · ${s.text.slice(0, 30)}`);
+  _state.aiSuggestions = _state.aiSuggestions.filter(x => x.id !== id);
+  _state.bannerDismissedIds.add(id);
+  _render();
+}
+
+function _showSourceJump(src) {
+  const old = document.getElementById("fpp-source-jump");
+  if (old) old.remove();
+  const t = document.createElement("div");
+  t.id = "fpp-source-jump";
+  t.className = "fpp-source-jump";
+  t.innerHTML = `↗ 跳到對話「${escapeHtml(src)}」 <span class="fpp-source-jump-sub">(scroll 到 14:32 訊息)</span>`;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add("show"), 10);
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 200);
+  }, 2000);
 }
 
 function _bindHints() {
@@ -409,40 +582,294 @@ function _openItem(item) {
 }
 
 // ============================================================
-// v1.5 Tease popover
+// v1.6 · Smart Folder Builder modal
 // ============================================================
-function _renderTease() {
-  const old = document.getElementById("fpp-v15-tease");
+function _openBuilder(editingKey = null) {
+  const old = document.getElementById("fpp-builder");
   if (old) old.remove();
-  if (!_state.v15TeasePop) return;
+  _state.builderOpen = true;
 
-  const t = document.createElement("div");
-  t.id = "fpp-v15-tease";
-  t.className = "fpp-tease-overlay";
-  t.innerHTML = `
-    <div class="fpp-tease">
-      <div class="fpp-tease-head">
-        <div class="fpp-tease-title">✨ 主管家建議</div>
-        <button class="fpp-tease-close" aria-label="關閉">×</button>
+  const overlay = document.createElement("div");
+  overlay.id = "fpp-builder";
+  overlay.className = "fpp-modal-overlay";
+  overlay.innerHTML = `
+    <div class="fpp-builder">
+      <div class="fpp-builder-head">
+        <h3 class="fpp-builder-title">${editingKey ? "編輯" : "新增"} Smart Folder</h3>
+        <button class="fpp-builder-close" aria-label="關閉">×</button>
       </div>
-      <div class="fpp-tease-body">
-        主管家會掃描你的對話 · 主動提醒截止日 / 待回信 / 停滯項目。
-        <br><br>
-        此功能將在 <strong>v1.6</strong> 推出 · 需要先補齊對話 metadata + 觸發管線。
+      <div class="fpp-builder-section">
+        <label class="fpp-builder-label">名稱</label>
+        <input type="text" class="fpp-builder-input" id="fpp-builder-name"
+               value="${escapeHtml(_state.builderName)}" autocomplete="off">
       </div>
-      <div class="fpp-tease-actions">
-        <button class="fpp-btn fpp-btn-primary" data-fpp-tease-ack>知道了</button>
+      <div class="fpp-builder-section">
+        <label class="fpp-builder-label">條件 · 全部符合(AND)</label>
+        <div id="fpp-builder-conds" class="fpp-builder-conds"></div>
+        <button class="fpp-builder-add-cond" data-fpp-add-cond>+ 加條件</button>
+      </div>
+      <div class="fpp-builder-preview" id="fpp-builder-preview"></div>
+      <div class="fpp-builder-options">
+        <label class="fpp-builder-checkbox">
+          <input type="checkbox" id="fpp-builder-show-seg" checked>
+          <span>顯示在 segment 列</span>
+        </label>
+        <label class="fpp-builder-checkbox">
+          <input type="checkbox" id="fpp-builder-notify">
+          <span>有新項目時通知</span>
+        </label>
+      </div>
+      <div class="fpp-builder-actions">
+        <button class="fpp-btn" data-fpp-builder-cancel>取消</button>
+        <button class="fpp-btn fpp-btn-primary" data-fpp-builder-save>儲存</button>
       </div>
     </div>
   `;
-  t.addEventListener("click", (e) => {
-    if (e.target === t || e.target.classList.contains("fpp-tease-close") ||
-        e.target.dataset.fppTeaseAck !== undefined) {
-      _state.v15TeasePop = false;
-      _renderTease();
-    }
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) _closeBuilder();
   });
-  document.body.appendChild(t);
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.classList.add("open"), 10);
+
+  _renderBuilderConds();
+  _renderBuilderPreview();
+
+  // bind
+  overlay.querySelector(".fpp-builder-close").addEventListener("click", _closeBuilder);
+  overlay.querySelector("[data-fpp-builder-cancel]").addEventListener("click", _closeBuilder);
+  overlay.querySelector("[data-fpp-add-cond]").addEventListener("click", () => {
+    _state.builderConditions.push({ f: "未讀數", op: ">", v: "0", removable: true });
+    _renderBuilderConds();
+    _renderBuilderPreview();
+  });
+  overlay.querySelector("[data-fpp-builder-save]").addEventListener("click", () => {
+    const name = overlay.querySelector("#fpp-builder-name").value.trim() || "未命名";
+    const folder = {
+      k: editingKey || "custom-" + Date.now(),
+      name,
+      l: name + " " + _builderPreviewCount(),
+      conditions: [..._state.builderConditions],
+      showInSegments: overlay.querySelector("#fpp-builder-show-seg").checked,
+      notify: overlay.querySelector("#fpp-builder-notify").checked,
+    };
+    if (editingKey) {
+      _state.customFolders = _state.customFolders.map(f => f.k === editingKey ? folder : f);
+    } else {
+      _state.customFolders.push(folder);
+    }
+    localStorage.setItem("chengfu_custom_folders_v1", JSON.stringify(_state.customFolders));
+    window.toast?.success?.(`Smart Folder「${name}」已${editingKey ? "更新" : "建立"}`);
+    _closeBuilder();
+    _render();
+  });
+  // ESC
+  setTimeout(() => {
+    document.addEventListener("keydown", _onBuilderEsc);
+  }, 0);
+}
+
+function _onBuilderEsc(e) {
+  if (e.key === "Escape" && _state.builderOpen) {
+    e.preventDefault();
+    _closeBuilder();
+  }
+}
+
+function _closeBuilder() {
+  _state.builderOpen = false;
+  document.removeEventListener("keydown", _onBuilderEsc);
+  const overlay = document.getElementById("fpp-builder");
+  if (overlay) {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 180);
+  }
+}
+
+function _renderBuilderConds() {
+  const container = document.getElementById("fpp-builder-conds");
+  if (!container) return;
+  const FIELDS = ["工作區", "回應狀態", "上次活動", "對話標題", "未讀數", "提及我", "工作包", "主管家活動"];
+  const OPS = ["=", "≠", "包含", ">", "<"];
+  container.innerHTML = _state.builderConditions.map((c, i) => `
+    <div class="fpp-cond-row">
+      <select data-fpp-cond-f="${i}" class="fpp-cond-select">
+        ${FIELDS.map(f => `<option ${f === c.f ? "selected" : ""}>${f}</option>`).join("")}
+      </select>
+      <select data-fpp-cond-op="${i}" class="fpp-cond-select fpp-cond-op">
+        ${OPS.map(o => `<option ${o === c.op ? "selected" : ""}>${o}</option>`).join("")}
+      </select>
+      <input data-fpp-cond-v="${i}" class="fpp-cond-input" value="${escapeHtml(c.v)}">
+      ${c.removable !== false ? `<button class="fpp-cond-rm" data-fpp-cond-rm="${i}" aria-label="移除">×</button>` : ""}
+    </div>
+  `).join("");
+  // bind change
+  container.querySelectorAll("[data-fpp-cond-f]").forEach(s => {
+    s.addEventListener("change", e => {
+      const i = +e.target.dataset.fppCondF;
+      _state.builderConditions[i].f = e.target.value;
+      _renderBuilderPreview();
+    });
+  });
+  container.querySelectorAll("[data-fpp-cond-op]").forEach(s => {
+    s.addEventListener("change", e => {
+      const i = +e.target.dataset.fppCondOp;
+      _state.builderConditions[i].op = e.target.value;
+      _renderBuilderPreview();
+    });
+  });
+  container.querySelectorAll("[data-fpp-cond-v]").forEach(s => {
+    s.addEventListener("input", e => {
+      const i = +e.target.dataset.fppCondV;
+      _state.builderConditions[i].v = e.target.value;
+      _renderBuilderPreview();
+    });
+  });
+  container.querySelectorAll("[data-fpp-cond-rm]").forEach(s => {
+    s.addEventListener("click", e => {
+      const i = +e.currentTarget.dataset.fppCondRm;
+      _state.builderConditions.splice(i, 1);
+      _renderBuilderConds();
+      _renderBuilderPreview();
+    });
+  });
+}
+
+// 條件 → 預覽符合對話數(MVP · 之後接後端 query engine)
+function _builderPreviewCount() {
+  return Math.max(1, 12 - _state.builderConditions.length * 3 +
+    (_state.builderConditions.length === 1 ? 4 : 0));
+}
+
+function _renderBuilderPreview() {
+  const el = document.getElementById("fpp-builder-preview");
+  if (!el) return;
+  const n = _builderPreviewCount();
+  const previewItems = MOCK_ITEMS.slice(0, Math.min(3, n));
+  el.innerHTML = `
+    <div class="fpp-preview-row">
+      <span class="fpp-preview-dot"></span>
+      <span class="fpp-preview-text">預覽:符合條件 <strong>${n}</strong> 個對話</span>
+      <span class="fpp-preview-spacer"></span>
+      <span class="fpp-preview-items">${previewItems.map(i => i.name).join(" · ")}${n > 3 ? " …" : ""}</span>
+    </div>
+  `;
+}
+
+// ============================================================
+// v1.6 · AI Inbox 右抽屜
+// ============================================================
+function _openInbox() {
+  const old = document.getElementById("fpp-inbox");
+  if (old) { _closeInbox(); return; }
+  _state.inboxOpen = true;
+
+  const overlay = document.createElement("div");
+  overlay.id = "fpp-inbox";
+  overlay.className = "fpp-inbox-overlay";
+  overlay.innerHTML = `
+    <div class="fpp-inbox">
+      <div class="fpp-inbox-head">
+        <h3 class="fpp-inbox-title">✨ 主管家建議</h3>
+        <button class="fpp-inbox-close" aria-label="關閉">×</button>
+      </div>
+      <div class="fpp-inbox-meta">基於對話內容 + 截止日 + 回應狀態 · 每 30 分鐘掃描一次</div>
+      <div class="fpp-inbox-list" id="fpp-inbox-list"></div>
+      <div class="fpp-inbox-footer">觸發規則可在 設定 › 主管家行為 調整</div>
+    </div>
+  `;
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) _closeInbox();
+  });
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.classList.add("open"), 10);
+
+  _renderInboxList();
+
+  overlay.querySelector(".fpp-inbox-close").addEventListener("click", _closeInbox);
+  setTimeout(() => {
+    document.addEventListener("keydown", _onInboxEsc);
+  }, 0);
+}
+
+function _onInboxEsc(e) {
+  if (e.key === "Escape" && _state.inboxOpen) {
+    e.preventDefault();
+    _closeInbox();
+  }
+}
+
+function _closeInbox() {
+  _state.inboxOpen = false;
+  document.removeEventListener("keydown", _onInboxEsc);
+  const overlay = document.getElementById("fpp-inbox");
+  if (overlay) {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+}
+
+function _renderInboxList() {
+  const container = document.getElementById("fpp-inbox-list");
+  if (!container) return;
+  if (_state.aiSuggestions.length === 0) {
+    container.innerHTML = `
+      <div class="fpp-inbox-empty">
+        <div class="fpp-inbox-empty-icon">✓</div>
+        <div class="fpp-inbox-empty-text">沒有待處理的建議</div>
+        <div class="fpp-inbox-empty-sub">下次掃描 · 17:12</div>
+      </div>
+    `;
+    return;
+  }
+  container.innerHTML = _state.aiSuggestions.map(s => `
+    <div class="fpp-inbox-item ${s.confidence < 0.75 ? "low-conf" : ""}">
+      <div class="fpp-inbox-row">
+        <span class="fpp-chip fpp-chip-${s.type}">${
+          s.type === "deadline" ? "截止日" :
+          s.type === "reply" ? "待回信" : "停滯"
+        }</span>
+        <button class="fpp-inbox-source" data-fpp-inbox-src="${escapeHtml(s.src)}">↗ 來源:${escapeHtml(s.src)}</button>
+        <span class="fpp-inbox-spacer"></span>
+        ${_renderConfidenceBar(s.confidence)}
+      </div>
+      <div class="fpp-inbox-text">${escapeHtml(s.text)}</div>
+      <div class="fpp-inbox-actions">
+        <button class="fpp-btn fpp-btn-primary fpp-btn-sm" data-fpp-inbox-cta="${s.id}">${escapeHtml(s.cta)}</button>
+        <button class="fpp-btn fpp-btn-sm" data-fpp-inbox-later="${s.id}">之後再說</button>
+        <span class="fpp-inbox-spacer"></span>
+        <button class="fpp-inbox-suppress" data-fpp-inbox-suppress="${s.type}">不再提示這類</button>
+      </div>
+    </div>
+  `).join("");
+  container.querySelectorAll("[data-fpp-inbox-src]").forEach(b => {
+    b.addEventListener("click", e => {
+      _showSourceJump(e.currentTarget.dataset.fppInboxSrc);
+      _closeInbox();
+    });
+  });
+  container.querySelectorAll("[data-fpp-inbox-cta]").forEach(b => {
+    b.addEventListener("click", e => {
+      const id = +e.currentTarget.dataset.fppInboxCta;
+      _executeSuggestion(id);
+      _renderInboxList();
+    });
+  });
+  container.querySelectorAll("[data-fpp-inbox-later]").forEach(b => {
+    b.addEventListener("click", e => {
+      const id = +e.currentTarget.dataset.fppInboxLater;
+      _state.aiSuggestions = _state.aiSuggestions.filter(x => x.id !== id);
+      _renderInboxList();
+    });
+  });
+  container.querySelectorAll("[data-fpp-inbox-suppress]").forEach(b => {
+    b.addEventListener("click", e => {
+      const type = e.currentTarget.dataset.fppInboxSuppress;
+      _suppress(type);
+      _state.aiSuggestions = _state.aiSuggestions.filter(s => s.type !== type);
+      window.toast?.info?.(`已關閉「${type === "deadline" ? "截止日" : type === "reply" ? "待回信" : "停滯"}」類提示`);
+      _renderInboxList();
+    });
+  });
 }
 
 // ============================================================
@@ -544,24 +971,30 @@ function _onKey(e) {
 // ============================================================
 export const dashboardFpp = {
   /** 把 view-dashboard innerHTML 接管 */
-  init(viewEl) {
+  async init(viewEl) {
     if (_state.initialized && _root === viewEl) {
+      // 重新訪問 · 重 fetch 看有沒新建議
+      await _fetchSuggestions();
       _render();
       return;
     }
     _root = viewEl;
     _root.classList.add("view-dashboard-fpp");
     _state.initialized = true;
+    // 先 render 占位 · 不擋首屏
     _render();
     _renderHintsOverlay();
     document.addEventListener("keydown", _onKey);
+    // 並行 fetch · 之後 re-render
+    _fetchSuggestions().then(() => _render());
   },
 
   destroy() {
     document.removeEventListener("keydown", _onKey);
-    document.getElementById("fpp-hints")?.remove();
-    document.getElementById("fpp-quicklook")?.remove();
-    document.getElementById("fpp-v15-tease")?.remove();
+    document.removeEventListener("keydown", _onBuilderEsc);
+    document.removeEventListener("keydown", _onInboxEsc);
+    ["fpp-hints","fpp-quicklook","fpp-builder","fpp-inbox","fpp-source-jump"]
+      .forEach(id => document.getElementById(id)?.remove());
   },
 };
 
