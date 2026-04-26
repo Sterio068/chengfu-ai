@@ -967,3 +967,7 @@ router.include_router(_user_mgmt.router)
 # v1.3 vNext · 系統自動更新(check / run / rollback / history)
 from . import update as _update
 router.include_router(_update.router)
+
+# v1.6 · AI 建議(主管家 inbox · MVP stub · v1.7 接真 LLM 觸發)
+from . import ai_suggestions as _ai_suggestions
+router.include_router(_ai_suggestions.router)

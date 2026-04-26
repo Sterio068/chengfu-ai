@@ -932,3 +932,593 @@
   .fpp-widgets { width: 100%; }
   .fpp-status-keys { display: none; }
 }
+
+/* ============================================================
+   v1.6 · AI Banner
+   ============================================================ */
+.fpp-ai-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: linear-gradient(90deg, rgba(0, 122, 255, 0.08), rgba(0, 122, 255, 0.02));
+  border-bottom: 0.5px solid rgba(0, 122, 255, 0.4);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.fpp-ai-icon { font-size: 14px; }
+
+.fpp-ai-text {
+  color: var(--label-primary);
+  flex-shrink: 0;
+}
+
+.fpp-ai-source {
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  font-family: var(--font-system);
+  letter-spacing: 0.04em;
+}
+
+.fpp-ai-source:hover { color: var(--accent); }
+
+.fpp-banner-spacer { flex: 1; }
+
+.fpp-ai-more {
+  background: transparent;
+  border: 0;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: var(--font-system);
+}
+
+.fpp-ai-more:hover { background: rgba(0, 0, 0, 0.06); }
+
+.fpp-ai-cta {
+  padding: 4px 12px;
+  background: var(--label-primary);
+  color: var(--bg-elevated);
+  border: 0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: var(--font-system);
+}
+
+.fpp-ai-cta:hover { background: var(--accent); }
+
+.fpp-ai-later {
+  background: transparent;
+  border: 0;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: var(--font-system);
+}
+
+.fpp-ai-close {
+  background: transparent;
+  border: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: var(--label-tertiary);
+  cursor: pointer;
+}
+
+.fpp-ai-close:hover { background: rgba(0, 0, 0, 0.06); color: var(--label-primary); }
+
+/* ============================================================
+   Confidence bar(三段條)
+   ============================================================ */
+.fpp-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fpp-conf-seg {
+  width: 6px;
+  height: 8px;
+  border-radius: 1px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.fpp-conf-seg.high { background: var(--accent); }
+.fpp-conf-seg.mid  { background: #c89030; }
+.fpp-conf-seg.low  { background: var(--label-secondary); }
+
+.fpp-conf-pct {
+  font-size: 9px;
+  color: var(--label-secondary);
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+}
+
+/* ============================================================
+   Smart Folder · 「+ 自訂條件」+ 編輯 ⋯
+   ============================================================ */
+.fpp-segment-add {
+  border: 1px dashed var(--accent);
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fpp-segment-add:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.fpp-seg-edit {
+  margin-left: 6px;
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.fpp-seg-edit:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================
+   v1.6 · Smart Folder Builder Modal
+   ============================================================ */
+.fpp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  background: rgba(20, 20, 20, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 180ms;
+}
+
+.fpp-modal-overlay.open { opacity: 1; }
+
+.fpp-builder {
+  width: min(640px, 92vw);
+  max-height: 85vh;
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: auto;
+  transform: scale(0.96);
+  transition: transform 220ms var(--ease-spring);
+}
+
+.fpp-modal-overlay.open .fpp-builder { transform: scale(1); }
+
+.fpp-builder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fpp-builder-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+}
+
+.fpp-builder-close {
+  background: transparent;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--label-tertiary);
+  cursor: pointer;
+}
+
+.fpp-builder-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--label-primary);
+}
+
+.fpp-builder-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fpp-builder-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--label-tertiary);
+}
+
+.fpp-builder-input {
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-system);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  outline: none;
+}
+
+.fpp-builder-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+.fpp-builder-conds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fpp-cond-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fpp-cond-select,
+.fpp-cond-input {
+  padding: 5px 8px;
+  background: var(--bg-base);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-system);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  outline: none;
+}
+
+.fpp-cond-input { flex: 1; }
+.fpp-cond-op { width: 60px; }
+
+.fpp-cond-rm {
+  background: transparent;
+  border: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.fpp-cond-rm:hover {
+  background: var(--color-danger);
+  color: white;
+}
+
+.fpp-builder-add-cond {
+  align-self: flex-start;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px dashed var(--accent);
+  color: var(--accent);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: var(--font-system);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.fpp-builder-add-cond:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.fpp-builder-preview {
+  background: rgba(0, 122, 255, 0.06);
+  border: 0.5px solid rgba(0, 122, 255, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.fpp-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--label-secondary);
+}
+
+.fpp-preview-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: fpp-pulse 1.4s infinite;
+}
+
+.fpp-preview-text strong {
+  font-size: 14px;
+  color: var(--accent);
+  font-feature-settings: "tnum" 1;
+}
+
+.fpp-preview-spacer { flex: 1; }
+
+.fpp-preview-items {
+  font-size: 10px;
+  color: var(--label-tertiary);
+}
+
+.fpp-builder-options {
+  display: flex;
+  gap: 18px;
+}
+
+.fpp-builder-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--label-secondary);
+  cursor: pointer;
+}
+
+.fpp-builder-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 0.5px solid var(--separator);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.fpp-btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* ============================================================
+   v1.6 · AI Inbox 右抽屜
+   ============================================================ */
+.fpp-inbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 840;
+  background: rgba(20, 20, 20, 0.32);
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.fpp-inbox-overlay.open { opacity: 1; }
+
+.fpp-inbox {
+  width: min(440px, 100vw);
+  height: 100%;
+  background: var(--bg-elevated);
+  box-shadow: -4px 0 30px rgba(0, 0, 0, 0.18);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  transform: translateX(20px);
+  transition: transform 240ms var(--ease-spring);
+}
+
+.fpp-inbox-overlay.open .fpp-inbox { transform: translateX(0); }
+
+.fpp-inbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fpp-inbox-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.fpp-inbox-close {
+  background: transparent;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--label-tertiary);
+  cursor: pointer;
+}
+
+.fpp-inbox-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.fpp-inbox-meta {
+  font-size: 11px;
+  color: var(--label-tertiary);
+  letter-spacing: 0.04em;
+  border-bottom: 0.5px solid var(--separator);
+  padding-bottom: 12px;
+}
+
+.fpp-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.fpp-inbox-item {
+  background: var(--bg-base);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fpp-inbox-item.low-conf {
+  opacity: 0.7;
+}
+
+.fpp-inbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fpp-inbox-spacer { flex: 1; }
+
+.fpp-chip {
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: white;
+}
+
+.fpp-chip-deadline { background: var(--color-danger); }
+.fpp-chip-reply    { background: var(--accent); }
+.fpp-chip-stale    { background: var(--color-warning); }
+
+.fpp-inbox-source {
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  font-family: var(--font-system);
+  letter-spacing: 0.04em;
+  padding: 0;
+}
+
+.fpp-inbox-source:hover { color: var(--accent); }
+
+.fpp-inbox-text {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  line-height: 1.5;
+}
+
+.fpp-inbox-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.fpp-inbox-suppress {
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  font-family: var(--font-system);
+  letter-spacing: 0.04em;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.fpp-inbox-suppress:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--label-secondary);
+}
+
+.fpp-inbox-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.fpp-inbox-empty-icon {
+  font-size: 36px;
+  color: var(--color-success);
+}
+
+.fpp-inbox-empty-text {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.fpp-inbox-empty-sub {
+  font-size: 11px;
+  color: var(--label-tertiary);
+}
+
+.fpp-inbox-footer {
+  font-size: 10px;
+  color: var(--label-tertiary);
+  letter-spacing: 0.04em;
+  border-top: 0.5px solid var(--separator);
+  padding-top: 10px;
+}
+
+/* ============================================================
+   Source jump toast
+   ============================================================ */
+.fpp-source-jump {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 900;
+  background: var(--label-primary);
+  color: var(--bg-elevated);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transition: all 240ms var(--ease-spring);
+}
+
+.fpp-source-jump.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.fpp-source-jump-sub {
+  font-size: 9px;
+  opacity: 0.6;
+}
