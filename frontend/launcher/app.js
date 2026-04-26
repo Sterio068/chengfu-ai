@@ -54,6 +54,8 @@ import { dock as macosDock } from "./modules/macos/dock.js";
 import { menubar as macosMenubar } from "./modules/macos/menubar.js";
 // v1.4 macOS · Sprint C Phase 6 · 全套鍵盤快捷(全域 listen)
 import "./modules/macos/shortcuts.js";
+// v1.5 · Dashboard F++ 主畫面 IA 重構(toolbar + mini-Today + segments + grid + status)
+import { dashboardFpp } from "./modules/macos/dashboard-fpp.js";
 import { shortcuts } from "./modules/shortcuts.js";
 import { health } from "./modules/health.js";
 import { mobile } from "./modules/mobile.js";
@@ -195,6 +197,13 @@ export const app = {
       macosMenubar.init();
     } catch (e) {
       console.warn("[macos] menubar init failed", e);
+    }
+    // v1.5 · Dashboard F++ 接手 · default active view = dashboard
+    try {
+      const dashView = document.querySelector('.view[data-view="dashboard"]');
+      if (dashView) dashboardFpp.init(dashView);
+    } catch (e) {
+      console.warn("[fpp] dashboard init failed", e);
     }
 
     // 首次訪問 onboarding
@@ -483,6 +492,14 @@ export const app = {
       helpTip.maybeShow(view);
       this._injectViewHelpBtn(view);
     }).catch(() => {/* helpTip 沒裝好不擋 */});
+    // v1.5 · Dashboard F++ takeover(主畫面 IA 重構 · F++ v1.5 誠實版)
+    if (view === "dashboard") {
+      const dashView = document.querySelector('.view[data-view="dashboard"]');
+      if (dashView) {
+        try { dashboardFpp.init(dashView); }
+        catch (e) { console.warn("[fpp] init failed", e); }
+      }
+    }
     // V1.1 §E-3 · 切到 knowledge 自動載入
     if (view === "knowledge") knowledge.loadBrowser();
     if (view === "admin") knowledge.loadAdmin();
