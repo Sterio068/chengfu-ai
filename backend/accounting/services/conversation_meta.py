@@ -57,6 +57,18 @@ def _extract_mentions(text: str) -> list:
     return list(set(re.findall(r"@([A-Za-z0-9_一-鿿]+)", text or "")))
 
 
+def _ensure_aware(dt):
+    """將 naive datetime 視為 UTC · 避免 ai_detectors 比較時 TypeError
+
+    MongoDB 預設回 naive datetime(雖然存的是 UTC)· 與 datetime.now(timezone.utc) 比較會炸
+    """
+    if dt is None:
+        return None
+    if isinstance(dt, datetime) and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def compute_meta(db, conv: dict, last_seen: Optional[datetime] = None) -> dict:
     """從 conversation doc + messages 計算單一對話 meta
 
@@ -79,10 +91,12 @@ def compute_meta(db, conv: dict, last_seen: Optional[datetime] = None) -> dict:
     recent_text_parts = []
     unread = 0
 
+    last_seen_aware = _ensure_aware(last_seen)
+
     for m in msgs:
         role = m.get("sender") or m.get("isCreatedByUser")  # LibreChat 不同版本欄位名
         is_user = role is True or role == "User" or role == "user"
-        ts = m.get("createdAt")
+        ts = _ensure_aware(m.get("createdAt"))  # naive → UTC aware
         if is_user:
             if not last_user or (ts and ts > last_user):
                 last_user = ts
@@ -95,7 +109,7 @@ def compute_meta(db, conv: dict, last_seen: Optional[datetime] = None) -> dict:
             recent_text_parts.append(text[:200])
             mentions.update(_extract_mentions(text))
         # 未讀計算
-        if last_seen and ts and ts > last_seen and not is_user:
+        if last_seen_aware and ts and ts > last_seen_aware and not is_user:
             unread += 1
 
     # response_status
@@ -106,7 +120,9 @@ def compute_meta(db, conv: dict, last_seen: Optional[datetime] = None) -> dict:
     else:
         response_status = "answered"
 
-    last_activity = conv.get("updatedAt") or conv.get("createdAt") or datetime.now(timezone.utc)
+    last_activity = _ensure_aware(
+        conv.get("updatedAt") or conv.get("createdAt")
+    ) or datetime.now(timezone.utc)
     workspace = _detect_workspace(title, " ".join(recent_text_parts))
 
     return {
@@ -124,9 +140,19 @@ def compute_meta(db, conv: dict, last_seen: Optional[datetime] = None) -> dict:
 
 
 def iter_user_conversations(db, user_id, limit: int = 200) -> Iterator[dict]:
-    """列 user 的所有 conversations(最新 N 筆)"""
+    """列 user 的所有 conversations(最新 N 筆)
+
+    LibreChat conversations.user 在不同版本可能存 ObjectId 或 string · 用 $in 兼容
+    """
+    user_keys = []
+    if user_id is not None:
+        user_keys.append(user_id)
+        try:
+            user_keys.append(str(user_id))
+        except Exception:
+            pass
     cursor = db.conversations.find(
-        {"user": user_id}
+        {"user": {"$in": user_keys}} if user_keys else {"_id": None}
     ).sort("updatedAt", -1).limit(limit)
     for conv in cursor:
         yield conv

@@ -43,7 +43,14 @@ def _get_cache(db, user_email: str) -> Optional[dict]:
     doc = db.ai_suggestions_cache.find_one({"user_email": user_email.lower()})
     if not doc:
         return None
-    age = (datetime.now(timezone.utc) - doc["scanned_at"]).total_seconds()
+    scanned_at = doc.get("scanned_at")
+    # Mongo 回 naive datetime · 視為 UTC 避免 tz mismatch
+    if scanned_at and scanned_at.tzinfo is None:
+        scanned_at = scanned_at.replace(tzinfo=timezone.utc)
+        doc["scanned_at"] = scanned_at
+    if not scanned_at:
+        return None
+    age = (datetime.now(timezone.utc) - scanned_at).total_seconds()
     if age > CACHE_TTL_SECONDS:
         return None
     return doc

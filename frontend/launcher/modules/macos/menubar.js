@@ -14,6 +14,7 @@
 import { springEnter, slideUp } from "./motion.js";
 import { openWindow } from "./window.js";
 import { brand } from "../branding.js";
+import { authFetch } from "../auth.js";
 
 // ============================================================
 // Menu 結構定義 · v1.7 · APP_NAME 改 dynamic from brand
@@ -290,9 +291,9 @@ function _renderStatusUsage() {
 let _usageTimer = null;
 async function _refreshUsage(el) {
   try {
-    const r = await fetch("/api-accounting/admin/cost/today", {
+    // v1.7 fix · 用 authFetch · 帶 X-User-Email · launcher 用 cookie+email 雙路徑
+    const r = await authFetch("/api-accounting/admin/cost/today", {
       headers: { Accept: "application/json" },
-      credentials: "include",
     });
     if (r.ok) {
       const data = await r.json();

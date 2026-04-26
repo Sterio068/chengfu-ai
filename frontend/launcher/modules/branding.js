@@ -66,15 +66,19 @@ export const brand = {
     return _state;
   },
 
-  /** admin 改設定 · PUT */
+  /** admin 改設定 · PUT(用 window.authFetch 帶 X-User-Email · 避免 plain fetch 403) */
   async update(patch) {
-    const r = await fetch("/api-accounting/admin/branding", {
+    const fetcher = window.authFetch || fetch;
+    const r = await fetcher("/api-accounting/admin/branding", {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-    if (!r.ok) throw new Error("Branding update failed");
+    if (!r.ok) {
+      const err = await r.text().catch(() => "");
+      throw new Error(`Branding update failed (${r.status}): ${err.slice(0, 100)}`);
+    }
     const data = await r.json();
     _state = { ...DEFAULT, ...data.branding };
     _persist();
