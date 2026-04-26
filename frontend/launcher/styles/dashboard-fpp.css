@@ -1,0 +1,934 @@
+/* ============================================================
+   dashboard-fpp.css · v1.5 主畫面 IA F++ 誠實版
+   ============================================================
+   設計來源:design_handoff_main_screen_ia
+   風格:macOS Sequoia native(non-wireframe · 真生產品質)
+   ============================================================ */
+
+.view-dashboard-fpp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+  background: var(--bg-base);
+}
+
+.view-dashboard-fpp > * { flex-shrink: 0; }
+.view-dashboard-fpp .fpp-main {
+  flex: 1;
+  overflow: auto;
+}
+
+/* ============================================================
+   1. Toolbar
+   ============================================================ */
+.fpp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 14px;
+  background: var(--bg-content);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.fpp-logo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--font-system);
+  transition: all var(--dur-fast);
+}
+
+.fpp-logo:hover {
+  background: rgba(0, 122, 255, 0.08);
+  border-color: var(--accent);
+}
+
+.fpp-logo-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--label-primary);
+  letter-spacing: 0;
+}
+
+.fpp-logo-arrow {
+  font-size: 9px;
+  color: var(--label-tertiary);
+}
+
+.fpp-nav-arrows {
+  display: flex;
+  gap: 2px;
+}
+
+.fpp-arrow {
+  width: 26px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.fpp-arrow:hover:not([disabled]) {
+  background: var(--bg-elevated);
+}
+
+.fpp-arrow[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.fpp-view-switch {
+  display: inline-flex;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.fpp-view-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-family: var(--font-system);
+  background: transparent;
+  border: 0;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+
+.fpp-view-btn + .fpp-view-btn {
+  border-left: 0.5px solid var(--border);
+}
+
+.fpp-view-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.fpp-view-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.fpp-composer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border: 0.5px dashed var(--border);
+  border-radius: 6px;
+  transition: border-color var(--dur-fast);
+}
+
+.fpp-composer:focus-within {
+  border-color: var(--accent);
+  border-style: solid;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+}
+
+.fpp-composer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: fpp-pulse 1.6s infinite;
+}
+
+@keyframes fpp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.fpp-composer-input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-system);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  outline: none;
+}
+
+.fpp-composer-input::placeholder {
+  color: var(--label-tertiary);
+}
+
+.fpp-composer-hint {
+  font-size: 10px;
+  color: var(--label-tertiary);
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+}
+
+.fpp-search,
+.fpp-hints-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--label-secondary);
+  transition: all var(--dur-fast);
+}
+
+.fpp-search:hover,
+.fpp-hints-toggle:hover {
+  background: rgba(0, 122, 255, 0.06);
+}
+
+.fpp-search kbd {
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 9px;
+}
+
+.fpp-hints-toggle.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   2. Mini-Today
+   ============================================================ */
+.fpp-today {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--bg-content);
+  border-bottom: 0.5px dashed var(--separator);
+}
+
+.fpp-today-time {
+  min-width: 100px;
+}
+
+.fpp-time-big {
+  font-size: 32px;
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  color: var(--label-primary);
+  line-height: 1;
+  font-feature-settings: "tnum" 1;
+}
+
+.fpp-time-date {
+  font-size: 11px;
+  color: var(--label-secondary);
+  margin-top: 2px;
+  letter-spacing: 0.05em;
+}
+
+.fpp-today-greeting {
+  flex: 0.6;
+  min-width: 140px;
+}
+
+.fpp-greeting-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--label-primary);
+  letter-spacing: 0.04em;
+}
+
+.fpp-greeting-sub {
+  font-size: 11px;
+  color: var(--label-secondary);
+  margin-top: 2px;
+  letter-spacing: 0.04em;
+}
+
+.fpp-widgets {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.fpp-widget {
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  cursor: default;
+  transition: all var(--dur-fast);
+}
+
+.fpp-widget-accent {
+  cursor: pointer;
+  border-color: rgba(0, 122, 255, 0.4);
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.fpp-widget-accent:hover {
+  background: rgba(0, 122, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.fpp-widget-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.fpp-widget-big {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--label-primary);
+  font-feature-settings: "tnum" 1;
+}
+
+.fpp-widget-unit {
+  font-size: 11px;
+  color: var(--label-secondary);
+}
+
+.fpp-widget-cta {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.fpp-widget-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--label-tertiary);
+  margin-top: 4px;
+}
+
+/* ============================================================
+   3. Path bar
+   ============================================================ */
+.fpp-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  background: var(--bg-content);
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.fpp-path-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--label-tertiary);
+}
+
+.fpp-path-segment {
+  font-size: 13px;
+  color: var(--label-secondary);
+  letter-spacing: 0.04em;
+}
+
+.fpp-path-current {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ============================================================
+   4. Smart Folder Segments
+   ============================================================ */
+.fpp-segments {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 18px;
+  background: var(--bg-content);
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.fpp-segment {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-family: var(--font-system);
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+
+.fpp-segment:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.fpp-segment.active {
+  background: var(--label-primary);
+  color: var(--bg-elevated);
+  border-color: var(--label-primary);
+}
+
+.fpp-segment.smart {
+  border: 0.5px solid var(--accent);
+  background: rgba(0, 122, 255, 0.08);
+  color: var(--accent);
+}
+
+.fpp-segment.smart:hover {
+  background: rgba(0, 122, 255, 0.14);
+}
+
+.fpp-segment-disabled {
+  border: 1px dashed var(--border);
+  color: var(--label-tertiary);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.fpp-segment-disabled:hover {
+  background: transparent;
+}
+
+.fpp-segments-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   5. Main Grid · 對話圖示
+   ============================================================ */
+.fpp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  padding: 18px;
+}
+
+@media (max-width: 1280px) {
+  .fpp-grid { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 1024px) {
+  .fpp-grid { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 768px) {
+  .fpp-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.fpp-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+  font-family: var(--font-system);
+  outline: none;
+}
+
+.fpp-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.fpp-item.selected {
+  background: rgba(0, 122, 255, 0.12);
+  outline: 2px solid var(--accent);
+}
+
+.fpp-item:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.fpp-icon {
+  --ws-color: var(--accent);
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--ws-color) 30%, white) 0%,
+    var(--ws-color) 100%
+  );
+  display: grid;
+  place-items: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@supports not (background: color-mix(in oklab, red, blue)) {
+  .fpp-icon { background: var(--ws-color); }
+}
+
+.fpp-icon-large {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.fpp-icon-kind {
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+}
+
+.fpp-icon-presence {
+  position: absolute;
+  bottom: -3px;
+  left: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-base);
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  color: white;
+  z-index: 2;
+}
+
+.fpp-icon-presence.typing {
+  background: var(--color-success);
+}
+
+.fpp-icon-presence.running {
+  background: var(--accent);
+  animation: fpp-pulse 1.4s infinite;
+}
+
+.fpp-icon-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--color-danger);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--bg-base);
+  z-index: 2;
+}
+
+.fpp-item-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--label-primary);
+  letter-spacing: 0.04em;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fpp-item-date {
+  font-size: 10px;
+  color: var(--label-tertiary);
+  letter-spacing: 0.04em;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ============================================================
+   6. Status bar(在 dock 上方)
+   ============================================================ */
+.fpp-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 18px;
+  height: 26px;
+  background: var(--bg-content);
+  border-top: 0.5px solid var(--separator);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--label-secondary);
+  font-feature-settings: "tnum" 1;
+}
+
+.fpp-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.fpp-status-sep {
+  color: var(--label-tertiary);
+}
+
+.fpp-status-accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.fpp-status-spacer {
+  flex: 1;
+}
+
+.fpp-status-keys {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--label-tertiary);
+}
+
+/* ============================================================
+   Quick Look overlay
+   ============================================================ */
+.fpp-quicklook-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: rgba(20, 20, 20, 0.42);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 160ms;
+}
+
+.fpp-quicklook-overlay.open {
+  opacity: 1;
+}
+
+.fpp-quicklook {
+  width: min(560px, 92vw);
+  max-height: 540px;
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transform: scale(0.94);
+  transition: transform 200ms var(--ease-spring);
+}
+
+.fpp-quicklook-overlay.open .fpp-quicklook {
+  transform: scale(1);
+}
+
+.fpp-quicklook-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fpp-quicklook-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fpp-quicklook-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+}
+
+.fpp-quicklook-meta {
+  font-size: 11px;
+  color: var(--label-tertiary);
+  margin-top: 2px;
+  letter-spacing: 0.04em;
+}
+
+.fpp-quicklook-close {
+  background: transparent;
+  border: 0;
+  font-size: 11px;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.fpp-quicklook-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fpp-quicklook-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--label-tertiary);
+}
+
+.fpp-msg {
+  display: flex;
+  gap: 8px;
+}
+
+.fpp-msg-me {
+  justify-content: flex-end;
+}
+
+.fpp-msg-bubble {
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--bg-base);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  max-width: 80%;
+}
+
+.fpp-msg-bubble-accent {
+  background: var(--accent);
+  color: white;
+}
+
+.fpp-quicklook-files {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fpp-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-base);
+  border-radius: 8px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.fpp-file-icon {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--label-secondary);
+}
+
+.fpp-quicklook-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.fpp-btn {
+  flex: 1;
+  padding: 8px 16px;
+  background: var(--bg-base);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+  transition: all var(--dur-fast);
+}
+
+.fpp-btn:hover {
+  background: var(--bg-elevated);
+}
+
+.fpp-btn-primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.fpp-btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+/* ============================================================
+   v1.5 Tease popover
+   ============================================================ */
+.fpp-tease-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  background: rgba(20, 20, 20, 0.42);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.fpp-tease {
+  width: min(380px, 92vw);
+  background: var(--bg-elevated);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fpp-tease-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fpp-tease-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--label-primary);
+}
+
+.fpp-tease-close {
+  background: transparent;
+  border: 0;
+  font-size: 18px;
+  color: var(--label-tertiary);
+  cursor: pointer;
+}
+
+.fpp-tease-body {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--label-secondary);
+}
+
+.fpp-tease-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   Hints overlay
+   ============================================================ */
+.fpp-hints {
+  position: fixed;
+  bottom: 110px;
+  right: 18px;
+  z-index: 700;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-popover);
+  font-size: 11px;
+  font-family: var(--font-system);
+  min-width: 180px;
+}
+
+.fpp-hints-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.fpp-hints-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--label-tertiary);
+}
+
+.fpp-hints-close {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--label-tertiary);
+  font-size: 14px;
+}
+
+.fpp-hints-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fpp-hints-body > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.fpp-hints-body kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--bg-base);
+  border: 0.5px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.fpp-hints-body span {
+  color: var(--label-secondary);
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   Dark mode
+   ============================================================ */
+[data-theme="dark"] .fpp-segment.active {
+  background: var(--label-primary);
+  color: var(--bg-base);
+}
+
+[data-theme="dark"] .fpp-status-dot,
+[data-theme="dark"] .fpp-icon-badge,
+[data-theme="dark"] .fpp-icon-presence.typing {
+  border-color: var(--bg-content);
+}
+
+/* mobile */
+@media (max-width: 768px) {
+  .fpp-toolbar { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+  .fpp-composer { order: 99; flex-basis: 100%; }
+  .fpp-today { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .fpp-widgets { width: 100%; }
+  .fpp-status-keys { display: none; }
+}
