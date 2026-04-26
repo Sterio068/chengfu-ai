@@ -1,8 +1,11 @@
 /**
- * 承富 AI · LibreChat 術語中文化與「回首頁」按鈕
+ * LibreChat 術語中文化與「回首頁」按鈕(v1.8 multi-tenant)
  *
  * 透過 nginx sub_filter 注入到每個 LibreChat 頁面,
  * 在 DOMContentLoaded 後掃描 DOM 並替換文字節點。
+ *
+ * v1.8 改:首頁按鈕 label 從 hardcode 「承富」改為動態讀
+ *         /api-accounting/admin/branding 的 company_short
  *
  * 注意:LibreChat 為 React 應用,DOM 會不斷重繪,
  *      所以用 MutationObserver 持續監控。
@@ -156,15 +159,28 @@
     }
   }
 
-  // ============================== 「回承富首頁」按鈕 ==============================
-  function addHomeButton() {
-    // 登入頁未有 session,點首頁只會被 Launcher 再導回 /login,對新同仁像壞連結。
+  // ============================== 「回首頁」按鈕(v1.8 multi-tenant) ==============================
+  // 從 /api-accounting/admin/branding 拉品牌名 · 動態組合
+  let _brandCache = null;
+  async function getBrand() {
+    if (_brandCache) return _brandCache;
+    try {
+      const r = await fetch("/api-accounting/admin/branding", { credentials: "include" });
+      if (r.ok) _brandCache = await r.json();
+    } catch (e) { /* silent · 用 default */ }
+    if (!_brandCache) _brandCache = { app_name: "智慧助理", company_short: "" };
+    return _brandCache;
+  }
+
+  async function addHomeButton() {
     if (window.location.pathname === "/login") return;
     if (document.querySelector(".chengfu-home-btn")) return;
+    const brand = await getBrand();
+    const homeLabel = brand.company_short ? `${brand.company_short} 首頁` : "首頁";
     const btn = document.createElement("button");
     btn.className = "chengfu-home-btn";
-    btn.innerHTML = "← 承富首頁";
-    btn.title = "回到 5 個工作區首頁";
+    btn.innerHTML = `← ${homeLabel}`;
+    btn.title = `回到 ${brand.app_name} 首頁`;
     btn.onclick = () => { window.location.href = "/"; };
     document.body.appendChild(btn);
   }
