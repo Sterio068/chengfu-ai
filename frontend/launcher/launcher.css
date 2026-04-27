@@ -260,29 +260,53 @@ body[data-active-view="dashboard"] .sidebar:not(:hover):not(:focus-within) .side
 
 .sidebar-section { margin-bottom: var(--s-5); }
 
+/* v1.47 · 「流程模板 / 更多」summary 視覺對齊 nav-item · 點選展開
+   原本框框 + 小灰字 · 跟「今日 / 專案 / 資料 / 中控」視覺脫節
+   改 summary 為 sidebar-item 同款 padding/字級/hover · chevron ▸ 旋轉 */
 .sidebar-details {
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-  border-radius: var(--r-lg);
-  padding: 2px;
-  background: color-mix(in srgb, var(--bg-content) 52%, transparent);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  margin-bottom: 1px;
 }
 
 .sidebar-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
   cursor: pointer;
   list-style: none;
-  border-radius: var(--r-md);
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.sidebar-details > summary:hover {
+  background: var(--border);
 }
 
 .sidebar-details > summary::-webkit-details-marker { display: none; }
 
-.sidebar-details > summary::after {
-  content: "⌄";
-  float: right;
-  color: var(--text-tertiary);
+.sidebar-details > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--label-tertiary);
   transition: transform 0.16s;
 }
 
-.sidebar-details[open] > summary::after { transform: rotate(180deg); }
+.sidebar-details[open] > summary::before { transform: rotate(90deg); }
+
+/* details 內子 sidebar-item 微縮排 + 視覺降階 */
+.sidebar-details > .sidebar-item {
+  padding-left: 24px;  /* 對齊 chevron 後文字位置 */
+}
 
 .primary-nav .sidebar-item {
   min-height: 38px;
