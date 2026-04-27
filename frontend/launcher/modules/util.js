@@ -1,5 +1,5 @@
 /**
- * 承富 Launcher · 共用 utility
+ * Launcher · 共用 utility
  * ES module · 無狀態 · 全 pure functions
  */
 
@@ -80,7 +80,7 @@ const UI_TEXT_REPLACEMENTS = [
   [/\bAnthropic\b/g, "備援模型服務"],
   [/\bADMIN\b/g, "管理員"],
   [/\bUSER\b/g, "一般同仁"],
-  [/\bchengfu_permissions\b/g, "承富權限設定"],
+  [/\bchengfu_permissions\b/g, "權限設定"],
   [/\bMongoDB\b/g, "資料庫"],
   [/\bMongo\b/g, "資料庫"],
   [/\bMeilisearch\b/g, "全文搜尋服務"],

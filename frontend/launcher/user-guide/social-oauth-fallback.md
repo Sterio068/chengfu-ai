@@ -14,14 +14,14 @@
 - state TTL 10 min(防 CSRF)
 - 9 個 unit test 全綠
 
-### B1 沒做(等承富送 Meta App)
+### B1 沒做(等公司送 Meta App)
 - 真打 Meta Graph API
 - callback 內仍 mock(回 `MOCK-facebook-xxx` token)
 - 排程貼文跑 cron 用 mock provider · 印 「mock-fb-post-id」 · 但 FB 實際沒貼出
 
 ---
 
-## 對承富老闆 / Champion 的告知
+## 對公司老闆 / Champion 的告知
 
 ### 老實話
 「v1.3 ship 的社群排程功能 · UI 跟流程都齊 · 但還沒真的把貼文送上 FB/IG/LinkedIn · 因為 Meta 那邊要審 App(1-4 週)。等他們批准 · v1.4 把那一段接上 · 同事完全感受不到差別(Meta App 審核期間 · 我們在 launcher 用 mock 練習 + 收同事意見)」
@@ -38,18 +38,18 @@ SOCIAL_FEATURE_ENABLED=false  # 隱藏 entry · 接 v1.4 才開
 
 ---
 
-## Meta App 申請流程(承富老闆)
+## Meta App 申請流程(公司老闆)
 
 ### Step 1 · 建 Meta Developer 帳號
 1. https://developers.facebook.com/
-2. 登入 Facebook 個人帳號(承富老闆 · 不是公司)
+2. 登入 Facebook 個人帳號(公司老闆 · 不是公司)
 3. 建 Developer Profile · 確認手機
 
 ### Step 2 · 建 Business App
 1. My Apps → Create App
 2. App Type:**Business**
-3. App Name:「承富 AI 社群排程」
-4. Business Account:綁承富 BM(沒有先建 https://business.facebook.com/)
+3. App Name:「智慧助理 社群排程」
+4. Business Account:綁BM(沒有先建 https://business.facebook.com/)
 
 ### Step 3 · 加 Products
 - **Facebook Login**(必 · OAuth 流程)
@@ -71,9 +71,9 @@ SOCIAL_FEATURE_ENABLED=false  # 隱藏 entry · 接 v1.4 才開
 - `instagram_content_publish`
 
 App Review 提交時要附:
-- 用途說明:「承富創意整合行銷 · 內部 10 人小團隊 · 排程客戶代操社群 · 不對外開放」
+- 用途說明:「公司全名 · 內部 10 人小團隊 · 排程客戶代操社群 · 不對外開放」
 - 截圖:launcher 的社群排程 UI(現在已有)
-- 隱私權政策 URL · 服務條款 URL(承富老闆要寫 · 不複雜)
+- 隱私權政策 URL · 服務條款 URL(公司老闆要寫 · 不複雜)
 - 影片 demo:30-60 秒 · 同事點 「連 FB」→ 跳轉 → 貼文出現
 
 審核 1-4 週(Meta 的事 · 不可控)

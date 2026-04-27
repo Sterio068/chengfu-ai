@@ -7,7 +7,7 @@
 ## ❶ 第一次登入(2 分鐘)
 
 1. 瀏覽器開 `http://localhost/`(本機 dev)或 `https://ai.<chengfu>.com/`(prod)
-2. LibreChat 登入頁 · 用承富給的 email + 密碼
+2. LibreChat 登入頁 · 用管理員給的 email + 密碼
 3. 自動跳 launcher · 看到 5 個 Workspace 卡片
 4. 第一次自動跳 onboarding tour 4 步 · 跟著做
 
@@ -30,7 +30,7 @@
 3. 對話框打:
    ```
    寫一段 200 字新聞稿 ·
-   主題:承富整合 AI 工具 ·
+   主題:公司整合 AI 工具 ·
    預估同事每月省 12 小時
    ```
 4. Enter · 看 Agent 30 秒寫完
@@ -78,7 +78,7 @@
 
 優先順序:
 1. **看 error-codes.md**(常見 30+ 解法)
-2. **找 Champion**(承富指定 1 位)
+2. **找 Champion**(公司指定 1 位)
 3. **升 Sterio**(L3 以上)
 
 ---

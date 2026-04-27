@@ -1,5 +1,5 @@
 /* ============================================================
-   承富 AI · Launcher Styles
+   智慧助理 · Launcher Styles
    依 mockup-launcher.html 設計 tokens 萃取並生產化
    ============================================================ */
 
@@ -3385,7 +3385,7 @@ body.chat-fullscreen .main { padding-right: 0 !important; }
   color: var(--text-secondary);
 }
 /* ============================================================
-   承富 Launcher · 動畫 + 過渡
+   Launcher · 動畫 + 過渡
    ============================================================
    目標:讓切換 view、卡片 hover、modal 開合 都有 spring 感
    原則:0.2s 以內 · ease-out · 不過度

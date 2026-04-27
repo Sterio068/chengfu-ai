@@ -223,7 +223,7 @@ async def extract_tender_summary(
         return {**cached, "cached": True}
 
     system = (
-        "你是承富的招標文件結構化助理。"
+        "你是招標文件結構化助理。"
         "從圖片(招標公告 / 須知首頁 / 摘要表)抽出 9 個關鍵欄位。"
         "若某欄圖中沒有,該欄填 'unknown'。"
         "金額一律 NT$ 並含千分位。日期盡量轉 YYYY-MM-DD。"

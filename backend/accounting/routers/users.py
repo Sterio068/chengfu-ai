@@ -124,7 +124,7 @@ def set_webhook(user_email: str, payload: WebhookSetup,
         upsert=True,
     )
     # 立刻送測試訊息
-    ok = send(url, "✅ 承富 AI · webhook 綁定成功 · 之後重要事件會推這")
+    ok = send(url, "✅ AI · webhook 綁定成功 · 之後重要事件會推這")
     return {"saved": True, "test_sent": ok}
 
 

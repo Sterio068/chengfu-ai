@@ -1,5 +1,5 @@
 /**
- * 承富 Launcher · 靜態常數與設定
+ * Launcher · 靜態常數與設定
  * 無副作用 · 純 data module
  */
 
@@ -42,13 +42,13 @@ export const AI_PROVIDERS = {
 
 // 10 職能 Agent · Router + 9 專家
 export const CORE_AGENTS = [
-  { num: "00", name: "主管家",        roleName: "承富主管家",   emoji: "✨", color: "#0F2340", model: "高階模型", desc: "不知道用哪個?直接丟給它,它判斷要用哪個專家 — 或自己幫你做",      workspace: "入口" },
+  { num: "00", name: "主管家",        roleName: "主管家",   emoji: "✨", color: "#0F2340", model: "高階模型", desc: "不知道用哪個?直接丟給它,它判斷要用哪個專家 — 或自己幫你做",      workspace: "入口" },
   { num: "01", name: "投標顧問",      roleName: "投標顧問",     emoji: "🎯", color: "#FF3B30", model: "標準模型", desc: "文件解析 · 承接評估 · 建議書 · 簡報架構 · 競品研究",             workspace: "投標" },
   { num: "02", name: "活動規劃師",    roleName: "活動規劃師",   emoji: "🎪", color: "#FF9500", model: "標準模型", desc: "立體場景需求單 · 舞台技術 · 動線 · 現場體驗 · 廠商比價",         workspace: "活動" },
   { num: "03", name: "設計夥伴",      roleName: "設計夥伴",     emoji: "🎨", color: "#AF52DE", model: "標準模型", desc: "主視覺發想 · 設計需求單 · 生圖輔助 · 多渠道適配 · 視覺系統",     workspace: "設計" },
   { num: "04", name: "公關寫手",      roleName: "公關小編",     emoji: "📣", color: "#34C759", model: "標準模型", desc: "新聞稿 · 社群貼文 · 月計劃 · 電子郵件草稿",                     workspace: "公關" },
   { num: "05", name: "會議速記",      roleName: "會議整理員",   emoji: "🎙️", color: "#FF2D55", model: "快速模型", desc: "錄音 → 逐字稿 → 摘要 → 待辦 → 寄信草稿",                        workspace: "會議" },
-  { num: "06", name: "知識庫查詢",    roleName: "資料櫃管家",   emoji: "📚", color: "#007AFF", model: "標準模型", desc: "查承富過往案例 + 技能庫 + 官方範本",                            workspace: "知識" },
+  { num: "06", name: "知識庫查詢",    roleName: "資料櫃管家",   emoji: "📚", color: "#007AFF", model: "標準模型", desc: "查過往案例 + 技能庫 + 官方範本",                            workspace: "知識" },
   { num: "07", name: "財務試算",      roleName: "會計師",       emoji: "💰", color: "#30D158", model: "標準模型", desc: "毛利 · 報價 · 廠商比價 · 預算 · 連會計模組",                    workspace: "財務" },
   { num: "08", name: "合約法務",      roleName: "合約顧問",     emoji: "⚖️", color: "#5E5CE6", model: "標準模型", desc: "合約摘要 · 保密協議 / 授權書產出 · 稅務 · 法規諮詢",             workspace: "法務" },
   { num: "09", name: "結案營運",      roleName: "營運教練",     emoji: "📊", color: "#64D2FF", model: "標準模型", desc: "結案報告 · 里程碑 · 客戶紀錄 · 新人引導",                        workspace: "營運" },
@@ -200,18 +200,18 @@ export const WORKSPACE_DRAFTS = {
   },
 };
 
-// 承富 12 個 Skills(對應 knowledge-base/skills/)
+// 12 個 Skills(對應 knowledge-base/skills/)
 export const SKILLS = [
   { num: "01", name: "政府標案結構分析",    ws: "投標", wscolor: "#FF3B30", desc: "9 欄閱讀法,10 分鐘內消化 60 頁招標 PDF" },
   { num: "02", name: "承接評估決策樹",      ws: "投標", wscolor: "#FF3B30", desc: "8 維度評分,明確建議承接 / 不承接 / 有條件" },
   { num: "03", name: "建議書 5 章模板",     ws: "投標", wscolor: "#FF3B30", desc: "需求/策略/執行/團隊/預算 · 比例與寫法" },
   { num: "04", name: "新聞稿 AP Style",     ws: "公關", wscolor: "#34C759", desc: "導言 + 本文 + 引言三段法,倒三角" },
   { num: "05", name: "社群貼文 3 種 hook",  ws: "公關", wscolor: "#34C759", desc: "提問 / 衝突 / 數字 三種開場公式" },
-  { num: "06", name: "電子郵件公文體",      ws: "公關", wscolor: "#34C759", desc: "承富對政府 / 企業 / 媒體的電子郵件標準" },
+  { num: "06", name: "電子郵件公文體",      ws: "公關", wscolor: "#34C759", desc: "對政府 / 企業 / 媒體的電子郵件標準" },
   { num: "07", name: "場地踏勘 checklist",  ws: "活動", wscolor: "#FF9500", desc: "20 項必檢查,避免現場意外" },
   { num: "08", name: "舞台動線設計",        ws: "活動", wscolor: "#FF9500", desc: "4 種活動類型 + 3 禁忌 + 視覺焦點配置" },
   { num: "09", name: "活動預算分配比例",    ws: "活動", wscolor: "#FF9500", desc: "人力 35 / 場地 25 / 設備 20 / 其他 20" },
-  { num: "10", name: "毛利試算框架",        ws: "營運", wscolor: "#007AFF", desc: "承富成本結構 + 目標毛利 18-22%" },
+  { num: "10", name: "毛利試算框架",        ws: "營運", wscolor: "#007AFF", desc: "公司成本結構 + 目標毛利 18-22%" },
   { num: "11", name: "客戶紀錄模板",        ws: "營運", wscolor: "#007AFF", desc: "4 類紀錄 · 寫給 3 個月後的自己看" },
   { num: "12", name: "結案報告結構",        ws: "營運", wscolor: "#007AFF", desc: "4 章 · 成果/數據/見解/附錄" },
 ];

@@ -219,7 +219,7 @@
     sourceList.innerHTML = `
       ${fileButtons}
       <button type="button">公司履約案例 <span>引用</span></button>
-      <button type="button">承富語氣規則 <span>套用</span></button>
+      <button type="button">品牌語氣規則 <span>套用</span></button>
     `;
   }
 

@@ -34,7 +34,7 @@ const TIPS = {
   },
   tenders: {
     title: "新標案通知",
-    body: "每天清晨 06:00 自動從政府電子採購網挑出符合承富關鍵字的新標案。看到喜歡的按 ⭐ 興趣 · 就會自動進商機追蹤。",
+    body: "每天清晨 06:00 自動從政府電子採購網挑出符合公司關鍵字的新標案。看到喜歡的按 ⭐ 興趣 · 就會自動進商機追蹤。",
     cta: "看標案 Go/No-Go 範本",
     cta_action: () => location.hash = "#help-doc-quickstart-v1.3",
   },
@@ -52,7 +52,7 @@ const TIPS = {
   },
   knowledge: {
     title: "公司知識庫",
-    body: "承富過往標書、結案報告、品牌規則。AI 對話會自動引用。也可以直接搜「中秋節活動」找過往案例。",
+    body: "過往標書、結案報告、品牌規則。AI 對話會自動引用。也可以直接搜「中秋節活動」找過往案例。",
     cta: "看搜尋 5 範例",
     cta_action: () => location.hash = "#help-doc-knowledge-search",
   },

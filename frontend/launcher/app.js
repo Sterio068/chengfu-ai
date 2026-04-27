@@ -60,7 +60,7 @@ import { menubar as macosMenubar } from "./modules/macos/menubar.js";
 import "./modules/macos/shortcuts.js";
 // v1.5 · Dashboard F++ 主畫面 IA 重構(toolbar + mini-Today + segments + grid + status)
 import { dashboardFpp } from "./modules/macos/dashboard-fpp.js";
-// v1.7 · Multi-tenant Branding(動態品牌名 · 取代 hardcode 「承富」)
+// v1.7 · Multi-tenant Branding(動態品牌名 · 取代 hardcode 「公司」)
 import { brand } from "./modules/branding.js";
 import { shortcuts } from "./modules/shortcuts.js";
 import { health } from "./modules/health.js";
@@ -140,7 +140,7 @@ export const app = {
     this.setupUser();
     this.applyTheme();
 
-    // v1.7 · 載品牌 + 套到 DOM(取代 hardcode 「承富」)
+    // v1.7 · 載品牌 + 套到 DOM(取代 hardcode 「公司」)
     try {
       await brand.load();
       this._applyBranding();

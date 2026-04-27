@@ -120,7 +120,7 @@ def summarize_conversation(req: SummarizeRequest):
             max_tokens=1000,
             messages=[{
                 "role": "user",
-                "content": f"""把以下承富 AI 對話摘要成 200-400 字 · 保留關鍵事實 / 決議 / 待辦 · 繁中 · 台灣用語:\n\n{dialogue}"""
+                "content": f"""把以下 AI 對話摘要成 200-400 字 · 保留關鍵事實 / 決議 / 待辦 · 繁中 · 台灣用語:\n\n{dialogue}"""
             }]
         )
         summary_text = summary_resp.content[0].text

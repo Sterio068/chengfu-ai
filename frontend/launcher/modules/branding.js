@@ -4,7 +4,7 @@
  * 用法:
  *   import { brand } from "./modules/branding.js";
  *   await brand.load();      // app init 時呼叫
- *   brand.appName            // "承富智慧助理" 或 "智慧助理"(default)
+ *   brand.appName            // "智慧助理" 或 "智慧助理"(default)
  *   brand.companyShort       // "承"(logo 用 1-2 字)
  *   brand.tagline            // "10 人協作平台"
  *   brand.accent             // "#007AFF"

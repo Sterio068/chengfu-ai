@@ -337,7 +337,7 @@ def _send_email_internal(msg: EmailNotification) -> dict:
     smtp_user = os.getenv("EMAIL_USERNAME")
     smtp_pass = os.getenv("EMAIL_PASSWORD")
     from_addr = os.getenv("EMAIL_FROM", "ai@chengfu.com")
-    from_name = os.getenv("EMAIL_FROM_NAME", "承富 AI 系統")
+    from_name = os.getenv("EMAIL_FROM_NAME", "AI 系統")
 
     if not smtp_user or not smtp_pass:
         raise HTTPException(503, "SMTP 未設定(EMAIL_USERNAME / EMAIL_PASSWORD)")
@@ -396,7 +396,7 @@ def send_monthly_report_to_admin(_admin: str = require_admin_dep()):
     admin_email = os.getenv("ADMIN_EMAIL", "sterio@chengfu.local")
 
     body = f"""<html><body style="font-family: -apple-system, sans-serif;">
-<h1>承富 AI 月報 · {report['month']}</h1>
+<h1>AI 月報 · {report['month']}</h1>
 
 <h2>💰 本月財務</h2>
 <ul>
@@ -421,12 +421,12 @@ def send_monthly_report_to_admin(_admin: str = require_admin_dep()):
 </ul>
 
 <hr>
-<p style="color:#888;font-size:12px">承富 AI 系統自動產出 · 如需調整請聯繫 Sterio</p>
+<p style="color:#888;font-size:12px">AI 系統自動產出 · 如需調整請聯繫 Sterio</p>
 </body></html>"""
 
     _send_email_internal(EmailNotification(
         to=admin_email,
-        subject=f"承富 AI 月報 · {report['month']}",
+        subject=f"AI 月報 · {report['month']}",
         body=body,
         body_type="html",
     ))
@@ -604,7 +604,7 @@ SECRETS_META = {
     },
     "FAL_API_KEY": {
         "label": "Fal.ai API Key",
-        "desc": "設計助手生圖(Recraft v3)· 承富 Q7 一次 3 張",
+        "desc": "設計助手生圖(Recraft v3)· 一次 3 張",
         "console_url": "https://fal.ai/dashboard/keys",
         "frontend_writable": True,  # 存 Mongo · design router 讀取
         "source": "Mongo system_settings(可前端改)",
@@ -652,7 +652,7 @@ SECRETS_META = {
     },
     "MEILI_MASTER_KEY": {
         "label": "Meilisearch Master Key",
-        "desc": "全文搜尋 index 管理 · 承富 Day 0 後不該改",
+        "desc": "全文搜尋 index 管理 · 上線第一天後不該改",
         "console_url": "",
         "frontend_writable": False,
         "source": "macOS Keychain(install 時自動產)",

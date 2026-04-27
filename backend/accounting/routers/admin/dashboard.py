@@ -30,7 +30,7 @@ logger = logging.getLogger("chengfu")
 
 @router.get("/admin/dashboard")
 def admin_dashboard(_admin: str = require_admin_dep()):
-    """一頁式承富 AI 系統總覽"""
+    """一頁式AI 系統總覽"""
     from main import (
         pnl_report, projects_col, feedback_col, convos_col,
     )

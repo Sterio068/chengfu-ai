@@ -54,7 +54,7 @@
 
 1. Safari 開 `https://ai.<chengfu>.com/`
 2. 下方分享 icon → **加入主畫面**
-3. icon 取「承富 AI」
+3. icon 取「智慧助理」
 4. 之後從主畫面開 · 不顯示瀏覽器 chrome · 體感像 app
 
 ---

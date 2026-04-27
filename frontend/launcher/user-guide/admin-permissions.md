@@ -8,7 +8,7 @@
 
 ## 3 層權限模型
 
-承富 AI 採 **3 層簡化模型** · 10 人規模夠用 · 不搞過度複雜的 RBAC
+智慧助理 採 **3 層簡化模型** · 10 人規模夠用 · 不搞過度複雜的 RBAC
 
 | 層級 | 誰 | 權限 |
 |---|---|---|
@@ -28,7 +28,7 @@
 **路徑 2 · LibreChat `users.role=ADMIN`**
 - LibreChat 第一個註冊者自動 ADMIN(DB layer)
 - 安裝精靈會自動建這個 admin · 不用手動註冊
-- 加入 `users.role=ADMIN` 的 user 也會被承富後端認為是 admin
+- 加入 `users.role=ADMIN` 的 user 也會被後端認為是 admin
 
 **優先順序**:`ADMIN_EMAILS` > `users.role` > 一律當 USER
 

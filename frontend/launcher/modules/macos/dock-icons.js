@@ -76,7 +76,7 @@ function iconWrapper(color, glyph, viewBox = 100) {
 }
 
 // ============================================================
-// 7 個承富 agent 圖示(SF Symbols 風 pictogram · 白色)
+// 7 個agent 圖示(SF Symbols 風 pictogram · 白色)
 // ============================================================
 // 每 glyph 用 100 × 100 設計 · 白色 fill · 透明描邊
 // stroke-width 6 · 視覺重量平衡 macOS native

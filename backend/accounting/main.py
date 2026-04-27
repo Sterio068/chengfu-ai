@@ -303,7 +303,7 @@ async def lifespan(app: FastAPI):
 # ============================================================
 app = FastAPI(
     title="承富會計 API",
-    description="承富 AI 系統 · 內建會計模組",
+    description="AI 系統 · 內建會計模組",
     version="1.0.0",
     lifespan=lifespan,
     # Audit · sec F-1 + tech-debt #2 · 關閉 prod /docs · 防 schema 洩漏

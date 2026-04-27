@@ -1,5 +1,5 @@
 /**
- * Accounting view · 承富內建會計模組前端
+ * Accounting view · 內建會計模組前端
  */
 import { escapeHtml } from "./util.js";
 import { modal } from "./modal.js";

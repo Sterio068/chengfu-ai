@@ -143,7 +143,7 @@ export const userMgmt = {
     const count = (enf.enforced_permissions || []).length;
     const summary = String(enf.summary || "逐步啟用")
       .replace(/\bADMIN\b/g, "管理員角色")
-      .replace(/\bchengfu_permissions\b/g, "承富權限設定");
+      .replace(/\bchengfu_permissions\b/g, "權限設定");
     return `
       <div class="v10-notice" style="margin:12px 0">
         權限狀態:${escapeHtml(summary)}

@@ -1,4 +1,4 @@
-// 承富 Launcher · SW 自我銷毀腳本
+// Launcher · SW 自我銷毀腳本
 // ============================================================
 // 這個 SW 被註冊後 · 立刻把自己 unregister
 // 不清同 origin cache,避免傷到 LibreChat 或未來 PWA。
