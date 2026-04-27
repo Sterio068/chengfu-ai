@@ -888,51 +888,58 @@ function _renderInboxList() {
       </div>
     </div>
   `).join("");
-  container.querySelectorAll("[data-fpp-inbox-src]").forEach(b => {
-    b.addEventListener("click", e => {
-      _showSourceJump(e.currentTarget.dataset.fppInboxSrc);
-      _closeInbox();
-    });
-  });
-  container.querySelectorAll("[data-fpp-inbox-cta]").forEach(b => {
-    b.addEventListener("click", e => {
-      const id = +e.currentTarget.dataset.fppInboxCta;
-      _executeSuggestion(id);
-      _renderInboxList();
-    });
-  });
-  container.querySelectorAll("[data-fpp-inbox-later]").forEach(b => {
-    b.addEventListener("click", e => {
-      const id = +e.currentTarget.dataset.fppInboxLater;
-      _state.aiSuggestions = _state.aiSuggestions.filter(x => x.id !== id);
-      _renderInboxList();
-    });
-  });
-  container.querySelectorAll("[data-fpp-inbox-suppress]").forEach(b => {
-    b.addEventListener("click", async e => {
-      const type = e.currentTarget.dataset.fppInboxSuppress;
-      _suppress(type);   // localStorage(離線 fallback)
-      try {
-        await authFetch("/api-accounting/admin/ai-suggestions/suppress", {
+  // v1.26 perf · #2 修 · event delegation 取代 4 個 querySelectorAll + N×listener
+  // 原本:N 個 suggestion × 4 button × addEventListener = 4N listener
+  //       + 「之後再說」雙綁(2 個 forEach)實際上是 5N
+  // 改成:1 個 listener on container · click 用 closest() 派發
+  // 預估省 80%+ listener 註冊成本(N=10 時 50 listener → 1)
+  if (!container._fppDelegated) {
+    container._fppDelegated = true;
+    container.addEventListener("click", async (e) => {
+      const t = e.target;
+      // 來源跳轉
+      const src = t.closest("[data-fpp-inbox-src]");
+      if (src) {
+        _showSourceJump(src.dataset.fppInboxSrc);
+        _closeInbox();
+        return;
+      }
+      // 主 CTA
+      const cta = t.closest("[data-fpp-inbox-cta]");
+      if (cta) {
+        _executeSuggestion(+cta.dataset.fppInboxCta);
+        _renderInboxList();
+        return;
+      }
+      // 「之後再說」· 雙作用:UI 移除 + backend dismiss 24h(fire-and-forget)
+      const later = t.closest("[data-fpp-inbox-later]");
+      if (later) {
+        const id = +later.dataset.fppInboxLater;
+        _state.aiSuggestions = _state.aiSuggestions.filter(x => x.id !== id);
+        _renderInboxList();
+        authFetch(`/api-accounting/admin/ai-suggestions/${id}/dismiss`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type }),
-        });
-      } catch {}
-      _state.aiSuggestions = _state.aiSuggestions.filter(s => s.type !== type);
-      window.toast?.info?.(`已關閉「${type === "deadline" ? "截止日" : type === "reply" ? "待回信" : "停滯"}」類提示`);
-      _renderInboxList();
+          body: JSON.stringify({ hours: 24 }),
+        }).catch(() => {});
+        return;
+      }
+      // 「不再提示這類」
+      const sup = t.closest("[data-fpp-inbox-suppress]");
+      if (sup) {
+        const type = sup.dataset.fppInboxSuppress;
+        _suppress(type);
+        try {
+          await authFetch("/api-accounting/admin/ai-suggestions/suppress", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type }),
+          });
+        } catch {}
+        _state.aiSuggestions = _state.aiSuggestions.filter(s => s.type !== type);
+        window.toast?.info?.(`已關閉「${type === "deadline" ? "截止日" : type === "reply" ? "待回信" : "停滯"}」類提示`);
+        _renderInboxList();
+      }
     });
-  });
-  // 「之後再說」也通知 backend dismiss 24h(fire-and-forget)
-  container.querySelectorAll("[data-fpp-inbox-later]").forEach(b => {
-    const id = +b.dataset.fppInboxLater;
-    b.addEventListener("click", () => {
-      authFetch(`/api-accounting/admin/ai-suggestions/${id}/dismiss`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hours: 24 }),
-      }).catch(() => {});
-    });
-  });
+  }
 }
 
 // ============================================================

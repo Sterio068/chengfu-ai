@@ -1877,74 +1877,72 @@ const pendingInput = urlParams.get("pending");
 const convoToOpen  = urlParams.get("convo");
 
 // ROADMAP §11.6 + sec F-7 · `?pending=` 反射 XSS / prompt 投送風險
+// v1.26 perf · #5 修 · 4 個 DOMContentLoaded 合併成 1 個
 // 攻擊者可佈局 `<a href="http://localhost/?pending=...">` 騙員工點 · 自動送惡意 prompt
 // 修法:必先 modal 確認 · 加 source domain 警告 · 內容過長截斷
-if (pendingInput) {
-  window.addEventListener("DOMContentLoaded", async () => {
-    const decoded = pendingInput;
-    const truncated = decoded.length > 200 ? decoded.slice(0, 200) + "…" : decoded;
-    const referrer = document.referrer || "(直接點擊網址)";
-    const ok = await modal.confirm(
-      `<div style='margin-bottom:10px'>偵測到外部連結帶入內容 · 要先帶入草稿嗎?</div>
-       <div style='font-size:12px;color:var(--text-secondary);margin-bottom:8px'>來源:${escapeHtml(referrer)}</div>
-       <pre style='font-size:12px;background:var(--bg-subtle,rgba(0,0,0,0.05));padding:8px;border-radius:6px;max-height:200px;overflow:auto;white-space:pre-wrap'>${escapeHtml(truncated)}</pre>
-       <small style='color:var(--text-tertiary)'>內容只會放進輸入框,不會自動送到模型 · 請檢查後再按送出。</small>`,
-      { title: "外部連結帶入內容", icon: "⚠️", primary: "帶入草稿", cancel: "取消" }
-    );
+async function _handlePendingInput() {
+  if (!pendingInput) return;
+  const decoded = pendingInput;
+  const truncated = decoded.length > 200 ? decoded.slice(0, 200) + "…" : decoded;
+  const referrer = document.referrer || "(直接點擊網址)";
+  const ok = await modal.confirm(
+    `<div style='margin-bottom:10px'>偵測到外部連結帶入內容 · 要先帶入草稿嗎?</div>
+     <div style='font-size:12px;color:var(--text-secondary);margin-bottom:8px'>來源:${escapeHtml(referrer)}</div>
+     <pre style='font-size:12px;background:var(--bg-subtle,rgba(0,0,0,0.05));padding:8px;border-radius:6px;max-height:200px;overflow:auto;white-space:pre-wrap'>${escapeHtml(truncated)}</pre>
+     <small style='color:var(--text-tertiary)'>內容只會放進輸入框,不會自動送到模型 · 請檢查後再按送出。</small>`,
+    { title: "外部連結帶入內容", icon: "⚠️", primary: "帶入草稿", cancel: "取消" }
+  );
+  history.replaceState({}, document.title, window.location.pathname);
+  if (ok) chat.open("00", decoded);
+}
+
+// Round 9 Q2 · Handoff 插入對話 sessionStorage 自動帶入(5 分鐘 TTL)
+function _handleHandoffPending() {
+  if (pendingInput || convoToOpen) return;
+  try {
+    const pending = sessionStorage.getItem("chengfu.pendingPrompt");
+    const ts = parseInt(sessionStorage.getItem("chengfu.pendingPromptTs") || "0");
+    const source = sessionStorage.getItem("chengfu.pendingPromptSource");
+    if (pending && (Date.now() - ts < 5 * 60 * 1000)) {
+      sessionStorage.removeItem("chengfu.pendingPrompt");
+      sessionStorage.removeItem("chengfu.pendingPromptTs");
+      sessionStorage.removeItem("chengfu.pendingPromptSource");
+      setTimeout(() => {
+        chat.open("00", pending);
+        if (source === "handoff") {
+          toast.info?.("交棒內容已帶入草稿 · 檢查無誤後送出即可");
+        }
+      }, 200);
+    }
+  } catch (e) {
+    console.warn("[handoff] sessionStorage restore failed:", e);
+  }
+}
+
+async function _handleConvoToOpen() {
+  if (!convoToOpen) return;
+  await new Promise(r => setTimeout(r, 300));  // 等 agents 載入
+  try {
+    await chat.open("00");
+    await chat.loadConvo(decodeURIComponent(convoToOpen));
     history.replaceState({}, document.title, window.location.pathname);
-    if (ok) {
-      chat.open("00", decoded);
-    }
-  });
-}
-
-// Round 9 Q2 · Handoff 插入對話 sessionStorage 自動帶入
-// sessionStorage 5 分鐘內有效 · 避免舊資料誤帶入
-if (!pendingInput && !convoToOpen) {
-  window.addEventListener("DOMContentLoaded", () => {
-    try {
-      const pending = sessionStorage.getItem("chengfu.pendingPrompt");
-      const ts = parseInt(sessionStorage.getItem("chengfu.pendingPromptTs") || "0");
-      const source = sessionStorage.getItem("chengfu.pendingPromptSource");
-      if (pending && (Date.now() - ts < 5 * 60 * 1000)) {
-        sessionStorage.removeItem("chengfu.pendingPrompt");
-        sessionStorage.removeItem("chengfu.pendingPromptTs");
-        sessionStorage.removeItem("chengfu.pendingPromptSource");
-        // 用主管家(00)開 · 交棒卡適用於任何助手
-        setTimeout(() => {
-          chat.open("00", pending);
-          if (source === "handoff") {
-            toast.info?.("交棒內容已帶入草稿 · 檢查無誤後送出即可");
-          }
-        }, 200);
-      }
-    } catch (e) {
-      console.warn("[handoff] sessionStorage restore failed:", e);
-    }
-  });
-}
-
-if (convoToOpen) {
-  // v4.3 · 最近對話 click → /chat/c/:id → librechat-relabel.js 302 回 /?convo=:id
-  // Launcher 認領 · 打開 chat pane · 用主管家身份載入歷史
-  window.addEventListener("DOMContentLoaded", async () => {
-    // 等 agents 載入好再 open · 不然 _findAgentByNum 會失敗
-    await new Promise(r => setTimeout(r, 300));
-    try {
-      await chat.open("00");  // 以主管家 agent 開 pane
-      await chat.loadConvo(decodeURIComponent(convoToOpen));
-      // 清 URL query 避免 reload 再執行
-      history.replaceState({}, document.title, window.location.pathname);
-    } catch (e) {
-      console.warn("載入對話失敗", e);
-    }
-  });
+  } catch (e) {
+    console.warn("載入對話失敗", e);
+  }
 }
 
 // ============================================================
-//  Boot
+//  Boot · 單一 DOMContentLoaded(原 4 個 listener 合併)
+//  perf #5:減少 event 註冊 + 序列化執行 · 不重複 fire
 // ============================================================
-document.addEventListener("DOMContentLoaded", () => app.init());
+document.addEventListener("DOMContentLoaded", async () => {
+  app.init();
+  // 注意:app.init 是 async 但裡面 await refreshAuthWithLock,
+  // 這裡不 await · 讓下面 3 個 handler 並行(它們互斥)
+  _handlePendingInput();   // 只 pendingInput 有值才跑
+  _handleHandoffPending(); // 只 !pendingInput && !convoToOpen 跑
+  _handleConvoToOpen();    // 只 convoToOpen 跑
+});
 
 // helper
 function setText(id, val) {

@@ -233,7 +233,8 @@
 }
 
 .fpp-time-big {
-  font-size: 32px;
+  /* v1.28 · 用 type scale token */
+  font-size: var(--text-hero);  /* 32px */
   font-weight: 200;
   letter-spacing: -0.02em;
   color: var(--label-primary);
@@ -242,7 +243,7 @@
 }
 
 .fpp-time-date {
-  font-size: 11px;
+  font-size: var(--text-sm);  /* 11px */
   color: var(--label-secondary);
   margin-top: 2px;
   letter-spacing: 0.05em;
@@ -254,14 +255,14 @@
 }
 
 .fpp-greeting-text {
-  font-size: 16px;
+  font-size: var(--text-xl);  /* 16px */
   font-weight: 600;
   color: var(--label-primary);
   letter-spacing: 0.04em;
 }
 
 .fpp-greeting-sub {
-  font-size: 11px;
+  font-size: var(--text-sm);  /* 11px */
   color: var(--label-secondary);
   margin-top: 2px;
   letter-spacing: 0.04em;
@@ -301,7 +302,8 @@
 }
 
 .fpp-widget-big {
-  font-size: 22px;
+  /* v1.28 · 22px 在 scale 之間 · 留 hardcode 但加註 · 後續可考 --text-2xl(20) 統一 */
+  font-size: var(--text-2xl);  /* 20px · was 22px */
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--label-primary);
@@ -309,19 +311,19 @@
 }
 
 .fpp-widget-unit {
-  font-size: 11px;
+  font-size: var(--text-sm);  /* 11px */
   color: var(--label-secondary);
 }
 
 .fpp-widget-cta {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--text-xs);  /* 10px */
   color: var(--accent);
   font-weight: 500;
 }
 
 .fpp-widget-label {
-  font-size: 10px;
+  font-size: var(--text-xs);  /* 10px */
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -374,17 +376,23 @@
 }
 
 .fpp-segment {
-  padding: 4px 12px;
-  font-size: 11px;
+  /* v1.27 a11y · A3 修 · WCAG 2.5.8 · target ≥ 24×24px
+     原 padding 4×12 + font 11px = 23px 高 · 低於最小值
+     改 padding 6×12 + font 12px = 28px 高 · 觸控友善 */
+  padding: 6px 12px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
   font-family: var(--font-system);
   background: transparent;
   border: 0.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   color: var(--label-secondary);
   cursor: pointer;
   transition: all var(--dur-fast);
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .fpp-segment:hover {
@@ -1000,24 +1008,34 @@
 .fpp-ai-cta:hover { background: var(--accent); }
 
 .fpp-ai-later {
+  /* v1.27 a11y · A3 · padding 2×8 + font 10px = 16px 太小
+     改 padding 6×10 + font 12px = 28px · WCAG 2.5.8 過 */
   background: transparent;
   border: 0;
-  padding: 2px 8px;
-  font-size: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
   color: var(--label-secondary);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: var(--font-system);
+  min-height: 24px;
 }
 
 .fpp-ai-close {
+  /* v1.27 a11y · A3 · 22×22 → 28×28 (WCAG 2.5.8 ≥ 24×24)
+     close button 高頻誤觸 · 加大讓觸控更穩 */
   background: transparent;
   border: 0;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   color: var(--label-tertiary);
   cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .fpp-ai-close:hover { background: rgba(0, 0, 0, 0.06); color: var(--label-primary); }
@@ -1441,15 +1459,17 @@
 }
 
 .fpp-inbox-suppress {
+  /* v1.27 a11y · A3 · padding 4×6 + font 10px = 18px → 改 6×10 + 12px = 24px (WCAG 2.5.8 過) */
   background: transparent;
   border: 0;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--label-tertiary);
   cursor: pointer;
   font-family: var(--font-system);
   letter-spacing: 0.04em;
-  padding: 4px 6px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  min-height: 24px;
 }
 
 .fpp-inbox-suppress:hover {
