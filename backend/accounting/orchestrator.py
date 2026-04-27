@@ -136,8 +136,61 @@ def _extract_agent_text(raw: str) -> str:
 
 
 def _workflow_execution_enabled() -> bool:
-    """Phase E defaults to draft-first; direct multi-agent execution is an explicit future opt-in."""
-    return os.getenv("ORCHESTRATOR_EXECUTION_ENABLED", "0").strip() == "1"
+    """v1.54 啟用 · 仍受 daily quota / kill switch / per-user 額度共同限制"""
+    if os.getenv("ORCHESTRATOR_EXECUTION_ENABLED", "0").strip() != "1":
+        return False
+    # 全局 kill switch · admin 從 mongo 設 paused=true 即停所有 workflow
+    try:
+        from main import db
+        flag = db.settings.find_one({"_id": "orchestrator_kill_switch"})
+        if flag and flag.get("paused"):
+            return False
+    except Exception:
+        pass
+    return True
+
+
+# v1.54 · daily quota · 防失控 · 每 user 每日 5 個 workflow 預設
+def _daily_quota_check(user_email: str) -> tuple[bool, int, int]:
+    """回 (允許, 已用, 上限)"""
+    cap = int(os.getenv("ORCHESTRATOR_DAILY_PER_USER", "5"))
+    try:
+        from main import db
+        from datetime import timedelta
+        since = datetime.now(timezone.utc) - timedelta(hours=24)
+        used = db.workflow_runs.count_documents({
+            "user_email": user_email,
+            "started_at": {"$gte": since},
+        })
+        return (used < cap, used, cap)
+    except Exception:
+        return (True, 0, cap)
+
+
+def _audit_workflow_run(user_email: str, preset_id: str, status: str, **extra) -> str:
+    """記 workflow_runs · 回 mongo _id 讓 caller 可後續更新"""
+    try:
+        from main import db
+        doc = {
+            "user_email": user_email,
+            "preset_id": preset_id,
+            "status": status,
+            "started_at": datetime.now(timezone.utc),
+            **extra,
+        }
+        return str(db.workflow_runs.insert_one(doc).inserted_id)
+    except Exception:
+        return ""
+
+
+def _audit_update(run_id: str, **fields) -> None:
+    if not run_id:
+        return
+    try:
+        from main import db
+        db.workflow_runs.update_one({"_id": ObjectId(run_id)}, {"$set": fields})
+    except Exception:
+        pass
 
 
 async def _resolve_agent_id(
@@ -460,18 +513,61 @@ async def run_preset_workflow(
     preset_id: str,
     payload: PresetPrepareRequest,
     authorization: Optional[str] = Header(None),
+    user_email: str = require_user_dep(),
 ):
-    """執行預設 workflow。"""
+    """v1.54 · 執行預設 workflow · 全套 safety guards
+    · 全局 kill switch
+    · 每 user 每日 quota
+    · audit log 寫 mongo workflow_runs
+    """
     if preset_id not in PRESET_WORKFLOWS:
         raise HTTPException(404, f"Unknown preset: {preset_id}")
+    if not _workflow_execution_enabled():
+        raise HTTPException(403, "workflow 執行目前停用 · admin 可從中控解除 kill switch")
+    if not authorization:
+        raise HTTPException(401, "需 Authorization header")
+
+    allowed, used, cap = _daily_quota_check(user_email)
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"今日已執行 {used}/{cap} 個 workflow · 預防失控 · 24h 後重置",
+        )
+
     preset = PRESET_WORKFLOWS[preset_id]
+    run_id = _audit_workflow_run(
+        user_email=user_email,
+        preset_id=preset_id,
+        status="running",
+        preset_name=preset["name"],
+        step_count=len(preset["steps"]),
+        initial_input_preview=(payload.initial_input or "")[:200],
+    )
+
     req = WorkflowRequest(
         name=preset["name"],
         description=preset["description"],
         steps=[WorkflowStep(**s) for s in preset["steps"]],
         initial_input=payload.initial_input,
     )
-    return await run_workflow(req, authorization)
+    try:
+        result = await run_workflow(req, authorization)
+        _audit_update(
+            run_id,
+            status="completed",
+            completed_at=datetime.now(timezone.utc),
+            steps_executed=result.get("steps_executed", 0),
+            final_preview=(result.get("final_output") or "")[:300],
+        )
+        result["run_id"] = run_id
+        result["quota"] = {"used": used + 1, "cap": cap}
+        return result
+    except HTTPException as e:
+        _audit_update(run_id, status="failed", error=str(e.detail)[:300])
+        raise
+    except Exception as e:
+        _audit_update(run_id, status="failed", error=str(e)[:300])
+        raise HTTPException(500, f"workflow 執行失敗:{e}")
 
 
 def _expected_output_for_step(preset_id: str, index: int) -> str:
@@ -559,3 +655,75 @@ def _save_workflow_draft_to_project(
         pass
 
     return {"project_id": project_id, "handoff_field": "workflow_draft"}
+
+
+# ============================================================
+# v1.54 · admin kill switch + runs history
+# ============================================================
+@router.get("/workflow/runs")
+def list_workflow_runs(
+    user_email: str = require_user_dep(),
+    limit: int = 20,
+):
+    """回最近的 workflow 執行紀錄 · 自己看自己 · admin 可看全部"""
+    from main import db
+    q = {} if _is_admin_user(user_email) else {"user_email": user_email}
+    cursor = db.workflow_runs.find(q).sort("started_at", -1).limit(min(100, max(1, limit)))
+    runs = []
+    for r in cursor:
+        runs.append({
+            "id": str(r["_id"]),
+            "user_email": r.get("user_email"),
+            "preset_id": r.get("preset_id"),
+            "preset_name": r.get("preset_name"),
+            "status": r.get("status"),
+            "step_count": r.get("step_count"),
+            "steps_executed": r.get("steps_executed"),
+            "started_at": r.get("started_at").isoformat() if r.get("started_at") else None,
+            "completed_at": r.get("completed_at").isoformat() if r.get("completed_at") else None,
+            "error": r.get("error"),
+        })
+    return {"runs": runs}
+
+
+@router.get("/workflow/kill-switch")
+def get_kill_switch(_user: str = require_user_dep()):
+    """所有人可查 · 知道現在可不可以執行"""
+    from main import db
+    flag = db.settings.find_one({"_id": "orchestrator_kill_switch"}) or {}
+    enabled_env = os.getenv("ORCHESTRATOR_EXECUTION_ENABLED", "0").strip() == "1"
+    return {
+        "execution_enabled": enabled_env and not flag.get("paused"),
+        "env_enabled": enabled_env,
+        "paused_by_admin": bool(flag.get("paused")),
+        "paused_at": flag.get("paused_at").isoformat() if flag.get("paused_at") else None,
+        "paused_reason": flag.get("reason"),
+        "daily_per_user_cap": int(os.getenv("ORCHESTRATOR_DAILY_PER_USER", "5")),
+    }
+
+
+class KillSwitchToggle(BaseModel):
+    paused: bool
+    reason: Optional[str] = None
+
+
+@router.post("/workflow/kill-switch")
+def set_kill_switch(
+    payload: KillSwitchToggle,
+    user_email: str = require_user_dep(),
+):
+    """admin only · 緊急時 paused=true 可瞬間停所有 workflow 執行"""
+    if not _is_admin_user(user_email):
+        raise HTTPException(403, "只有管理員可切 kill switch")
+    from main import db
+    db.settings.update_one(
+        {"_id": "orchestrator_kill_switch"},
+        {"$set": {
+            "paused": payload.paused,
+            "reason": payload.reason or "",
+            "paused_at": datetime.now(timezone.utc) if payload.paused else None,
+            "updated_by": user_email,
+        }},
+        upsert=True,
+    )
+    return {"ok": True, "paused": payload.paused}

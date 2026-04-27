@@ -187,6 +187,9 @@ services:
       # v1.3 A3 · CRITICAL C-8 · OAuth callback URL base(白名單)
       # prod 必設 · 否則退化用 X-Forwarded-Host(可被偽造做 open-redirect)
       - OAUTH_REDIRECT_BASE_URL=${OAUTH_REDIRECT_BASE_URL:-}
+      # v1.54 · 主管家 orchestrator 自動執行(daily quota + admin kill switch + audit)
+      - ORCHESTRATOR_EXECUTION_ENABLED=${ORCHESTRATOR_EXECUTION_ENABLED:-0}
+      - ORCHESTRATOR_DAILY_PER_USER=${ORCHESTRATOR_DAILY_PER_USER:-5}
     expose:
       - "8000"
     networks:

@@ -39,9 +39,9 @@ const TIPS = {
     cta_action: () => location.hash = "#help-doc-quickstart-v1.3",
   },
   workflows: {
-    title: "下一步建議",
-    body: "點任一模板 · AI 會先產出「步驟草稿」給你看 · 你確認後才會送出。不會一鍵全自動 · 永遠是 draft-first。",
-    cta: "了解 draft-first",
+    title: "下一步建議 · 兩種用法",
+    body: "「拆下一步草稿」= AI 產步驟給你檢查再送出(穩);「🚀 直接執行」= 主管家自動串接所有 Agent 一次跑完(每日 5 次)。涉敏感事項仍會標「需人工確認」。",
+    cta: "了解兩種模式",
     cta_action: () => location.hash = "#help",
   },
   crm: {

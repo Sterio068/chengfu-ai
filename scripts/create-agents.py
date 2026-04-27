@@ -84,9 +84,10 @@ PROVIDER_CONFIG = {
     "openai": {
         "api_provider": "openAI",
         "label": "OpenAI",
-        "high_model": os.environ.get("CHENGFU_OPENAI_HIGH_MODEL", "gpt-5.4"),
-        "standard_model": os.environ.get("CHENGFU_OPENAI_STANDARD_MODEL", "gpt-5.4-mini"),
-        "fast_model": os.environ.get("CHENGFU_OPENAI_FAST_MODEL", "gpt-5.4-nano"),
+        # v1.54 · GPT-5.5 為主力 · 增強推理 + 原生多模態 + 強化 function calling + 更大 context
+        "high_model": os.environ.get("CHENGFU_OPENAI_HIGH_MODEL", "gpt-5.5"),
+        "standard_model": os.environ.get("CHENGFU_OPENAI_STANDARD_MODEL", "gpt-5.5-mini"),
+        "fast_model": os.environ.get("CHENGFU_OPENAI_FAST_MODEL", "gpt-5.5-nano"),
     },
     "anthropic": {
         "api_provider": "anthropic",

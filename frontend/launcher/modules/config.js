@@ -22,10 +22,11 @@ export const AI_PROVIDERS = {
     label: "主力引擎",
     short: "主力",
     badge: "主力",
-    high: "gpt-5.4",
-    standard: "gpt-5.4-mini",
-    fast: "gpt-5.4-nano",
-    desc: "主力引擎 · 適合日常問答、文件、企劃與快速產出",
+    // v1.54 · 升 GPT-5.5 · 增強推理 + 原生多模態 + 強化 function calling
+    high: "gpt-5.5",
+    standard: "gpt-5.5-mini",
+    fast: "gpt-5.5-nano",
+    desc: "GPT-5.5 主力引擎 · 推理 + 多模態 + 工具呼叫全面升級",
   },
   anthropic: {
     id: "anthropic",
