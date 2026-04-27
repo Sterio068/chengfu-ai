@@ -76,6 +76,45 @@ def _secrets_equal(a: str, b: str) -> bool:
 
 
 # ============================================================
+# v1.29 · _user_or_ip · architect R2 round 3
+# 用 factory(DI) 模式 · 解 _verify_librechat_cookie 在 main.py 而非這裡的循環
+# main.py 呼叫:_user_or_ip = make_user_or_ip(_verify_librechat_cookie)
+# ============================================================
+def make_user_or_ip(verify_cookie_fn, get_remote_address_fn):
+    """factory · 給 SlowAPI Limiter key_func 用
+
+    Args:
+        verify_cookie_fn: callable(request) → email|None · 由 main.py 注入
+        get_remote_address_fn: slowapi.util.get_remote_address(避 import 進 auth_deps)
+
+    Returns:
+        callable(request) → "u:internal" | "u:<email>" | "ip:<addr>"
+
+    Codex R5#7 + R6#2 + R7#2 修:
+    - SlowAPIMiddleware 在 endpoint dependency 前跑 · request.state 還沒設
+    - X-Internal-Token 必須 secret-equal · 不只看存在
+    - 用 hmac.compare_digest 防 timing attack
+    """
+    def _user_or_ip(request):
+        # Internal token · secret-equal compare
+        expected_internal = os.getenv("ECC_INTERNAL_TOKEN", "").strip()
+        provided_internal = (request.headers.get("X-Internal-Token") or "").strip()
+        if _secrets_equal(provided_internal, expected_internal):
+            return "u:internal"
+        # Cookie · 由 caller 注入的 verify_fn
+        try:
+            verified_email = verify_cookie_fn(request)
+            if verified_email:
+                return f"u:{verified_email}"
+        except Exception:
+            pass
+        # IP fallback · 用 caller 注入的 get_remote_address
+        return f"ip:{get_remote_address_fn(request)}"
+
+    return _user_or_ip
+
+
+# ============================================================
 # v1.25 · BSON serialize · 從 main.py 抽出(architect R2 round 2)
 # ============================================================
 def serialize(doc):

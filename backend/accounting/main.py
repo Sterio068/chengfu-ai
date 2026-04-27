@@ -324,30 +324,20 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 
+# v1.29 · architect R2 round 3 · _user_or_ip 抽到 auth_deps.py(factory + DI)
+# 結構:
+#   1. 此處 lazy wrapper · _limiter 抓得到 callable
+#   2. _verify_librechat_cookie 定義(line ~426)
+#   3. _bound_user_or_ip 真 binding(verify_cookie 已 ready)
+# Limiter 在 call key_func 時才實際呼叫 wrapper · wrapper 跑 _bound_user_or_ip
+_bound_user_or_ip = None  # 後綁 · 見 _verify_librechat_cookie 定義後
+
 def _user_or_ip(request: Request) -> str:
-    """Codex R5#7 + R6#2 + R7#2 · 限速 key 優先 trusted user · IP fallback
-
-    R6#2 抓:SlowAPIMiddleware 在 endpoint dependency 前跑 · request.state 還沒設
-    修正:在 key_func 內直接驗 cookie · 不依賴 state
-
-    R7#2 抓:`if request.headers.get("X-Internal-Token")` 只看存在 · 不比對 secret
-    任何人 curl 加亂塞 X-Internal-Token: foo 就能打同一 internal bucket
-    修正:必須等於 ECC_INTERNAL_TOKEN env value
-    """
-    # R7#2 + R8#2 · Internal token 必須 secret-equal · 用 hmac.compare_digest 防 timing attack
-    expected_internal = os.getenv("ECC_INTERNAL_TOKEN", "").strip()
-    provided_internal = (request.headers.get("X-Internal-Token") or "").strip()
-    if _secrets_equal(provided_internal, expected_internal):
-        return "u:internal"
-    # 直接呼叫 _verify_librechat_cookie · 不靠 request.state(middleware 順序問題)
-    try:
-        verified_email = _verify_librechat_cookie(request)
-        if verified_email:
-            return f"u:{verified_email}"
-    except Exception:
-        pass
-    # Fallback · IP(nginx X-Forwarded-For 已被 chengfu-proxy.conf 設)
-    return f"ip:{get_remote_address(request)}"
+    """Lazy wrapper · 真行為由 _bound_user_or_ip(在 auth_deps.make_user_or_ip 產生)"""
+    if _bound_user_or_ip is None:
+        # 啟動 race · _verify_librechat_cookie 還沒定義就被 call · fallback IP
+        return f"ip:{get_remote_address(request)}"
+    return _bound_user_or_ip(request)
 
 
 _limiter = Limiter(
@@ -524,6 +514,12 @@ def _lookup_user_email_cached(user_id: str) -> Optional[str]:
     except Exception as e:
         logger.debug("[auth] users lookup id=%s · %s", user_id, e)
         return None
+
+
+# v1.29 · R2 round 3 · 真 binding · 此時 _verify_librechat_cookie 已定義
+# Limiter wrapper(line ~330)會 lazy delegate 到這裡
+from auth_deps import make_user_or_ip
+_bound_user_or_ip = make_user_or_ip(_verify_librechat_cookie, get_remote_address)
 
 
 def current_user_email(
