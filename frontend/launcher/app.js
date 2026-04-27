@@ -250,6 +250,16 @@ export const app = {
     // URL hash → view
     this.handleHashChange();
     window.addEventListener("hashchange", () => this.handleHashChange());
+
+    // v1.36 a11y · F3 修 · <details> summary 同步 aria-expanded
+    // VoiceOver 在 macOS Safari 不會主動播 details open 變化 · 加 ARIA 自管
+    document.querySelectorAll("details > summary").forEach(summary => {
+      const details = summary.parentElement;
+      summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+      details.addEventListener("toggle", () => {
+        summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+      });
+    });
   },
 
   handleHashChange() {
@@ -727,12 +737,21 @@ export const app = {
       const fill = document.getElementById("roi-budget-fill");
       if (fill) { fill.style.width = "0%"; fill.className = "roi-fill warn"; }
     };
+
+    // v1.36 perf F-1 · 兩個獨立 fetch 改 Promise.allSettled 並行
+    // 原本 budget 跑完才發 funnel · RTT 相加 · 改並行省 1 RTT(~200-400ms)
+    const _budgetReq = (budgetEl && isAdmin)
+      ? authFetch("/api-accounting/admin/budget-status").catch(e => ({ _err: e }))
+      : Promise.resolve(null);
+    const _funnelReq = authFetch("/api-accounting/admin/tender-funnel").catch(e => ({ _err: e }));
+    const [budgetResp, funnelResp] = await Promise.all([_budgetReq, _funnelReq]);
+
+    // ---- 處理 budget ----
     if (budgetEl && isAdmin) {
       try {
-        const r = await authFetch("/api-accounting/admin/budget-status");
-        if (!r.ok) throw new Error(`budget-status ${r.status}`);
-        const d = await r.json();
-        // v4.6 · 若資料源有問題 · 黃牌降級顯示而不是默默回 0
+        if (budgetResp?._err) throw budgetResp._err;
+        if (!budgetResp?.ok) throw new Error(`budget-status ${budgetResp?.status}`);
+        const d = await budgetResp.json();
         if (d.data_source_ok === false) {
           console.warn("[roi] budget data source issue:", d.data_source_issue || "unknown");
           setText("roi-budget-value", "成本統計待校正");
@@ -749,7 +768,6 @@ export const app = {
           }
         }
       } catch (e) {
-        // v1.3 batch6 · 別吞 budget API 失敗
         console.warn("[roi] budget-status failed:", e);
         showBudgetFallback();
       }
@@ -757,11 +775,12 @@ export const app = {
       setText("roi-budget-value", "—");
       setText("roi-budget-sub", "管理員才看得到");
     }
-    // 標案漏斗(admin 全員皆可見 · 管理面板另有更詳細版)
+
+    // ---- 處理 funnel(標案漏斗 · admin 全員皆可見) ----
     try {
-      const r = await authFetch("/api-accounting/admin/tender-funnel");
-      if (r.ok) {
-        const d = await r.json();
+      if (funnelResp?._err) throw funnelResp._err;
+      if (funnelResp?.ok) {
+        const d = await funnelResp.json();
         const f = d.funnel || {};
         const el = document.getElementById("roi-funnel-value");
         if (el) {
@@ -779,7 +798,6 @@ export const app = {
         }
       }
     } catch (e) {
-      // v1.3 batch6 · 別吞 funnel API 失敗
       console.warn("[roi] tender-funnel failed:", e);
     }
     // 本週 AI 幫你做幾件(loadUsage 已放 stat-this-week-tasks)· 抓相同數值到 ROI 卡
