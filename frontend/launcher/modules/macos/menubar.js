@@ -22,6 +22,10 @@ import { authFetch } from "../auth.js";
 function _appName() { return brand.appName; }
 
 function _buildMenus() {
+  // v1.46 calm mode · 6 menu → 3 menu(App / 顯示 / 說明)
+  // 移除「檔案」(同功能在 App「新對話」/「偏好設定」+ 顯示「工作包/知識庫」)
+  // 移除「編輯」(瀏覽器原生 Cmd+X/C/V/Z/A 已支援 · 重複)
+  // 移除「視窗」(macOS 純 todo · 沒接 window manager · 純佔位)
   const APP_NAME = _appName();
   return [
   {
@@ -30,33 +34,12 @@ function _buildMenus() {
     items: [
       { label: `關於 ${APP_NAME}`, action: () => _openAboutWindow(), shortcut: "" },
       { sep: true },
-      { label: "偏好設定...", action: () => window.app?.showView?.("admin"), shortcut: "⌘," },
-      { sep: true },
-      { label: "登出", action: () => _confirmLogout(), shortcut: "⌘⇧Q", danger: true },
-    ],
-  },
-  {
-    label: "檔案",
-    items: [
       { label: "新對話", action: () => window.app?.openAgent?.("00"), shortcut: "⌘N" },
       { label: "新工作包", action: () => window.app?.showView?.("projects"), shortcut: "⌘⇧N" },
       { sep: true },
-      { label: "開啟工作包...", action: () => window.app?.showView?.("projects"), shortcut: "⌘O" },
-      { label: "知識庫搜尋", action: () => window.app?.showView?.("knowledge"), shortcut: "⌘K" },
+      { label: "偏好設定...", action: () => window.app?.showView?.("admin"), shortcut: "⌘," },
       { sep: true },
-      { label: "匯出對話", action: () => _todo("匯出"), shortcut: "⌘E" },
-    ],
-  },
-  {
-    label: "編輯",
-    items: [
-      { label: "復原", action: () => document.execCommand?.("undo"), shortcut: "⌘Z" },
-      { label: "重做", action: () => document.execCommand?.("redo"), shortcut: "⌘⇧Z" },
-      { sep: true },
-      { label: "剪下", action: () => document.execCommand?.("cut"), shortcut: "⌘X" },
-      { label: "複製", action: () => document.execCommand?.("copy"), shortcut: "⌘C" },
-      { label: "貼上", action: () => document.execCommand?.("paste"), shortcut: "⌘V" },
-      { label: "全選", action: () => document.execCommand?.("selectAll"), shortcut: "⌘A" },
+      { label: "登出", action: () => _confirmLogout(), shortcut: "⌘⇧Q", danger: true },
     ],
   },
   {
@@ -74,17 +57,6 @@ function _buildMenus() {
       { sep: true },
       { label: "切換深淺色", action: () => _toggleTheme(), shortcut: "⌘⇧L" },
       { label: "進入全螢幕", action: () => _toggleFullscreen(), shortcut: "⌃⌘F" },
-    ],
-  },
-  {
-    label: "視窗",
-    items: [
-      { label: "最小化", action: () => _todo("最小化(Sprint B Phase 4)"), shortcut: "⌘M" },
-      { label: "縮放", action: () => _todo("縮放"), shortcut: "" },
-      { sep: true },
-      { label: "Mission Control", action: () => _todo("Mission Control · Sprint B Phase 4"), shortcut: "⌘↑" },
-      { sep: true },
-      { label: "回到主畫面", action: () => window.app?.showView?.("dashboard"), shortcut: "⌘0" },
     ],
   },
   {
