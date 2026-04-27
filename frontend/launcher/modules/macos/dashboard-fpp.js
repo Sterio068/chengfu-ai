@@ -95,6 +95,10 @@ let _state = {
   segment: "all",
   // v1.45 calm mode · 預設關 hints overlay(右下浮窗太擾 · 點 ? toggle)
   showHints: false,
+  // v1.46 calm · segments 預設只顯 4 個 primary chip · 點「更多 ▾」展開
+  segmentsExpanded: false,
+  // v1.46 calm · grid 預設只顯 12 個(原 21)· 點「顯示全部」展開
+  gridExpanded: false,
   quickLook: false,
   initialized: false,
   // v1.6
@@ -276,15 +280,27 @@ function _renderPathBar() {
 }
 
 function _renderSegments() {
-  // SEGMENTS · 加 customFolders(在 smart 之後 · 工作區之前)
-  const built = [
+  // v1.46 calm · 預設只顯 4 個關鍵 chip(全部/今天/待我審/3天沒動)+ 「更多 ▾」
+  // 點「更多 ▾」展開所有 segments + custom + 「+ 自訂條件」
+  // 原本一字排開 9-12 個 chip 視覺壓力大
+  const PRIMARY_KEYS = new Set(["all", "today", "review", "stale"]);
+  const customFolders = _state.customFolders.map(c => ({
+    k: c.k, l: c.l, active: false, smart: true, custom: true,
+  }));
+  const all = [
     ...SEGMENTS.slice(0, 5),
-    ..._state.customFolders.map(c => ({ k: c.k, l: c.l, active: false, smart: true, custom: true })),
+    ...customFolders,
     ...SEGMENTS.slice(5),
   ];
+  const expanded = _state.segmentsExpanded === true;
+  const visible = expanded
+    ? all
+    : all.filter(s => PRIMARY_KEYS.has(s.k) || s.active);
+  const hiddenCount = all.length - visible.length;
+
   return `
     <div class="fpp-segments" role="tablist">
-      ${built.map(s => `
+      ${visible.map(s => `
         <button type="button" class="fpp-segment ${s.active ? "active" : ""} ${s.smart ? "smart" : ""}"
                 data-fpp-segment="${s.k}" ${s.custom ? `data-fpp-custom="${s.k}"` : ""}
                 role="tab" aria-selected="${s.active}">
@@ -292,18 +308,30 @@ function _renderSegments() {
           ${s.custom ? `<span class="fpp-seg-edit" data-fpp-seg-edit="${s.k}" title="編輯">⋯</span>` : ""}
         </button>
       `).join("")}
-      <!-- v1.6 · 「+ 自訂條件」橘色可點 → 開 Builder -->
-      <button type="button" class="fpp-segment fpp-segment-add" data-fpp-builder-open
-              title="新增 Smart Folder">+ 自訂條件</button>
-      <span class="fpp-segments-hint">橘色 · Smart Folder 條件查詢</span>
+      ${!expanded && hiddenCount > 0 ? `
+        <button type="button" class="fpp-segment fpp-segment-more" data-fpp-segments-more
+                aria-label="顯示其他 ${hiddenCount} 個分類">
+          更多 ${hiddenCount} ▾
+        </button>
+      ` : ""}
+      ${expanded ? `
+        <button type="button" class="fpp-segment fpp-segment-add" data-fpp-builder-open
+                title="新增 Smart Folder">+ 自訂條件</button>
+      ` : ""}
     </div>
   `;
 }
 
 function _renderGrid() {
+  // v1.46 calm · 預設只顯 12 個 · 「全部 · 顯示其餘 N 個」展開
+  // 21 個 icon 並排太擁擠 · 12 = 4 列 × 3 行(更舒服)
+  const expanded = _state.gridExpanded === true;
+  const PRIMARY_LIMIT = 12;
+  const visible = expanded ? _items : _items.slice(0, PRIMARY_LIMIT);
+  const hidden = _items.length - visible.length;
   return `
     <div class="fpp-grid" id="fpp-grid">
-      ${_items.map((it, i) => `
+      ${visible.map((it, i) => `
         <button type="button" class="fpp-item ${i === _state.selected ? "selected" : ""}"
                 data-fpp-item="${i}" tabindex="${i === _state.selected ? 0 : -1}"
                 aria-label="${escapeHtml(it.name)} · ${escapeHtml(it.date)}">
@@ -317,6 +345,14 @@ function _renderGrid() {
           <span class="fpp-item-date">${escapeHtml(it.date)}</span>
         </button>
       `).join("")}
+      ${hidden > 0 ? `
+        <button type="button" class="fpp-item fpp-item-more" data-fpp-grid-more
+                aria-label="顯示其他 ${hidden} 個">
+          <div class="fpp-icon fpp-icon-more" aria-hidden="true">+${hidden}</div>
+          <span class="fpp-item-name">顯示全部</span>
+          <span class="fpp-item-date">${_items.length} 件</span>
+        </button>
+      ` : ""}
     </div>
   `;
 }
@@ -370,7 +406,12 @@ function _bindToolbar() {
 }
 
 function _bindGrid() {
-  _root.querySelectorAll("[data-fpp-item]").forEach(btn => {
+  // v1.46 calm · 「+N 顯示全部」按鈕
+  _root.querySelector("[data-fpp-grid-more]")?.addEventListener("click", () => {
+    _state.gridExpanded = true;
+    _renderGridOnly();
+  });
+  _root.querySelectorAll("[data-fpp-item]:not([data-fpp-grid-more])").forEach(btn => {
     const idx = parseInt(btn.dataset.fppItem, 10);
     btn.addEventListener("click", () => {
       _state.selected = idx;
@@ -412,6 +453,11 @@ function _bindSegments() {
       }
       _openBuilder(k);
     });
+  });
+  // v1.46 calm · 「更多 N ▾」展開所有 segments
+  _root.querySelector("[data-fpp-segments-more]")?.addEventListener("click", () => {
+    _state.segmentsExpanded = true;
+    _renderSegmentsOnly();
   });
 }
 

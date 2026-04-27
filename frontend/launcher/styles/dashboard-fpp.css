@@ -1597,3 +1597,31 @@
 .fpp-inbox-footer {
   color: var(--label-secondary);
 }
+
+/* ============================================================
+   v1.46 calm mode · segments-more + grid-more (展開鈕)
+   ============================================================ */
+.fpp-segment-more {
+  border-style: dashed;
+  color: var(--label-secondary);
+  background: transparent;
+}
+.fpp-segment-more:hover {
+  background: var(--label-quaternary);
+  color: var(--label-primary);
+}
+
+.fpp-item-more {
+  /* 視覺輕量 · 不像真項目 */
+  opacity: 0.85;
+}
+.fpp-item-more .fpp-icon-more {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--label-secondary) 8%, white),
+    color-mix(in oklab, var(--label-secondary) 15%, white));
+  color: var(--label-secondary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.fpp-item-more:hover { opacity: 1; }

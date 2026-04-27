@@ -205,10 +205,14 @@ export const app = {
     health.start();
     mobile.init();
     // v1.4 macOS · Dock 啟動 · default seed 7 個 agent
-    try {
-      macosDock.init();
-    } catch (e) {
-      console.warn("[macos] dock init failed", e);
+    // v1.46 calm mode · 預設關 dock(底部 7 彩色 icon 視覺重)
+    // 設 localStorage chengfu-dock-show=1 才出
+    if (localStorage.getItem("chengfu-dock-show") === "1") {
+      try {
+        macosDock.init();
+      } catch (e) {
+        console.warn("[macos] dock init failed", e);
+      }
     }
     // v1.4 macOS · Menubar(頂部)· Sprint B Phase 3
     try {
