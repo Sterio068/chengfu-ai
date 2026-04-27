@@ -524,6 +524,14 @@ except ImportError as e:
         e,
     )
 
+# v1.55 · Vision OCR 結構化抽取(招標 9 欄 / 表格 / 評分標準)
+try:
+    from routers import vision as _vision_router
+    app.include_router(_vision_router.router)
+    logger.info("vision router loaded · v1.55 OCR 結構化")
+except ImportError as e:
+    logger.warning("vision router 未載入 · 原因: %s", e)
+
 
 # ============================================================
 # C · 回饋(👍👎)· ROADMAP §11.1 已抽到 routers/feedback.py

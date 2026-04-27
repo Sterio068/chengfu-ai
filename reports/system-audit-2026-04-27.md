@@ -16,7 +16,7 @@
 | **AI 對話 (chat.js)** | 🟢 98% | SSE 串流、附件、回饋、歷史 | DOM 查詢可緩存(P1) |
 | **後端 FastAPI** | 🟢 88% | 354 tests pass · Mongo + Meili 真實接 | social_providers mock(待 Meta 審核) |
 | **10 Agent system prompt** | 🟢 100% | JSON 完整 | — |
-| **AI Action(OpenAI 生圖/PCC/會計)** | 🟢 100% | 12 action 已掛 6 agent · v1.51-1.52 | — |
+| **AI Action(OpenAI 生圖/PCC/會計/Vision OCR)** | 🟢 100% | 18 action 已掛 6 agent · v1.51-1.55 | — |
 | **3 個閉環 workflow** | 🟢 100% | execution + safety guards 全開 · v1.54 | — |
 | **MCP 整合(Drive/Gmail)** | 🔴 0% | — | v1.0 預定 Drive · 尚未實作 |
 | **維運自動化(launchd)** | 🟡 60% | 7 個 plist 模板 | 未自動安裝 · DEPLOY.md 未涵蓋 |

@@ -1,0 +1,103 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "承富 Vision OCR(招標 / 表格 / 評分結構化)",
+    "description": "把圖片(招標公告 / 評分表 / 場地圖 / 報價表)一鍵變結構化 JSON。\n\n後端用 GPT-5.5 vision + structured output · Agent 不用煩惱 prompt 怎麼寫。\n\n適用情境:\n  · 投標顧問 看到招標 PDF 首頁圖 → extractTenderSummary → 9 欄結構\n  · 投標顧問 看到評分標準表 → extractScoringCriteria → 算勝率\n  · 任何 Agent 看到表格 → extractTable → 結構化 rows[]\n\n效能:同一張圖 1 小時內重複呼叫直接走 cache · 不重複付費。",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://accounting:8000" }
+  ],
+  "security": [
+    { "internalToken": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "internalToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Token"
+      }
+    }
+  },
+  "paths": {
+    "/vision/extract-tender-summary": {
+      "post": {
+        "operationId": "extractTenderSummary",
+        "summary": "招標文件 → 9 欄結構化(案號 / 標的 / 預算 / 截止 / 評分 / ...)",
+        "description": "投標顧問必用。看到招標公告或須知首頁,抽出 9 個關鍵欄位。回傳 JSON 含 case_number, subject, budget_twd, deadline, submission_method, qualification, scoring_summary, execution_period, contact, notes。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image_url"],
+                "properties": {
+                  "image_url": {
+                    "type": "string",
+                    "description": "圖片 URL(公開可達)或 data:image/...;base64 內嵌"
+                  },
+                  "hint": {
+                    "type": "string",
+                    "description": "可選 · 額外提示(例:第 3 頁 / 中文版 / 只看左半)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK · 9 欄結構化 JSON" } }
+      }
+    },
+    "/vision/extract-table": {
+      "post": {
+        "operationId": "extractTable",
+        "summary": "通用表格 → headers + rows · 報價 / 評分 / 時程通用",
+        "description": "看到任何表格時用。回傳 { title, headers: string[], rows: string[][], notes }。合併儲存格自動拆,看不清楚的字標 '?'。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image_url"],
+                "properties": {
+                  "image_url": { "type": "string" },
+                  "hint": {
+                    "type": "string",
+                    "description": "可選 · 例:這是廠商報價表 / 這是評分表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK · table JSON" } }
+      }
+    },
+    "/vision/extract-scoring-criteria": {
+      "post": {
+        "operationId": "extractScoringCriteria",
+        "summary": "招標評分標準 → 各項目 + weight + 子項",
+        "description": "投標顧問估勝率前必用。回傳 { total_score, criteria: [{ name, weight, sub_criteria: [] }], passing_score, notes }。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image_url"],
+                "properties": {
+                  "image_url": { "type": "string" },
+                  "hint": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK · scoring criteria JSON" } }
+      }
+    }
+  }
+}

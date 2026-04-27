@@ -53,6 +53,7 @@ ACTION_AGENT_MAP = [
     ("pcc-tender.json",          ["✨ 主管家", "🎯 投標"]),
     ("accounting-internal.json", ["✨ 主管家", "💰 財務"]),
     ("openai-image-gen.json",    ["✨ 主管家", "🎨 設計"]),
+    ("vision-ocr.json",          ["✨ 主管家", "🎯 投標", "🎪 活動"]),  # v1.55
     # ("fal-ai-image-gen.json",  ["✨ 主管家", "🎨 設計"]),  # 備案
 ]
 
@@ -173,16 +174,16 @@ def get_api_key_for(spec_filename: str) -> str | None:
     if "openai-image" in spec_filename:
         # 用既有 OPENAI_API_KEY · 不用業主再開新帳戶
         return os.environ.get("OPENAI_API_KEY")
-    if "accounting" in spec_filename:
-        # 內部服務 · 用 ECC_INTERNAL_TOKEN(同 cron · 同 admin allowlist)
+    if "accounting" in spec_filename or "vision" in spec_filename:
+        # 內部服務 · 都走 ECC_INTERNAL_TOKEN
         return os.environ.get("ECC_INTERNAL_TOKEN")
     return None
 
 
 def needs_api_key_strict(spec: dict, spec_filename: str) -> bool:
-    """spec 沒宣告 security 但 accounting 服務內部要 X-Internal-Token"""
+    """spec 沒宣告 security 但內部 accounting 服務要 X-Internal-Token"""
     if spec.get("security"): return True
-    if "accounting" in spec_filename: return True
+    if "accounting" in spec_filename or "vision" in spec_filename: return True
     return False
 
 
@@ -206,7 +207,7 @@ def wire_action(
             envname = (
                 "FAL_KEY" if "fal-ai" in spec_path.name
                 else "OPENAI_API_KEY" if "openai-image" in spec_path.name
-                else "ECC_INTERNAL_TOKEN" if "accounting" in spec_path.name
+                else "ECC_INTERNAL_TOKEN" if ("accounting" in spec_path.name or "vision" in spec_path.name)
                 else "API_KEY"
             )
             return ("skip", f"需要 api_key 但 ${envname} 沒設 · 跳過 {spec_path.name}")
