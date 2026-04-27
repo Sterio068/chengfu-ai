@@ -765,16 +765,18 @@ function _renderBuilderConds() {
   if (!container) return;
   const FIELDS = ["工作區", "回應狀態", "上次活動", "對話標題", "未讀數", "提及我", "工作包", "AI 小幫手活動"];
   const OPS = ["=", "≠", "包含", ">", "<"];
+  // v1.43 a11y · F10 修 · 條件 row 加 group + 各 control aria-label
+  // SR 念「條件 1 群組 · 欄位 combobox · 比較 combobox · 值 textbox · 移除 button」
   container.innerHTML = _state.builderConditions.map((c, i) => `
-    <div class="fpp-cond-row">
-      <select data-fpp-cond-f="${i}" class="fpp-cond-select">
+    <div class="fpp-cond-row" role="group" aria-label="條件 ${i + 1}">
+      <select data-fpp-cond-f="${i}" class="fpp-cond-select" aria-label="條件 ${i + 1} 欄位">
         ${FIELDS.map(f => `<option ${f === c.f ? "selected" : ""}>${f}</option>`).join("")}
       </select>
-      <select data-fpp-cond-op="${i}" class="fpp-cond-select fpp-cond-op">
+      <select data-fpp-cond-op="${i}" class="fpp-cond-select fpp-cond-op" aria-label="條件 ${i + 1} 比較運算子">
         ${OPS.map(o => `<option ${o === c.op ? "selected" : ""}>${o}</option>`).join("")}
       </select>
-      <input data-fpp-cond-v="${i}" class="fpp-cond-input" value="${escapeHtml(c.v)}">
-      ${c.removable !== false ? `<button class="fpp-cond-rm" data-fpp-cond-rm="${i}" aria-label="移除">×</button>` : ""}
+      <input data-fpp-cond-v="${i}" class="fpp-cond-input" value="${escapeHtml(c.v)}" aria-label="條件 ${i + 1} 值">
+      ${c.removable !== false ? `<button type="button" class="fpp-cond-rm" data-fpp-cond-rm="${i}" aria-label="移除條件 ${i + 1}">×</button>` : ""}
     </div>
   `).join("");
   // bind change
