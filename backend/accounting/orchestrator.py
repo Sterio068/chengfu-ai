@@ -417,6 +417,7 @@ async def delegate_to_agent(
 async def run_workflow(
     req: WorkflowRequest,
     authorization: Optional[str] = Header(None),
+    run_id: Optional[str] = None,  # v1.63 #4 · 若帶 run_id · 從 workflow_run_steps 載已完成 step
 ):
     """執行預定義 workflow。
 
@@ -426,6 +427,9 @@ async def run_workflow(
       step 3: 03 設計夥伴 - KV 發想(並行)
       step 4: 07 財務試算 - 預算試算(依賴 step 1, 2)
       step 5: 01 投標顧問 - 建議書整合(依賴全部)
+
+    v1.63 #4 · retry & resume:
+      帶 run_id 表示從 mongo 復原已成功 step · 只重跑失敗/未跑 step · 不重複付費
     """
     if not _workflow_execution_enabled():
         raise HTTPException(
@@ -441,6 +445,28 @@ async def run_workflow(
     executed_steps: list[dict] = []
     # v1.6.0 #2 · WorkflowContext · 跨 step 結構化資料(取代 raw {step_0} 整段塞)
     workflow_context: dict[str, str] = dict(req.initial_context or {})
+
+    # v1.63 #4 · 若 resume · 從 mongo 載已完成 step result(避免重跑)
+    if run_id:
+        try:
+            from main import db
+            done = list(db.workflow_run_steps.find({"run_id": run_id, "status": "completed"}))
+            for s in done:
+                sid = s["step_id"]
+                results[sid] = {"response": s.get("response", "")}
+                executed_steps.append({
+                    "step_id": sid,
+                    "agent_id": s.get("agent_id", "?"),
+                    "round": s.get("round", 0),
+                    "output_preview": (s.get("response") or "")[:300],
+                    "resumed_from_cache": True,
+                })
+            # restore context
+            ctx_doc = db.workflow_runs.find_one({"_id": ObjectId(run_id)})
+            if ctx_doc and ctx_doc.get("workflow_context"):
+                workflow_context.update(ctx_doc["workflow_context"])
+        except Exception as e:
+            raise HTTPException(400, f"resume 載入 mongo 失敗:{e}")
 
     def _extract_from_response(response: str, extracts: dict[str, str]) -> dict[str, str]:
         """從 response text 用指定規則抽 key
@@ -542,18 +568,47 @@ async def run_workflow(
                     "round": round_no,
                     "output_preview": (invoke_r.get("response") or "")[:300],
                 })
+                # v1.63 #4 · 寫每 step 結果到 mongo · 失敗時可只重跑該 step
+                if run_id:
+                    try:
+                        from main import db
+                        db.workflow_run_steps.update_one(
+                            {"run_id": run_id, "step_id": step_id},
+                            {"$set": {
+                                "run_id": run_id,
+                                "step_id": step_id,
+                                "agent_id": step.agent_id,
+                                "round": round_no,
+                                "status": "completed",
+                                "response": invoke_r.get("response", ""),
+                                "completed_at": datetime.now(timezone.utc),
+                            }},
+                            upsert=True,
+                        )
+                    except Exception:
+                        pass
             # 從 pending 移除已完成
             done_indices = {idx for idx, _ in batch_results}
             pending = [(i, s) for i, s in pending if i not in done_indices]
 
     # 排序回原 step 順序(asyncio.gather 不保序 · 但用 idx sort)
     executed_steps.sort(key=lambda x: int(x["step_id"].split("_")[1]))
+    # v1.63 #4 · 完成時把 context 寫回 workflow_runs · resume 時拿
+    if run_id:
+        try:
+            from main import db
+            db.workflow_runs.update_one(
+                {"_id": ObjectId(run_id)},
+                {"$set": {"workflow_context": workflow_context}},
+            )
+        except Exception:
+            pass
     return {
         "workflow": req.name,
         "steps_executed": len(executed_steps),
         "rounds": round_no,
         "results": executed_steps,
-        "context": workflow_context,  # v1.6.0 #2 · 暴露累積 context 給 caller
+        "context": workflow_context,
         "final_output": executed_steps[-1]["output_preview"] if executed_steps else None,
     }
 
@@ -760,6 +815,7 @@ async def run_preset_workflow(
         status="running",
         preset_name=preset["name"],
         step_count=len(preset["steps"]),
+        initial_input=payload.initial_input,  # v1.63 #4 · 完整存 · resume 重建用
         initial_input_preview=(payload.initial_input or "")[:200],
     )
 
@@ -770,7 +826,7 @@ async def run_preset_workflow(
         initial_input=payload.initial_input,
     )
     try:
-        result = await run_workflow(req, authorization)
+        result = await run_workflow(req, authorization, run_id=run_id)
         _audit_update(
             run_id,
             status="completed",
@@ -787,6 +843,79 @@ async def run_preset_workflow(
     except Exception as e:
         _audit_update(run_id, status="failed", error=str(e)[:300])
         raise HTTPException(500, f"workflow 執行失敗:{e}")
+
+
+# ============================================================
+# v1.63 #4 · Workflow resume · 失敗的 workflow 從中斷處重啟
+# ============================================================
+@router.post("/workflow/resume/{run_id}")
+async def resume_workflow(
+    run_id: str,
+    authorization: Optional[str] = Header(None),
+    user_email: str = require_user_dep(),
+):
+    """從之前失敗 / 中斷的 workflow 復原 · 已完成 step 從 mongo 讀(不重複 LLM 呼叫)
+    安全:只允許 owner / admin · 已 completed 的 workflow 不能 resume
+    """
+    if not _workflow_execution_enabled():
+        raise HTTPException(403, "workflow 執行目前停用")
+    if user_email.startswith("internal:"):
+        raise HTTPException(403, "resume 不接受 internal token")
+
+    from main import db
+    try:
+        run = db.workflow_runs.find_one({"_id": ObjectId(run_id)})
+    except Exception:
+        raise HTTPException(400, "run_id 格式錯誤")
+    if not run:
+        raise HTTPException(404, "找不到該 workflow run")
+    # 權限:只能 resume 自己 run 的 · admin 看全部
+    if run.get("user_email") != user_email and not _is_admin_user(user_email):
+        raise HTTPException(403, "只能 resume 自己的 workflow")
+    if run.get("status") == "completed":
+        raise HTTPException(400, "已完成的 workflow 不能 resume · 直接看結果")
+
+    preset_id = run.get("preset_id")
+    if preset_id not in PRESET_WORKFLOWS:
+        raise HTTPException(404, f"原 preset {preset_id} 已不存在 · 無法 resume")
+
+    preset = PRESET_WORKFLOWS[preset_id]
+    initial_input = run.get("initial_input", "")
+
+    # quota 不再扣(已在原 run 扣過)· 但 update status to running
+    _audit_update(
+        run_id,
+        status="running",
+        resumed_at=datetime.now(timezone.utc),
+    )
+
+    req = WorkflowRequest(
+        name=preset["name"],
+        description=preset["description"],
+        steps=[WorkflowStep(**s) for s in preset["steps"]],
+        initial_input=initial_input,
+    )
+    try:
+        result = await run_workflow(req, authorization, run_id=run_id)
+        _audit_update(
+            run_id,
+            status="completed",
+            completed_at=datetime.now(timezone.utc),
+            steps_executed=result.get("steps_executed", 0),
+            final_preview=(result.get("final_output") or "")[:300],
+        )
+        # 統計 resumed_from_cache 數量
+        cached = sum(1 for s in result.get("results", []) if s.get("resumed_from_cache"))
+        result["run_id"] = run_id
+        result["resumed_from_cache_count"] = cached
+        result["new_runs_count"] = len(result.get("results", [])) - cached
+        return result
+    except HTTPException as e:
+        _audit_update(run_id, status="failed", error=str(e.detail)[:300])
+        raise
+    except Exception as e:
+        _audit_update(run_id, status="failed", error=str(e)[:300])
+        raise HTTPException(500, f"resume 失敗:{e}")
 
 
 def _expected_output_for_step(preset_id: str, index: int) -> str:
@@ -946,3 +1075,192 @@ def set_kill_switch(
         upsert=True,
     )
     return {"ok": True, "paused": payload.paused}
+
+
+# ============================================================
+# v1.62 #6 · A2A Telemetry · 看 主管家 → 專家 路由模式
+# ============================================================
+@router.get("/telemetry/routing")
+def routing_telemetry(
+    days: int = 30,
+    user_email: str = require_user_dep(),
+):
+    """admin 看 A2A 路由統計 · 自己只看自己 · admin 看全部
+    維度:
+    · 各 agent 被 delegate 次數(主管家路由偏好)
+    · workflow preset 採用率
+    · 各 step / target 成功率
+    · 平均完成時長(p50 / p95)
+    · 每日趨勢
+    """
+    from main import db
+    from datetime import timedelta
+    cap_days = max(1, min(180, days))
+    since = datetime.now(timezone.utc) - timedelta(days=cap_days)
+
+    is_admin = _is_admin_user(user_email)
+    base_q = {"started_at": {"$gte": since}}
+    if not is_admin:
+        base_q["user_email"] = user_email
+
+    runs = list(db.workflow_runs.find(base_q))
+    total = len(runs)
+
+    # 1) by preset_id (workflow 採用)
+    preset_stats: dict[str, dict] = {}
+    for r in runs:
+        pid = r.get("preset_id", "unknown")
+        s = preset_stats.setdefault(pid, {"count": 0, "completed": 0, "failed": 0})
+        s["count"] += 1
+        if r.get("status") == "completed": s["completed"] += 1
+        elif r.get("status") == "failed": s["failed"] += 1
+
+    # 2) by target_agent (delegation 偏好)
+    delegate_stats: dict[str, dict] = {}
+    for r in runs:
+        if r.get("preset_id") != "delegation":
+            continue
+        target = r.get("target_agent", "?")
+        s = delegate_stats.setdefault(target, {"count": 0, "completed": 0, "failed": 0})
+        s["count"] += 1
+        if r.get("status") == "completed": s["completed"] += 1
+        elif r.get("status") == "failed": s["failed"] += 1
+
+    # 3) latency stats (completed only)
+    durations_ms: list[int] = []
+    for r in runs:
+        s, e = r.get("started_at"), r.get("completed_at")
+        if s and e:
+            durations_ms.append(int((e - s).total_seconds() * 1000))
+    durations_ms.sort()
+    p50 = durations_ms[len(durations_ms) // 2] if durations_ms else None
+    p95 = durations_ms[int(len(durations_ms) * 0.95)] if len(durations_ms) >= 20 else None
+
+    # 4) daily trend(last N days)
+    daily_counts: dict[str, int] = {}
+    for r in runs:
+        if r.get("started_at"):
+            d = r["started_at"].strftime("%Y-%m-%d")
+            daily_counts[d] = daily_counts.get(d, 0) + 1
+
+    return {
+        "total_runs": total,
+        "window_days": cap_days,
+        "scope": "all" if is_admin else "self",
+        "by_workflow": [
+            {
+                "preset_id": k, "count": v["count"],
+                "completed": v["completed"], "failed": v["failed"],
+                "success_rate": round(v["completed"] / max(1, v["count"]), 3),
+            }
+            for k, v in sorted(preset_stats.items(), key=lambda x: -x[1]["count"])
+        ],
+        "by_delegate_target": [
+            {
+                "agent_num": k,
+                "agent_name": AGENT_NUM_TO_NAME.get(k, k),
+                "count": v["count"],
+                "completed": v["completed"], "failed": v["failed"],
+                "success_rate": round(v["completed"] / max(1, v["count"]), 3),
+            }
+            for k, v in sorted(delegate_stats.items(), key=lambda x: -x[1]["count"])
+        ],
+        "latency_ms": {"p50": p50, "p95": p95, "samples": len(durations_ms)},
+        "daily_trend": [
+            {"date": d, "count": c}
+            for d, c in sorted(daily_counts.items())
+        ],
+    }
+
+
+# ============================================================
+# v1.75 #7 · 學習 loop · 從 feedback 算 router preference
+# ============================================================
+@router.get("/learning/router-preference")
+def router_preference(
+    days: int = 90,
+    user_email: str = require_user_dep(),
+):
+    """從 feedback collection 算每個 agent 的滿意度 + delegation 偏好
+    輸出 prompt 注入用 dict · 主管家可讀來決定優先派誰
+
+    邏輯:
+    · 過去 N 天 · 每 agent 收集 👍/👎 + delegation success rate
+    · score = (up * 1 - down * 1) / max(1, total) + 0.3 * delegate_success_rate
+    · 排序給出 preferred_agents · 主管家路由時參考
+    """
+    from main import db, feedback_col
+    from datetime import timedelta
+    cap_days = max(7, min(365, days))
+    since = datetime.now(timezone.utc) - timedelta(days=cap_days)
+
+    # 1) feedback 統計
+    fb_pipeline = [
+        {"$match": {"created_at": {"$gte": since}}},
+        {"$group": {
+            "_id": "$agent_name",
+            "up": {"$sum": {"$cond": [{"$eq": ["$verdict", "up"]}, 1, 0]}},
+            "down": {"$sum": {"$cond": [{"$eq": ["$verdict", "down"]}, 1, 0]}},
+            "total": {"$sum": 1},
+        }},
+    ]
+    fb_stats = {}
+    try:
+        for d in feedback_col.aggregate(fb_pipeline):
+            name = d["_id"] or "?"
+            fb_stats[name] = {"up": d["up"], "down": d["down"], "total": d["total"]}
+    except Exception:
+        pass
+
+    # 2) delegation success rate
+    delegate_runs = list(db.workflow_runs.find({
+        "preset_id": "delegation",
+        "started_at": {"$gte": since},
+    }))
+    delegate_stats = {}
+    for r in delegate_runs:
+        target = r.get("target_agent") or "?"
+        s = delegate_stats.setdefault(target, {"total": 0, "completed": 0})
+        s["total"] += 1
+        if r.get("status") == "completed": s["completed"] += 1
+
+    # 3) 合分 · 給每個 agent 算 preference score
+    preferences = []
+    for num, name in AGENT_NUM_TO_NAME.items():
+        if num == "00": continue  # router 自己跳過
+        # match feedback by agent name 子串
+        fb = next((v for k, v in fb_stats.items() if name in k), {"up": 0, "down": 0, "total": 0})
+        ds = delegate_stats.get(num, {"total": 0, "completed": 0})
+        sat = (fb["up"] - fb["down"]) / max(1, fb["total"])
+        del_rate = ds["completed"] / max(1, ds["total"])
+        score = round(sat + 0.3 * del_rate, 3)
+        preferences.append({
+            "agent_num": num,
+            "agent_name": name,
+            "feedback_up": fb["up"],
+            "feedback_down": fb["down"],
+            "feedback_total": fb["total"],
+            "delegation_total": ds["total"],
+            "delegation_success_rate": round(del_rate, 3),
+            "preference_score": score,
+        })
+    preferences.sort(key=lambda x: -x["preference_score"])
+
+    # 4) prompt-friendly summary(主管家可注入到 system prompt)
+    top3 = preferences[:3]
+    bottom3 = [p for p in preferences if p["feedback_total"] >= 5][-3:] if preferences else []
+    prompt_hint = (
+        f"基於 {cap_days} 天回饋 · 同事最滿意的 3 個專家:"
+        + ", ".join(f"#{p['agent_num']} {p['agent_name']}({p['preference_score']:+.2f})" for p in top3)
+    )
+    if bottom3:
+        prompt_hint += " · 滿意度較低 / 要小心:"
+        prompt_hint += ", ".join(f"#{p['agent_num']} {p['agent_name']}" for p in bottom3)
+
+    return {
+        "window_days": cap_days,
+        "preferences": preferences,
+        "top3": top3,
+        "prompt_hint": prompt_hint,
+        "evaluation_note": "score = 滿意率 + 0.3 × delegation 成功率 · 主管家路由時可優先選 top",
+    }

@@ -553,6 +553,14 @@ try:
 except ImportError as e:
     logger.warning("vision router 未載入 · 原因: %s", e)
 
+# v2.0-β · Vector RAG · OpenAI embedding 語意搜尋
+try:
+    from routers import vector_rag as _vector_rag_router
+    app.include_router(_vector_rag_router.router)
+    logger.info("vector_rag router loaded · v2.0-β 語意搜尋")
+except ImportError as e:
+    logger.warning("vector_rag router 未載入 · 原因: %s", e)
+
 
 # ============================================================
 # C · 回饋(👍👎)· ROADMAP §11.1 已抽到 routers/feedback.py

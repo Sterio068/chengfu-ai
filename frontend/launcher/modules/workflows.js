@@ -146,15 +146,17 @@ export const workflows = {
     );
     if (!confirmed) return;
 
-    const progress = document.createElement("div");
-    progress.className = "modal2-overlay";
-    progress.innerHTML = `
-      <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-content);padding:24px 28px;border-radius:14px;min-width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)">
-        <div style="font-size:32px;margin-bottom:12px">⚡</div>
-        <div style="font-weight:600;margin-bottom:6px">主管家正在串接執行...</div>
-        <div style="color:var(--text-secondary);font-size:13px">這通常需要 30-90 秒 · 別關視窗</div>
-      </div>`;
+    // v1.64 #2 · DAG progress 視覺化 · 取代純 spinner · 顯示每 step 狀態
+    const presetMeta = await this._fetchPresetMeta(presetId);
+    const progress = this._renderDagProgress(presetId, presetMeta);
     document.body.appendChild(progress);
+    // 進度動畫:每 4 秒提示「主管家正在派工 step N 的專家...」
+    let elapsedSec = 0;
+    const tick = setInterval(() => {
+      elapsedSec += 1;
+      const note = progress.querySelector(".dag-elapsed");
+      if (note) note.textContent = `已 ${elapsedSec}s / 預估 30-90s`;
+    }, 1000);
 
     try {
       const resp = await authFetch(`${BASE}/workflow/run-preset/${encodeURIComponent(presetId)}`, {
@@ -162,7 +164,8 @@ export const workflows = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initial_input: r.input }),
       });
-      progress.remove();
+      clearInterval(tick);
+      clearInterval(tick); progress.remove();
       if (!resp.ok) {
         if (resp.status === 429) {
           const data = await resp.json().catch(() => ({}));
@@ -178,10 +181,54 @@ export const workflows = {
       const result = await resp.json();
       await this.showExecutionResult(result, presetId);
     } catch (e) {
-      progress.remove();
+      clearInterval(tick); progress.remove();
       console.warn("[workflows] execute failed", e);
       toast.error("執行失敗 · 請稍後重試");
     }
+  },
+
+  // v1.64 #2 · 取 preset 的 step DAG metadata · 給視覺用
+  async _fetchPresetMeta(presetId) {
+    try {
+      const r = await authFetch(`${BASE}/workflow/presets/${encodeURIComponent(presetId)}`);
+      if (!r.ok) return { steps: [] };
+      return await r.json();
+    } catch { return { steps: [] }; }
+  },
+
+  // v1.64 #2 · DAG 流程圖 · 取代純 spinner
+  // 顯示每 step 的 agent 與依賴關係 · 執行中可看哪步在跑
+  _renderDagProgress(presetId, meta) {
+    const overlay = document.createElement("div");
+    overlay.className = "modal2-overlay dag-overlay";
+    const steps = meta?.steps || [];
+    const stepHtml = steps.map((s, i) => {
+      const deps = (s.depends_on || []).map(d => d.replace("step_", "#")).join(", ") || "起點";
+      const color = _colorFor(presetId);
+      return `
+        <div class="dag-step" data-dag-step="${s.id}"
+             style="display:grid;grid-template-columns:32px 1fr;gap:10px;padding:10px;border-radius:10px;border:2px solid color-mix(in srgb, ${color} 20%, var(--border));background:color-mix(in srgb, ${color} 6%, var(--bg-content));margin:6px 0;transition:border-color 0.3s">
+          <div class="dag-step-status" style="display:grid;place-items:center;font-size:18px">⏳</div>
+          <div>
+            <div style="font-weight:600;font-size:13px">Step ${i + 1} · ${escapeHtml(_agentNameFromId(s.agent_id))}</div>
+            <div style="color:var(--text-secondary);font-size:12px;margin-top:2px">產出:${escapeHtml(s.expected_output || "?")} · 依賴:${deps}</div>
+          </div>
+        </div>`;
+    }).join("");
+
+    overlay.innerHTML = `
+      <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-content);padding:24px 28px;border-radius:14px;min-width:480px;max-width:90vw;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <span style="font-size:24px">⚡</span>
+          <div style="flex:1">
+            <div style="font-weight:600">${escapeHtml(meta?.name || presetId)}</div>
+            <div style="color:var(--text-secondary);font-size:12px;margin-top:2px">主管家正在串接 ${steps.length} 個專家... · <span class="dag-elapsed">已 0s / 預估 30-90s</span></div>
+          </div>
+        </div>
+        <div class="dag-steps">${stepHtml}</div>
+        <div style="margin-top:12px;color:var(--text-tertiary);font-size:11px;text-align:center">執行中無法取消 · 失敗會自動標紅 · 可從中控 resume</div>
+      </div>`;
+    return overlay;
   },
 
   async showExecutionResult(result, presetId) {
@@ -261,6 +308,16 @@ export const workflows = {
     }
   },
 };
+
+function _agentNameFromId(id) {
+  const map = {
+    "00": "✨ 主管家", "01": "🎯 投標顧問", "02": "🎪 活動規劃師",
+    "03": "🎨 設計夥伴", "04": "📣 公關寫手", "05": "🎙️ 會議速記",
+    "06": "📚 知識庫", "07": "💰 財務試算", "08": "⚖️ 合約法務",
+    "09": "📊 結案營運",
+  };
+  return map[id] || id;
+}
 
 function _iconFor(id) {
   return id === "tender-full" ? "🎯" :
