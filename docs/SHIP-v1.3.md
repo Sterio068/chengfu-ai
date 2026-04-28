@@ -87,6 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main
 
 優點:
 - **0 macOS Gatekeeper**(沒下載 .app/.command 沒簽章問題)
+- **含 Docker Desktop 檢查/安裝**(沒裝會互動確認後用 Homebrew 安裝並啟動)
 - 永遠拉最新 main · 不用重打 DMG
 - 6 步流程清楚 · 哪步炸看 step heading
 - 自動 cp `.env` + 啟容器 + health check + 開瀏覽器
@@ -127,19 +128,18 @@ open "/Volumes/承富 AI 安裝精靈/ChengFu-AI-Installer.app"
 ### Day 1 · Mac mini 到 → 安裝(預估 30 分鐘 · 跌停 1 小時)
 
 1. **拆機** · 接電 + 網路 + UPS · 開機設 macOS 帳號
-2. **裝 Docker Desktop** · https://www.docker.com/products/docker-desktop/ → 等右上角 docker 圖示變綠
-3. **跑 curl 一行**:
+2. **跑 curl 一行**(會自動檢查/安裝 Docker Desktop · 第一次會要求 macOS 授權):
    ```bash
    curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main/installer/install.sh | bash
    ```
-4. **6 步自動跑完**:
-   - Step 1 · 環境預檢(git / docker / disk / RAM)
+3. **6 步自動跑完**:
+   - Step 1 · 環境預檢(git / Docker Desktop 安裝與啟動 / disk / RAM)
    - Step 2 · git clone 到 ~/ChengFu
    - Step 3 · setup-keychain 互動輸 API key(OpenAI 必填)
    - Step 4 · cp .env + 啟容器(`docker compose up -d --build`)
    - Step 5 · 30 秒 warmup + health check 兩個 endpoint
    - Step 6 · 自動開瀏覽器 http://localhost
-5. **建 admin user**(進 launcher 第一次 setup wizard)
+4. **建 admin user**(進 launcher 第一次 setup wizard)
 5. **安裝 launchd cron**:
    ```bash
    cd ~/chengfu-ai

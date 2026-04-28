@@ -8,6 +8,10 @@
 # 用法:
 #   curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main/installer/install.sh | bash
 #
+# 會自動處理 Docker Desktop:
+#   - 已安裝:直接啟動/等待 daemon
+#   - 未安裝:互動確認後用 Homebrew 安裝 Docker Desktop
+#
 # 自訂安裝路徑(預設 ~/ChengFu):
 #   curl -fsSL .../install.sh | INSTALL_DIR=/opt/chengfu bash
 #
@@ -21,6 +25,7 @@ REPO_URL="${REPO_URL:-https://github.com/Sterio068/company-ai-workspace.git}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/ChengFu}"
 BRANCH="${BRANCH:-main}"
 NONINTERACTIVE="${NONINTERACTIVE:-0}"
+AUTO_INSTALL_DOCKER="${AUTO_INSTALL_DOCKER:-1}"
 
 # Color
 R="\033[0;31m"; G="\033[0;32m"; Y="\033[1;33m"; B="\033[0;34m"; N="\033[0m"
@@ -30,12 +35,138 @@ warn() { echo -e "  ${Y}⚠${N} $*"; }
 err()  { echo -e "  ${R}✗${N} $*" >&2; }
 step() { echo ""; echo -e "${B}━━━ $* ━━━${N}"; }
 
+require_tty() {
+    if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+        err "需要互動輸入,但目前沒有可用 TTY"
+        echo "       請改用:curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main/installer/install.sh -o install.sh && bash install.sh"
+        exit 1
+    fi
+}
+
+load_homebrew() {
+    if command -v brew >/dev/null 2>&1; then
+        return 0
+    fi
+    if [ -x /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        return 0
+    fi
+    if [ -x /usr/local/bin/brew ]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+        return 0
+    fi
+    return 1
+}
+
+confirm_yes() {
+    prompt="$1"
+    if [ "$NONINTERACTIVE" = "1" ]; then
+        return 1
+    fi
+    require_tty
+    printf "  %s (Y/n) " "$prompt" >/dev/tty
+    IFS= read -r answer </dev/tty
+    case "${answer:-Y}" in
+        y|Y|yes|YES|Yes) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+ensure_homebrew() {
+    if load_homebrew; then
+        ok "Homebrew $(brew --version | head -n 1 | awk '{print $2}')"
+        return 0
+    fi
+
+    if ! confirm_yes "找不到 Homebrew · 要先自動安裝 Homebrew 嗎?"; then
+        err "Docker Desktop 自動安裝需要 Homebrew"
+        echo "       手動安裝 Homebrew:https://brew.sh"
+        echo "       或手動安裝 Docker Desktop:https://www.docker.com/products/docker-desktop/"
+        exit 1
+    fi
+
+    echo "  · 安裝 Homebrew(可能會要求 macOS 密碼)..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty
+    load_homebrew || {
+        err "Homebrew 安裝後仍無法載入"
+        exit 1
+    }
+    ok "Homebrew $(brew --version | head -n 1 | awk '{print $2}')"
+}
+
+add_docker_cli_to_path() {
+    for docker_bin_dir in \
+        "/Applications/Docker.app/Contents/Resources/bin" \
+        "$HOME/Applications/Docker.app/Contents/Resources/bin"; do
+        if [ -x "$docker_bin_dir/docker" ]; then
+            PATH="$docker_bin_dir:$PATH"
+            export PATH
+            return 0
+        fi
+    done
+    return 1
+}
+
+wait_for_docker_daemon() {
+    max_wait="${1:-240}"
+    elapsed=0
+    while [ "$elapsed" -lt "$max_wait" ]; do
+        add_docker_cli_to_path || true
+        if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+            echo ""
+            ok "docker daemon · running"
+            return 0
+        fi
+        printf "."
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+    echo ""
+    return 1
+}
+
+ensure_docker_desktop() {
+    add_docker_cli_to_path || true
+
+    if ! command -v docker >/dev/null 2>&1; then
+        if [ "$AUTO_INSTALL_DOCKER" != "1" ] || ! confirm_yes "找不到 Docker Desktop · 要自動安裝並啟動嗎?"; then
+            err "沒裝 Docker Desktop"
+            echo "       手動下載:https://www.docker.com/products/docker-desktop/"
+            exit 1
+        fi
+        ensure_homebrew
+        echo "  · 安裝 Docker Desktop(約 1-3 分鐘)..."
+        brew install --cask docker </dev/tty
+        add_docker_cli_to_path || true
+    fi
+
+    ok "docker $(docker --version | awk '{print $3}' | tr -d ',')"
+
+    if docker info >/dev/null 2>&1; then
+        ok "docker daemon · running"
+        return 0
+    fi
+
+    echo "  · 啟動 Docker Desktop · 第一次開啟請按畫面提示授權..."
+    open -a Docker 2>/dev/null || open "/Applications/Docker.app" 2>/dev/null || {
+        err "無法開啟 Docker Desktop"
+        exit 1
+    }
+
+    echo -n "  · 等 Docker daemon 啟動(最多 4 分鐘)"
+    if ! wait_for_docker_daemon 240; then
+        err "Docker daemon 沒啟動"
+        echo "       請確認 Docker Desktop 已完成初始化,右上 docker 圖示穩定後重跑此 script"
+        exit 1
+    fi
+}
+
 trap 'err "安裝失敗 · 看上面錯誤訊息 · 詳見 https://github.com/Sterio068/company-ai-workspace/blob/main/docs/06-TROUBLESHOOTING.md"' ERR
 
 clear || true
 echo ""
 echo "═══════════════════════════════════════════════════"
-echo "  承富智慧助理 · 一行安裝(curl-based · 跳 Gatekeeper)"
+echo "  承富智慧助理 · 一行安裝(curl-based · 含 Docker Desktop)"
 echo "═══════════════════════════════════════════════════"
 echo ""
 echo "  目標路徑:$INSTALL_DIR"
@@ -45,7 +176,8 @@ echo ""
 
 if [ "$NONINTERACTIVE" != "1" ]; then
     echo "  按 Enter 開始 · 或 Ctrl+C 取消"
-    read -r _
+    require_tty
+    read -r _ </dev/tty
 fi
 
 # ============================================================
@@ -62,23 +194,7 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 ok "git $(git --version | awk '{print $3}')"
 
-# docker binary
-if ! command -v docker >/dev/null 2>&1; then
-    err "沒裝 Docker Desktop"
-    echo "       去 https://www.docker.com/products/docker-desktop/ 下載"
-    echo "       裝完打開 Docker.app · 等右上 docker 圖示變綠"
-    exit 1
-fi
-ok "docker $(docker --version | awk '{print $3}' | tr -d ',')"
-
-# docker daemon
-if ! docker info >/dev/null 2>&1; then
-    err "Docker daemon 沒啟動"
-    echo "       打開「應用程式 → Docker」"
-    echo "       等右上 docker 圖示變綠燈再重跑此 script"
-    exit 1
-fi
-ok "docker daemon · running"
+ensure_docker_desktop
 
 # disk space
 AVAIL_GB=$(df -g "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')
@@ -107,7 +223,9 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     if [ "$LOCAL_BRANCH" != "$BRANCH" ]; then
         warn "本機 branch=$LOCAL_BRANCH · 與目標 $BRANCH 不同"
         if [ "$NONINTERACTIVE" != "1" ]; then
-            read -p "  切到 $BRANCH? (y/N) " sw
+            require_tty
+            printf "  切到 %s? (y/N) " "$BRANCH" >/dev/tty
+            IFS= read -r sw </dev/tty
             if [ "$sw" = "y" ] || [ "$sw" = "Y" ]; then
                 git checkout "$BRANCH"
             fi
@@ -154,7 +272,7 @@ else
     echo "  · Anthropic Key 取得網址: https://console.anthropic.com/settings/keys"
     echo "  · Fal.ai Key(設計生圖選配,之後可於中控設定): https://fal.ai/dashboard/keys"
     echo ""
-    bash ./scripts/setup-keychain.sh
+    bash ./scripts/setup-keychain.sh </dev/tty
 fi
 
 # ============================================================

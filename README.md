@@ -6,13 +6,13 @@
 
 ## ⚡ 快速安裝(承富 IT)
 
-Mac mini 接好網路 + 裝好 [Docker Desktop](https://www.docker.com/products/docker-desktop/) 後 · 開 Terminal 貼一行:
+Mac mini 接好網路後 · 開 Terminal 貼一行。腳本會自動檢查/安裝 [Docker Desktop](https://www.docker.com/products/docker-desktop/) 並啟動服務:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main/installer/install.sh | bash
 ```
 
-6 步自動跑完 · 約 5 分鐘 · 完成後自動開 http://localhost
+6 步自動跑完 · 若已裝 Docker 約 5 分鐘,首次安裝 Docker 約 10-15 分鐘 · 完成後自動開 http://localhost
 
 > 不能用 curl?走 [DMG 備援路徑](https://github.com/Sterio068/company-ai-workspace/releases/tag/v1.3.0)(需 `xattr -cr` 清 macOS Gatekeeper)
 > 完整 SOP · [docs/SHIP-v1.3.md](docs/SHIP-v1.3.md)
