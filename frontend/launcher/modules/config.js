@@ -14,7 +14,7 @@ export const API = {
 
 // AI 引擎切換 · 前端 preference,新對話生效
 // 實際可用模型仍由 LibreChat / Keychain / create-agents.py 建立的 Agent 決定。
-export const AI_PROVIDER_KEY = "chengfu-ai-provider";
+export const AI_PROVIDER_KEY = "company-ai-provider";
 export const DEFAULT_AI_PROVIDER = "openai";
 export const AI_PROVIDERS = {
   openai: {
@@ -249,12 +249,12 @@ export const ATTACHMENT = Object.freeze({
 
 // v1.50 · localStorage key 集中 · 防 typo · 改 key 一處生效
 export const STORAGE_KEY = Object.freeze({
-  CHAT_PANE_W: "chengfu-chat-pane-w",
-  CHAT_FULLSCREEN: "chengfu-chat-fullscreen",
-  DOCK_SHOW: "chengfu-dock-show",
-  ONBOARDING_DONE: "chengfu-onboarding-done",
-  TOUR_DONE: "chengfu-tour-done",
-  AI_PROVIDER: "chengfu-ai-provider",
+  CHAT_PANE_W: "company-ai-chat-pane-w",
+  CHAT_FULLSCREEN: "company-ai-chat-fullscreen",
+  DOCK_SHOW: "company-ai-dock-show",
+  ONBOARDING_DONE: "company-ai-onboarding-done",
+  TOUR_DONE: "company-ai-tour-done",
+  AI_PROVIDER: "company-ai-provider",
 });
 
 // CRM Kanban 階段

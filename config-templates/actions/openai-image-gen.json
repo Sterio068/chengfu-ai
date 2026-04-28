@@ -37,7 +37,7 @@
                   "model": {
                     "type": "string",
                     "default": "gpt-image-1",
-                    "description": "預設 gpt-image-1(穩定版)· 若 ChatGPT Images 2.0 / 後續版本 ID 已知,可在這裡指定。可用 env CHENGFU_OPENAI_IMAGE_MODEL 全域覆寫預設"
+                    "description": "預設 gpt-image-1(穩定版)· 若 ChatGPT Images 2.0 / 後續版本 ID 已知,可在這裡指定。可用 env COMPANY_AI_OPENAI_IMAGE_MODEL 全域覆寫預設"
                   },
                   "prompt": {
                     "type": "string",

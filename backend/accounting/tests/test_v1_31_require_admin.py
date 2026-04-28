@@ -29,20 +29,20 @@ class TestLoadAdminAllowlist:
 
     def test_admin_emails_csv(self, monkeypatch):
         from auth_deps import load_admin_allowlist
-        monkeypatch.setenv("ADMIN_EMAILS", "alice@e.com,Bob@E.com,carol@e.com")
+        monkeypatch.setenv("ADMIN_EMAILS", "alice@e.example,Bob@E.example,carol@e.example")
         result = load_admin_allowlist()
-        assert result == {"alice@e.com", "bob@e.com", "carol@e.com"}
+        assert result == {"alice@e.example", "bob@e.example", "carol@e.example"}
 
     def test_admin_email_singular_fallback(self, monkeypatch):
         from auth_deps import load_admin_allowlist
         monkeypatch.delenv("ADMIN_EMAILS", raising=False)
-        monkeypatch.setenv("ADMIN_EMAIL", "single@e.com")
-        assert load_admin_allowlist() == {"single@e.com"}
+        monkeypatch.setenv("ADMIN_EMAIL", "single@e.example")
+        assert load_admin_allowlist() == {"single@e.example"}
 
     def test_strips_whitespace_and_lowercases(self, monkeypatch):
         from auth_deps import load_admin_allowlist
-        monkeypatch.setenv("ADMIN_EMAILS", "  Foo@e.com  , Bar@E.com ")
-        assert load_admin_allowlist() == {"foo@e.com", "bar@e.com"}
+        monkeypatch.setenv("ADMIN_EMAILS", "  Foo@e.example  , Bar@E.example ")
+        assert load_admin_allowlist() == {"foo@e.example", "bar@e.example"}
 
 
 class TestRequireAdmin:
@@ -58,7 +58,7 @@ class TestRequireAdmin:
     def test_no_email_raises(self, monkeypatch):
         from auth_deps import make_require_admin
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "")
-        ra = make_require_admin(MagicMock(), {"a@e.com"})
+        ra = make_require_admin(MagicMock(), {"a@e.example"})
         with pytest.raises(HTTPException) as exc:
             ra(_make_request(), None)
         assert exc.value.status_code == 403
@@ -67,10 +67,10 @@ class TestRequireAdmin:
         from auth_deps import make_require_admin
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "")
         monkeypatch.setenv("JWT_REFRESH_SECRET", "real-secret")
-        ra = make_require_admin(MagicMock(), {"a@e.com"})
+        ra = make_require_admin(MagicMock(), {"a@e.example"})
         req = _make_request(trusted=False)
         with pytest.raises(HTTPException) as exc:
-            ra(req, "a@e.com")
+            ra(req, "a@e.example")
         assert exc.value.status_code == 403
 
     def test_allowlist_trusted_passes(self, monkeypatch):
@@ -78,21 +78,21 @@ class TestRequireAdmin:
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "")
         monkeypatch.setenv("JWT_REFRESH_SECRET", "real-secret")
         users = MagicMock()
-        users.find_one.return_value = {"chengfu_active": True}
-        ra = make_require_admin(users, {"a@e.com"})
+        users.find_one.return_value = {"company_ai_active": True}
+        ra = make_require_admin(users, {"a@e.example"})
         req = _make_request(trusted=True)
-        assert ra(req, "a@e.com") == "a@e.com"
+        assert ra(req, "a@e.example") == "a@e.example"
 
     def test_allowlist_inactive_user_raises(self, monkeypatch):
         from auth_deps import make_require_admin
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "")
         monkeypatch.setenv("JWT_REFRESH_SECRET", "real-secret")
         users = MagicMock()
-        users.find_one.return_value = {"chengfu_active": False}
-        ra = make_require_admin(users, {"a@e.com"})
+        users.find_one.return_value = {"company_ai_active": False}
+        ra = make_require_admin(users, {"a@e.example"})
         req = _make_request(trusted=True)
         with pytest.raises(HTTPException) as exc:
-            ra(req, "a@e.com")
+            ra(req, "a@e.example")
         assert exc.value.status_code == 403
 
     def test_db_role_admin_passes(self, monkeypatch):
@@ -100,10 +100,10 @@ class TestRequireAdmin:
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "")
         monkeypatch.setenv("JWT_REFRESH_SECRET", "real-secret")
         users = MagicMock()
-        users.find_one.return_value = {"role": "ADMIN", "chengfu_active": True}
+        users.find_one.return_value = {"role": "ADMIN", "company_ai_active": True}
         ra = make_require_admin(users, set())  # 不在 allowlist
         req = _make_request(trusted=True)
-        assert ra(req, "x@e.com") == "x@e.com"
+        assert ra(req, "x@e.example") == "x@e.example"
 
     def test_no_admin_anywhere_raises(self, monkeypatch):
         from auth_deps import make_require_admin
@@ -114,7 +114,7 @@ class TestRequireAdmin:
         ra = make_require_admin(users, set())
         req = _make_request(trusted=True)
         with pytest.raises(HTTPException) as exc:
-            ra(req, "x@e.com")
+            ra(req, "x@e.example")
         assert exc.value.status_code == 403
 
 

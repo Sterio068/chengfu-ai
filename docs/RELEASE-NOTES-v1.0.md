@@ -1,14 +1,14 @@
-# 承富 AI 系統 v1.0 · Release Notes
+# 企業 AI 系統 v1.0 · Release Notes
 
 > **發布日期:** 2026-04-22(技術 ready · 部署日由老闆指定)
-> **對象:** 承富老闆 + Champion 看
+> **對象:** 本公司老闆 + Champion 看
 > **5 分鐘讀完**
 
 ---
 
 ## 1. 一句話總結
 
-**承富自有的 AI 協作系統 · 10 人並行 · 對話跟資料 100% 在公司 Mac mini · 不上雲。**
+**本公司自有的 AI 協作系統 · 10 人並行 · 對話跟資料 100% 在公司 Mac mini · 不上雲。**
 
 第 4 週驗收若全員每人月省 ≥ 5 小時 → 月 ROI 2.9 倍 · 3 個月內回本(含硬體)。
 
@@ -42,7 +42,7 @@
 - Admin Dashboard 看本月已用 / by-model / by-user / handoff 填寫率 / Fal 張數
 
 ### 🔐 資料主權
-- 對話 / 知識庫 / 用量 100% 存承富 Mac mini
+- 對話 / 知識庫 / 用量 100% 存本公司 Mac mini
 - 異機備份(Backblaze B2)· Mongo + Meili + KB 全 GPG 加密
 - 月度 restore 演練腳本(`./scripts/dr-drill.sh`)
 - 容器 image digest pin · 供應鏈安全
@@ -91,7 +91,7 @@
 
 ### 不及格(收掉)
 - < 5/10 同仁能講案例 · 整套關 · 資料 export PDF 給老闆
-- 24 小時內可關 · 數據主權永遠在承富
+- 24 小時內可關 · 數據主權永遠在本公司
 
 ---
 
@@ -137,7 +137,7 @@
 
 ## 8. Day 0 上線清單(已 ready)
 
-承富 Sterio Day -3 ~ Day 0 上午做完這 18 項(`docs/72-HOUR-CLEARCUT.md`):
+本公司 Sterio Day -3 ~ Day 0 上午做完這 18 項(`docs/72-HOUR-CLEARCUT.md`):
 - [ ] Cloudflare Access 全員 email 測試 10/10
 - [ ] Champion + 副 Champion 老闆簽字
 - [ ] Day 0 失敗決策樹一頁紙列印
@@ -165,14 +165,14 @@
 
 ## 10. 老闆給 Champion 的承諾(寫在 CHAMPION-WEEK1-LOG.md §7)
 
-> 「Champion 是承富 AI 系統能不能落地的關鍵 · 不是技術問題。
+> 「Champion 是企業 AI 系統能不能落地的關鍵 · 不是技術問題。
 > 我承諾:
 > - 第 4 週驗收 · Champion 工時投入列入績效
 > - Champion 的 home work 時間算正式工時(不算加班)
 > - Champion 提出的工程建議 · Sterio 1 週內回應
 > - Champion 抱怨同仁不配合 · 我親自處理(不要你撕破臉)」
 
-— **承富老闆 · 2026 年 4 月 22 日**
+— **本公司老闆 · 2026 年 4 月 22 日**
 
 ---
 
@@ -184,7 +184,7 @@
 
 **簽收(請列印 + 三方簽字):**
 
-承富老闆 ___________________ 日期 _________
+本公司老闆 ___________________ 日期 _________
 
 Champion ___________________ 日期 _________
 

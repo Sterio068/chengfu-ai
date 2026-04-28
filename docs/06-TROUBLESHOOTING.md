@@ -1,4 +1,4 @@
-# docs/06-TROUBLESHOOTING.md — 承富 AI 系統 · 常見問題
+# docs/06-TROUBLESHOOTING.md — 企業 AI 系統 · 常見問題
 
 > 部署與維運期間最常遇到的問題,按症狀查找。每項皆為「症狀 → 原因 → 解法」。
 > 找不到的問題寫進 `reports/new-issue-<日期>.md`,累積到下季補入本檔。
@@ -17,7 +17,7 @@ docker info
 ```
 若仍不行:Activity Monitor 確認 "Docker Desktop" 有在跑,沒跑就手動雙擊 `/Applications/Docker.app`。
 
-### 1.2 `./scripts/start.sh` 報 "必要機密 'chengfu-ai-xxx' 未設定"
+### 1.2 `./scripts/start.sh` 報 "必要機密 'company-ai-xxx' 未設定"
 **原因**:Keychain 項目少了。
 **解法**:
 ```bash
@@ -41,7 +41,7 @@ docker compose logs librechat | tail -50
 **解法**:
 ```bash
 # 重啟 LibreChat(不影響 MongoDB 資料)
-docker restart chengfu-librechat
+docker restart company-ai-librechat
 ```
 長期:升 RAM 到 32GB 或減少並行對話數。
 
@@ -64,14 +64,14 @@ docker restart chengfu-librechat
 **驗證**:`curl` 直接打目前選用的 provider 試 latency。OpenAI 範例:
 ```bash
 time curl https://api.openai.com/v1/responses \
-    -H "Authorization: Bearer $(security find-generic-password -s 'chengfu-ai-openai-key' -w)" \
+    -H "Authorization: Bearer $(security find-generic-password -s 'company-ai-openai-key' -w)" \
     -H "Content-Type: application/json" \
     -d '{"model":"gpt-5.4-nano","input":"hi"}'
 ```
 Claude 備援範例:
 ```bash
 time curl https://api.anthropic.com/v1/messages \
-    -H "x-api-key: $(security find-generic-password -s 'chengfu-ai-anthropic-key' -w)" \
+    -H "x-api-key: $(security find-generic-password -s 'company-ai-anthropic-key' -w)" \
     -H "anthropic-version: 2023-06-01" \
     -d '{"model":"claude-haiku-4-5","max_tokens":50,"messages":[{"role":"user","content":"hi"}]}'
 ```
@@ -90,11 +90,11 @@ time curl https://api.anthropic.com/v1/messages \
 **解法**:耐心等;若 5 分鐘後仍卡住:
 ```bash
 docker compose logs librechat | grep -i "file_search\|embedding"
-docker restart chengfu-librechat
+docker restart company-ai-librechat
 ```
 重啟後使用者重新上傳。
 
-### 2.4 Agent 回應「我不知道承富過往案例」,但知識庫已上傳
+### 2.4 Agent 回應「我不知道本公司過往案例」,但知識庫已上傳
 **原因 A**:檔案還在索引中。LibreChat file_search 首次上傳大檔需時。
 **解法**:等 5-10 分鐘,重試。
 
@@ -136,17 +136,17 @@ cat ~/.cloudflared/config.yml
 **原因**:該 email 不在 Cloudflare Access 白名單。
 **解法**:Cloudflare Zero Trust → Access → Applications → 該 App → Policy → 加 email。
 
-### 3.4 公司內網 `http://承富-ai.local` 連不上
+### 3.4 公司內網 `http://本公司-ai.local` 連不上
 **原因**:mDNS / Bonjour 名稱解析失敗。
 **解法**:
 ```bash
 # Mac mini 上:
-sudo scutil --set HostName 承富-ai
-sudo scutil --set LocalHostName 承富-ai
+sudo scutil --set HostName 本公司-ai
+sudo scutil --set LocalHostName 本公司-ai
 dns-sd -B _http._tcp  # 確認廣播
 
 # 同仁端:
-ping 承富-ai.local   # 應回 Mac mini 的 IP
+ping 本公司-ai.local   # 應回 Mac mini 的 IP
 ```
 若不行:改用固定 IP 加公司 DNS 記錄。
 
@@ -154,11 +154,11 @@ ping 承富-ai.local   # 應回 Mac mini 的 IP
 
 ## 4. 備份與資料類
 
-### 4.1 `./scripts/backup.sh` 報 "Error: No such container: chengfu-mongo"
+### 4.1 `./scripts/backup.sh` 報 "Error: No such container: company-ai-mongo"
 **原因**:MongoDB 容器沒啟動。
 **解法**:
 ```bash
-docker compose ps  # 看 chengfu-mongo 狀態
+docker compose ps  # 看 company-ai-mongo 狀態
 ./scripts/start.sh  # 若沒啟動
 ```
 
@@ -171,11 +171,11 @@ docker compose ps  # 看 chengfu-mongo 狀態
 **解法**:
 ```bash
 # 看佔用
-du -sh ~/chengfu-backups/*
+du -sh ~/company-ai-backups/*
 
 # 縮短保留(編輯 scripts/backup.sh 改 DAILY_RETENTION=14)
 # 或立即清理
-find ~/chengfu-backups/daily -type f -mtime +14 -delete
+find ~/company-ai-backups/daily -type f -mtime +14 -delete
 ```
 
 ---
@@ -208,7 +208,7 @@ find ~/chengfu-backups/daily -type f -mtime +14 -delete
 **原因(最常見)**:使用者輸入的 prompt 太簡略,AI 只能瞎猜。
 **解法**:訓練時強化「具體 prompt」技巧(見 `docs/03-TRAINING.md`)。
 
-**原因(次常見)**:該 Agent 的 instructions 與承富實際需求不夠貼合。
+**原因(次常見)**:該 Agent 的 instructions 與本公司實際需求不夠貼合。
 **解法**:收集 5-10 個案例,改 instructions;加 few-shot;若仍不行就切換更高階模型版本。
 
 ---
@@ -278,11 +278,11 @@ curl -v http://localhost:3080/api/config
 nslookup ai.<公司域名>.com
 
 # 備份
-ls -la ~/chengfu-backups/daily/ | tail -5
+ls -la ~/company-ai-backups/daily/ | tail -5
 
 # API 測試
 curl https://api.anthropic.com/v1/messages \
-    -H "x-api-key: $(security find-generic-password -s 'chengfu-ai-anthropic-key' -w)" \
+    -H "x-api-key: $(security find-generic-password -s 'company-ai-anthropic-key' -w)" \
     -H "anthropic-version: 2023-06-01" \
     -H "content-type: application/json" \
     -d '{"model":"claude-haiku-4-5","max_tokens":30,"messages":[{"role":"user","content":"test"}]}'

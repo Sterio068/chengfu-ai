@@ -9,7 +9,7 @@
 
 ### 任務 2.1:取得官方 LibreChat
 ```bash
-cd ~/chengfu-ai
+cd ~/company-ai
 git clone https://github.com/danny-avila/LibreChat.git librechat-source
 cd librechat-source
 ```
@@ -18,7 +18,7 @@ cd librechat-source
 
 ### 任務 2.2:複製設定範本到專案
 ```bash
-cd ~/chengfu-ai
+cd ~/company-ai
 mkdir -p config
 # 從 config-templates 複製
 cp [handoff]/config-templates/librechat.yaml config/
@@ -28,7 +28,7 @@ cp [handoff]/config-templates/.env.example config/.env
 
 ### 任務 2.3:填 `.env` 設定
 - [ ] 取得 Anthropic API key(https://console.anthropic.com)
-  - [ ] 建立新 key,標籤為 `chengfu-production`
+  - [ ] 建立新 key,標籤為 `company-ai-production`
   - [ ] 設定 usage limit:每月 NT$ 12,000(折算約 $400 USD)
   - [ ] 填入 `.env` 的 `ANTHROPIC_API_KEY=sk-ant-...`
 - [ ] 取得 OpenAI API key(for embeddings only,不作為主力模型)
@@ -37,11 +37,11 @@ cp [handoff]/config-templates/.env.example config/.env
 - [ ] 生成其他密鑰(依 `.env.example` 內說明):
   - [ ] `CREDS_KEY`、`CREDS_IV`、`JWT_SECRET`、`JWT_REFRESH_SECRET`
   - [ ] 用 `openssl rand -hex 32` 生成
-- [ ] 設定 `DOMAIN_CLIENT` 與 `DOMAIN_SERVER` 為 `https://ai.<承富domain>.com`
+- [ ] 設定 `DOMAIN_CLIENT` 與 `DOMAIN_SERVER` 為 `https://ai.<本公司domain>.com`
 
 ### 任務 2.4:啟動 Docker Compose
 ```bash
-cd ~/chengfu-ai/config
+cd ~/company-ai/config
 docker compose pull
 docker compose up -d
 ```
@@ -54,7 +54,7 @@ docker compose up -d
 - [ ] 測試:`curl http://localhost:3080` 回應 HTML
 
 ### 任務 2.5:透過 Cloudflare Tunnel 驗證
-- [ ] 瀏覽器開 `https://ai.<承富domain>.com`
+- [ ] 瀏覽器開 `https://ai.<本公司domain>.com`
 - [ ] 通過 Cloudflare Access 驗證(白名單 email)
 - [ ] 看到 LibreChat 登入頁 → 部署成功
 
@@ -63,7 +63,7 @@ docker compose up -d
 ## Day 10:帳號與權限
 
 ### 任務 2.6:建立管理員帳號
-- [ ] 在登入頁點「註冊」,先註冊 `sterio@<承富domain>.com`(或 Sterio 既有 email)
+- [ ] 在登入頁點「註冊」,先註冊 `sterio@<本公司domain>.com`(或 Sterio 既有 email)
 - [ ] 登入後進入 `localhost:3080/admin` 或 admin console
 - [ ] 將此帳號設為 ADMIN
 
@@ -74,8 +74,8 @@ docker compose up -d
 - [ ] 新增同仁只能由管理員在後台建立
 
 ### 任務 2.8:建立 10 個同仁帳號
-從承富取得 10 位同仁名單,依以下原則建立:
-- [ ] Email:使用公司域名 email(若無就建立 @chengfu.com)
+從本公司取得 10 位同仁名單,依以下原則建立:
+- [ ] Email:使用公司域名 email(若無就建立 @company.example)
 - [ ] 初始密碼:亂數生成 12 碼(大小寫+數字+符號)
 - [ ] 角色:USER(非 ADMIN)
 - [ ] Token 上限設定(依職務分類):
@@ -137,7 +137,7 @@ docker compose up -d
   - 若超過 100% → 暫時降級該 user(改只能用 Haiku)
 - [ ] 設定 cron job:
   ```
-  0 9 * * * /Users/steadmin/chengfu-ai/scripts/check-usage.sh
+  0 9 * * * /Users/steadmin/company-ai/scripts/check-usage.sh
   ```
 
 ### 任務 2.15:設定 MongoDB 備份
@@ -145,10 +145,10 @@ docker compose up -d
 ```bash
 #!/bin/bash
 DATE=$(date +%Y-%m-%d)
-BACKUP_DIR="/Users/steadmin/chengfu-ai/backups/mongo/$DATE"
+BACKUP_DIR="/Users/steadmin/company-ai/backups/mongo/$DATE"
 mkdir -p $BACKUP_DIR
-docker exec chengfu-mongo mongodump --archive --gzip > $BACKUP_DIR/mongo.archive.gz
-find /Users/steadmin/chengfu-ai/backups/mongo -mtime +30 -type d -exec rm -rf {} \;
+docker exec company-ai-mongo mongodump --archive --gzip > $BACKUP_DIR/mongo.archive.gz
+find /Users/steadmin/company-ai/backups/mongo -mtime +30 -type d -exec rm -rf {} \;
 ```
 - [ ] chmod +x 並排入 cron:每日 02:00 執行
 - [ ] 手動測試一次,確認產出檔案正常
@@ -167,18 +167,18 @@ find /Users/steadmin/chengfu-ai/backups/mongo -mtime +30 -type d -exec rm -rf {}
 
 ## Day 13:品牌客製化
 
-### 任務 2.17:上傳承富 logo
-- [ ] 向承富取得 logo(PNG,透明背景,512x512 以上)
-- [ ] 放到 `client/public/assets/chengfu-logo.png`
+### 任務 2.17:上傳本公司 logo
+- [ ] 向本公司取得 logo(PNG,透明背景,512x512 以上)
+- [ ] 放到 `client/public/assets/company-ai-logo.png`
 - [ ] 修改 LibreChat client branding:
-  - 登入頁顯示「承富創意整合行銷 · AI 協作平台」
-  - 側邊欄 logo 用承富 logo
-  - 瀏覽器 favicon 用承富 logo
+  - 登入頁顯示「本公司 · AI 協作平台」
+  - 側邊欄 logo 用本公司 logo
+  - 瀏覽器 favicon 用本公司 logo
 
 ### 任務 2.18:客製化登入頁文案
 修改 `src/localization/languages/zh-Hant.ts` 或等效 i18n 檔:
-- [ ] 登入頁標題:「承富 AI 協作平台」
-- [ ] 副標:「讓 AI 成為承富的第 11 位同事」
+- [ ] 登入頁標題:「企業 AI 協作平台」
+- [ ] 副標:「讓 AI 成為本公司的第 11 位同事」
 - [ ] 歡迎訊息加上品牌口吻
 
 ---
@@ -196,5 +196,5 @@ find /Users/steadmin/chengfu-ai/backups/mongo -mtime +30 -type d -exec rm -rf {}
 ### 任務 2.20:產出週報
 在 `reports/week-2.md` 建立報告,格式同 Week 1。
 
-- [ ] 寄給 Sterio 與承富老闆
+- [ ] 寄給 Sterio 與本公司老闆
 - [ ] 下週 Week 3 開始客製化(10 個 Preset、知識庫灌入)

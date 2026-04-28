@@ -27,10 +27,10 @@ function readKeychainSecret(service: string): string {
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL
   || process.env.LIBRECHAT_ADMIN_EMAIL
-  || readKeychainSecret('chengfu-ai-admin-install-email');
+  || readKeychainSecret('company-ai-admin-install-email');
 const adminPassword = process.env.E2E_ADMIN_PASSWORD
   || process.env.LIBRECHAT_ADMIN_PASSWORD
-  || readKeychainSecret('chengfu-ai-admin-install-password');
+  || readKeychainSecret('company-ai-admin-install-password');
 const hasAdminCredentials = Boolean(adminEmail && adminPassword);
 const baseURL = process.env.BASE_URL || 'http://localhost';
 const authStateSlug = [
@@ -56,7 +56,7 @@ function contextOptionsForProject(testInfo: TestInfo) {
 
 async function skipTour(page: Page) {
   await page.evaluate(() => {
-    localStorage.setItem('chengfu-tour-done', '1');
+    localStorage.setItem('company-ai-tour-done', '1');
     (window as any).tour?.skip?.();
     document.querySelector('#tour-backdrop')?.classList.remove('open');
     document.querySelector('#tour-bubble')?.classList.remove('open');

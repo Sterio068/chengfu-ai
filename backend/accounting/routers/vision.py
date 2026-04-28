@@ -6,7 +6,7 @@ Vision OCR · v1.55 · 招標 / 合約 / 場地圖等視覺結構化抽取
   把 OpenAI vision + structured output 的 prompt + schema 隱藏在後端,
   Agent 不用煩惱怎麼問。
 
-3 個專用端點(承富業務頻次最高):
+3 個專用端點(本公司業務頻次最高):
   · extract-tender-summary  · 招標文件 9 欄結構化(案號 / 標的 / 預算 / 截止 / ...)
   · extract-table           · 任何表格(評分 / 預算 / 報價 / 時程)→ rows[]
   · extract-scoring-criteria · 評分標準 → criteria[] 含 weight / sub-criteria
@@ -44,7 +44,7 @@ from routers._deps import require_user_dep
 router = APIRouter(prefix="/vision", tags=["vision"])
 
 OPENAI_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-VISION_MODEL = os.getenv("CHENGFU_OPENAI_VISION_MODEL", "gpt-5.5")
+VISION_MODEL = os.getenv("COMPANY_AI_OPENAI_VISION_MODEL", "gpt-5.5")
 CACHE_TTL_S = 3600  # 1h
 
 # 簡易 in-memory LRU · 重啟清空 · 容量 100 (~5MB image base64 hash 才 64 bytes · 安全)
@@ -247,7 +247,7 @@ SCORING_CRITERIA_SCHEMA = {
 # OpenAI 會把回應當圖文 OCR 後吐回 → blind SSRF via 3rd-party fetch proxy
 # 防禦:強制 https + 禁內網 IP/host + 禁雲端 metadata
 _BLOCKED_HOST_RE = re.compile(
-    r"^(localhost|accounting|librechat|mongodb|meilisearch|nginx|chengfu-.*)$",
+    r"^(localhost|accounting|librechat|mongodb|meilisearch|nginx|company_ai-.*)$",
     re.IGNORECASE,
 )
 

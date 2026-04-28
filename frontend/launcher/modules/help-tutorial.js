@@ -16,7 +16,7 @@
 import { markTaskDone, getRole, ROLES } from "./help-state.js";
 import { escapeHtml } from "./util.js";
 
-const TUTORIAL_DONE_KEY = "chengfu-tutorial-done";
+const TUTORIAL_DONE_KEY = "company-ai-tutorial-done";
 
 const STEPS = [
   {
@@ -329,7 +329,7 @@ function _render() {
   _bubble.querySelector("[data-tutorial-back]")?.addEventListener("click", () => helpTutorial.back());
   _bubble.querySelector("[data-tutorial-next]")?.addEventListener("click", () => helpTutorial.next());
   _bubble.querySelector("[data-tutorial-role-reset]")?.addEventListener("click", () => {
-    localStorage.removeItem("chengfu-help-role");
+    localStorage.removeItem("company-ai-help-role");
     location.reload();
   });
 }

@@ -1,4 +1,4 @@
-# 承富 AI 系統 · 外部審查請求 (v9.1)
+# 企業 AI 系統 · 外部審查請求 (v9.1)
 
 > **第 26 輪審查 · 2026-04-23 · v1.2 收尾完成**
 > **本輪重點:** v1.2 全部上線 · 4 新功能 + 4 補功能 + 17 優化 + 9 輪 audit · 0 紅
@@ -70,7 +70,7 @@
 
 [Release / Installer]
 8. docs/RELEASE-NOTES-v1.2.md(本輪更新)
-9. installer/ChengFu-AI-Installer.applescript(v1.2 · 6 步對話框)
+9. installer/Company-AI-Installer.applescript(v1.2 · 6 步對話框)
 
 [已穩固](Round 1-12 過了 · 不重審)
 10. backend/accounting/main.py(1105 行 · 14 router include)
@@ -86,7 +86,7 @@
 
 **讀 docs/DAY0-DRY-RUN.md + scripts/install-launchd.sh(現含 5 個 cron):**
 - 5 個 cron 在 Mac mini 上同時跑 · 有 race?
-- ChengFu-AI-Installer.app v1.2 對 IT 真會 OpenAI key 必填嗎?
+- Company-AI-Installer.app v1.2 對 IT 真會 OpenAI key 必填嗎?
 - HEIC 轉 JPEG 在生產 OOM 風險(老闆 iPhone 拍 5 張 20MB HEIC)?
 
 ### 4.2 4 新功能 E2E 真路徑

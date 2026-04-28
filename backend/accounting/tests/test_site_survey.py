@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-USER = {"X-User-Email": "pm@chengfu.local"}
+USER = {"X-User-Email": "pm@company-ai.local"}
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def test_survey_create_success_with_gps(client):
 
     # 驗 DB
     import main
-    doc = main.db.site_surveys.find_one({"owner": "pm@chengfu.local"})
+    doc = main.db.site_surveys.find_one({"owner": "pm@company-ai.local"})
     assert doc is not None
     assert doc["location"]["gps"]["lat"] == 25.0330
     assert doc["location"]["address_hint"] == "台北 101"
@@ -80,7 +80,7 @@ def test_survey_rejects_other_project(client):
     from datetime import datetime, timezone
     proj_id = main.projects_col.insert_one({
         "name": "alice site project",
-        "owner": "alice@chengfu.local",
+        "owner": "alice@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
@@ -95,12 +95,12 @@ def test_survey_get_not_owner_403(client):
     import main
     from datetime import datetime, timezone
     sid = main.db.site_surveys.insert_one({
-        "owner": "alice@chengfu.local",
+        "owner": "alice@company-ai.local",
         "status": "done",
         "created_at": datetime.now(timezone.utc),
     }).inserted_id
     r = client.get(f"/site-survey/{sid}",
-        headers={"X-User-Email": "bob@chengfu.local"})
+        headers={"X-User-Email": "bob@company-ai.local"})
     assert r.status_code == 403
 
 
@@ -108,13 +108,13 @@ def test_survey_list_owner_filter(client):
     import main
     from datetime import datetime, timezone
     main.db.site_surveys.insert_many([
-        {"owner": "c@x.com", "status": "done", "image_count": 2,
+        {"owner": "c@x.example", "status": "done", "image_count": 2,
          "created_at": datetime.now(timezone.utc),
          "structured": {"venue": {"type": "室外"}, "issues": ["入口窄"]}},
-        {"owner": "d@x.com", "status": "done", "image_count": 3,
+        {"owner": "d@x.example", "status": "done", "image_count": 3,
          "created_at": datetime.now(timezone.utc)},
     ])
-    r = client.get("/site-survey", headers={"X-User-Email": "c@x.com"})
+    r = client.get("/site-survey", headers={"X-User-Email": "c@x.example"})
     items = r.json()["items"]
     assert len(items) == 1
     assert items[0]["venue_type"] == "室外"
@@ -126,13 +126,13 @@ def test_push_to_handoff(client):
     from datetime import datetime, timezone
     proj_id = main.projects_col.insert_one({
         "name": "場勘測試",
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
 
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "project_id": str(proj_id),
         "status": "done",
         "structured": {
@@ -164,13 +164,13 @@ def test_push_to_handoff_rejects_other_project(client):
     from datetime import datetime, timezone
     proj_id = main.projects_col.insert_one({
         "name": "別人專案",
-        "owner": "alice@chengfu.local",
+        "owner": "alice@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
 
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "project_id": str(proj_id),
         "status": "done",
         "structured": {
@@ -193,7 +193,7 @@ def test_audio_rejects_wrong_mime(client):
     """B4 · 上傳 text/plain · 應 400(白名單擋)"""
     import main
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local", "status": "done",
+        "owner": "pm@company-ai.local", "status": "done",
         "audio_notes": [],
     }).inserted_id
     r = client.post(
@@ -209,7 +209,7 @@ def test_audio_rejects_too_small(client):
     """B4 · audio < 1KB · 八成空檔 · 400"""
     import main
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local", "status": "done", "audio_notes": [],
+        "owner": "pm@company-ai.local", "status": "done", "audio_notes": [],
     }).inserted_id
     r = client.post(
         f"/site-survey/{sid}/audio",
@@ -223,7 +223,7 @@ def test_audio_rejects_oversized(client):
     """B4 · > 5 MB · 413"""
     import main
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local", "status": "done", "audio_notes": [],
+        "owner": "pm@company-ai.local", "status": "done", "audio_notes": [],
     }).inserted_id
     big = b"x" * (6 * 1024 * 1024)
     r = client.post(
@@ -238,12 +238,12 @@ def test_audio_rejects_not_owner(client):
     """B4 · 別人 owner 的 survey · 403"""
     import main
     sid = main.db.site_surveys.insert_one({
-        "owner": "alice@chengfu.local", "status": "done", "audio_notes": [],
+        "owner": "alice@company-ai.local", "status": "done", "audio_notes": [],
     }).inserted_id
     r = client.post(
         f"/site-survey/{sid}/audio",
         files={"audio": ("a.webm", b"x" * 2048, "audio/webm")},
-        headers=USER,  # pm@chengfu.local
+        headers=USER,  # pm@company-ai.local
     )
     assert r.status_code == 403
 
@@ -252,7 +252,7 @@ def test_audio_caps_at_max_per_survey(client):
     """B4 · 已有 10 個 audio note · 第 11 個 429"""
     import main
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local", "status": "done",
+        "owner": "pm@company-ai.local", "status": "done",
         "audio_notes": [{"_id": __import__("bson").ObjectId(), "transcript": f"n{i}"}
                          for i in range(10)],
     }).inserted_id
@@ -292,7 +292,7 @@ def test_audio_success_processing(client, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "fake")
 
     sid = main.db.site_surveys.insert_one({
-        "owner": "pm@chengfu.local", "status": "done", "audio_notes": [],
+        "owner": "pm@company-ai.local", "status": "done", "audio_notes": [],
     }).inserted_id
     r = client.post(
         f"/site-survey/{sid}/audio",

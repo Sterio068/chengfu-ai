@@ -23,7 +23,7 @@ from ._deps import current_user_email_dep, get_db
 
 
 router = APIRouter(tags=["system"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # ============================================================

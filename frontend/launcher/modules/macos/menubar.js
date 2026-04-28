@@ -214,9 +214,9 @@ function _renderStatusModel() {
   el.className = "menubar-status-item engine-toggle";
   el.title = "控制中心(⌃⌘C)";
   // v1.11 · 改讀 store · 與 app.js / control-center 共用
-  const cur = (window.chengfuStore?.get("engine"))
-    || localStorage.getItem("chengfu-ai-provider")
-    || localStorage.getItem("chengfu-engine")
+  const cur = (window.companyAiStore?.get("engine"))
+    || localStorage.getItem("company-ai-provider")
+    || localStorage.getItem("company-ai-engine")
     || "openai";
   el.innerHTML = `
     <span class="status-icon">🤖</span>
@@ -229,8 +229,8 @@ function _renderStatusModel() {
     import("./control-center.js").then(m => m.toggle()).catch(err => {
       // 退回舊行為 · 直接 toggle 引擎
       const next = cur === "openai" ? "anthropic" : "openai";
-      if (window.chengfuStore) window.chengfuStore.set("engine", next);
-      else localStorage.setItem("chengfu-ai-provider", next);
+      if (window.companyAiStore) window.companyAiStore.set("engine", next);
+      else localStorage.setItem("company-ai-provider", next);
       _renderMenubar();
     });
   });

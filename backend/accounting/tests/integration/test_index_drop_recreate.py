@@ -59,7 +59,7 @@ def test_partial_filter_excludes_empty_string(real_db):
     col.insert_one({"name": "d", "email": ""})
 
     # 兩個 same valid email · 應 raise
-    col.insert_one({"name": "e", "email": "alice@x.com"})
+    col.insert_one({"name": "e", "email": "alice@x.example"})
     from pymongo.errors import DuplicateKeyError
     with pytest.raises(DuplicateKeyError):
-        col.insert_one({"name": "f", "email": "alice@x.com"})
+        col.insert_one({"name": "f", "email": "alice@x.example"})

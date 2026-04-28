@@ -34,7 +34,7 @@ def test_transcribe_rejects_wrong_mime(client):
     r = client.post(
         "/memory/transcribe",
         files={"audio": ("fake.txt", b"not audio", "text/plain")},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 400
 
@@ -44,7 +44,7 @@ def test_transcribe_rejects_tiny(client):
     r = client.post(
         "/memory/transcribe",
         files={"audio": ("tiny.mp3", b"x", "audio/mpeg")},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 400
 
@@ -55,7 +55,7 @@ def test_transcribe_rejects_oversized(client):
     r = client.post(
         "/memory/transcribe",
         files={"audio": ("big.mp3", fake_big, "audio/mpeg")},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 413
 
@@ -66,7 +66,7 @@ def test_transcribe_success_returns_meeting_id(client):
     from datetime import datetime, timezone
     proj_id = main.projects_col.insert_one({
         "name": "meeting upload project",
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
@@ -75,7 +75,7 @@ def test_transcribe_success_returns_meeting_id(client):
         "/memory/transcribe",
         files={"audio": ("test.mp3", fake_audio, "audio/mpeg")},
         data={"project_id": str(proj_id)},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -84,7 +84,7 @@ def test_transcribe_success_returns_meeting_id(client):
 
     # 驗 DB
     doc = main.db.meetings.find_one({"_id__from_str": body["meeting_id"]}) or \
-          main.db.meetings.find_one({"owner": "pm@chengfu.local"})
+          main.db.meetings.find_one({"owner": "pm@company-ai.local"})
     assert doc is not None
     assert doc["audio_size"] > 0
     assert doc["status"] in ("transcribing", "done", "failed")  # background 可能已動
@@ -98,7 +98,7 @@ def test_transcribe_rejects_other_project(client):
     from datetime import datetime, timezone
     proj_id = main.projects_col.insert_one({
         "name": "alice project",
-        "owner": "alice@chengfu.local",
+        "owner": "alice@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
@@ -107,7 +107,7 @@ def test_transcribe_rejects_other_project(client):
         "/memory/transcribe",
         files={"audio": ("test.mp3", fake_audio, "audio/mpeg")},
         data={"project_id": str(proj_id)},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 403
 
@@ -119,7 +119,7 @@ def test_get_meeting_not_owner_403(client):
     from datetime import datetime, timezone
     # seed 一筆 meeting 給 alice
     mid = main.db.meetings.insert_one({
-        "owner": "alice@chengfu.local",
+        "owner": "alice@company-ai.local",
         "status": "done",
         "structured": {"title": "alice 的會議"},
         "created_at": datetime.now(timezone.utc),
@@ -128,7 +128,7 @@ def test_get_meeting_not_owner_403(client):
     # bob 查
     r = client.get(
         f"/memory/meetings/{mid}",
-        headers={"X-User-Email": "bob@chengfu.local"},
+        headers={"X-User-Email": "bob@company-ai.local"},
     )
     assert r.status_code == 403
 
@@ -138,12 +138,12 @@ def test_list_meetings_owner_filter(client):
     import main
     from datetime import datetime, timezone
     main.db.meetings.insert_many([
-        {"owner": "c@chengfu.local", "status": "done",
+        {"owner": "c@company-ai.local", "status": "done",
          "structured": {"title": "c 會 1"}, "created_at": datetime.now(timezone.utc)},
-        {"owner": "d@chengfu.local", "status": "done",
+        {"owner": "d@company-ai.local", "status": "done",
          "structured": {"title": "d 會 1"}, "created_at": datetime.now(timezone.utc)},
     ])
-    r = client.get("/memory/meetings", headers={"X-User-Email": "c@chengfu.local"})
+    r = client.get("/memory/meetings", headers={"X-User-Email": "c@company-ai.local"})
     assert r.status_code == 200
     body = r.json()
     titles = [m["title"] for m in body["items"]]
@@ -160,13 +160,13 @@ def test_push_to_handoff(client):
     # Seed project
     proj_id = main.projects_col.insert_one({
         "name": "push-handoff-test",
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
 
     mid = main.db.meetings.insert_one({
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "project_id": str(proj_id),
         "status": "done",
         "structured": {
@@ -181,7 +181,7 @@ def test_push_to_handoff(client):
 
     r = client.post(
         f"/memory/meetings/{mid}/push-to-handoff",
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -204,13 +204,13 @@ def test_push_to_handoff_rejects_other_project(client):
 
     proj_id = main.projects_col.insert_one({
         "name": "other owner project",
-        "owner": "alice@chengfu.local",
+        "owner": "alice@company-ai.local",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }).inserted_id
 
     mid = main.db.meetings.insert_one({
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "project_id": str(proj_id),
         "status": "done",
         "structured": {"action_items": [{"who": "PM", "what": "不該寫入"}]},
@@ -219,7 +219,7 @@ def test_push_to_handoff_rejects_other_project(client):
 
     r = client.post(
         f"/memory/meetings/{mid}/push-to-handoff",
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 403
     proj = main.projects_col.find_one({"_id": proj_id})
@@ -231,13 +231,13 @@ def test_push_to_handoff_not_done_400(client):
     import main
     from datetime import datetime, timezone
     mid = main.db.meetings.insert_one({
-        "owner": "pm@chengfu.local",
+        "owner": "pm@company-ai.local",
         "status": "transcribing",
         "created_at": datetime.now(timezone.utc),
     }).inserted_id
 
     r = client.post(
         f"/memory/meetings/{mid}/push-to-handoff",
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 400

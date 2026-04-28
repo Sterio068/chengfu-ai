@@ -35,7 +35,7 @@ from ._deps import _is_admin_user, require_admin_dep, require_user_dep
 
 
 router = APIRouter(tags=["media"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 def _oid(contact_id: str) -> ObjectId:
@@ -479,7 +479,7 @@ def export_contacts_csv(
         _stream(),
         media_type="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="chengfu-media-contacts-{today}.csv"',
+            "Content-Disposition": f'attachment; filename="company_ai-media-contacts-{today}.csv"',
             "Cache-Control": "no-store",
         },
     )

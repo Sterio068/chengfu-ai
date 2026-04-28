@@ -1,9 +1,9 @@
-# 承富會計 API · FastAPI + PyMongo
+# 本公司會計 API · FastAPI + PyMongo
 FROM python:3.12-slim@sha256:804ddf3251a60bbf9c92e73b7566c40428d54d0e79d3428194edf40da6521286
 
 WORKDIR /app
 
-# Round 9 implicit · OCR 系統依賴(承富政府 PDF 高比例掃描 · 老闆 Q1)
+# Round 9 implicit · OCR 系統依賴(本公司政府 PDF 高比例掃描 · 老闆 Q1)
 # tesseract-ocr-chi-tra · 繁中 · ~50MB · 沒裝 PDF OCR fallback 會 silent skip
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \

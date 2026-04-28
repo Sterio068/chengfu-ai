@@ -173,5 +173,5 @@ PDPA 紀錄 · 90 天自動清(TTL)
 - last_indexed_at 是不是夠新?
 
 ### Q · 知識庫太大 · search 變慢?
-- /admin/sources/health 看 chengfu_knowledge index size
+- /admin/sources/health 看 company_ai_knowledge index size
 - > 100k docs 開始慢 · 評估歸檔老檔到另一 index

@@ -44,7 +44,7 @@
 | 知識庫管理 `/admin/sources/*` | 已強制 admin |
 | 媒體 CRM 編輯 / 匯出 | 已強制 admin |
 | PDPA delete-all / audit log / admin dashboard | 已強制 admin |
-| 28 個細部 `chengfu_permissions` | 第一批已 enforcement,其餘以後台 catalog 標示為準 |
+| 28 個細部 `company_ai_permissions` | 第一批已 enforcement,其餘以後台 catalog 標示為準 |
 
 目前已由 backend 實際強制的細部權限:
 - `accounting.view` / `accounting.edit`
@@ -184,13 +184,13 @@ docker compose up -d librechat
 # 1. 編輯 scripts/create-users.py 裡 USERS list
 #    填 10 個同仁:email + name
 USERS = [
-    {"email": "alice@chengfu.com", "name": "王小明", "role": "USER"},
-    {"email": "bob@chengfu.com",   "name": "李小華", "role": "USER"},
+    {"email": "alice@company.example", "name": "王小明", "role": "USER"},
+    {"email": "bob@company.example",   "name": "李小華", "role": "USER"},
     # ...
 ]
 
 # 2. 跑 script(用 admin 登入 token 建)
-LIBRECHAT_ADMIN_EMAIL=admin@chengfu.com \
+LIBRECHAT_ADMIN_EMAIL=admin@company.example \
 LIBRECHAT_ADMIN_PASSWORD=<剛設的密碼> \
 python3 scripts/create-users.py
 

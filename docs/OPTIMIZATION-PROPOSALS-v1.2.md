@@ -1,4 +1,4 @@
-# 承富 AI v1.1 · 現有功能強化 / 優化建議
+# 企業 AI v1.1 · 現有功能強化 / 優化建議
 
 > **範圍:** 17 個 ROADMAP 外的盲點 · 按嚴重度排
 > **掃描:** 11 router + main.py + 25 前端 module + 7 cron + docker-compose + nginx + tests
@@ -116,9 +116,9 @@
 
 ### 16. nginx log 無 rotation(0.5h)
 **file:** `frontend/nginx/default.conf:21`
-**問題:** `chengfu.{access,error}.log` 無 logrotate
+**問題:** `company_ai.{access,error}.log` 無 logrotate
 **影響:** 3 個月 disk full 系統掛
-**修:** `/etc/logrotate.d/chengfu-nginx` daily rotate + 90 天保留
+**修:** `/etc/logrotate.d/company-ai-nginx` daily rotate + 90 天保留
 
 ### 17. Scripts 假資料無 shared fixture(1.5h)
 **file:** `scripts/{create-users,seed-demo-data,upload-knowledge-base}.py`
@@ -187,7 +187,7 @@
 ## 📋 v1.2 做什麼?兩條路
 
 > **路 A · 新功能導向(FEATURE-PROPOSALS-v1.2.md):** #1 + #2 + #3 共 3.5 天
-> → 老闆看得到新價值 · 承富業務拿新工具 · 月省 67h(會議速記)
+> → 老闆看得到新價值 · 本公司業務拿新工具 · 月省 67h(會議速記)
 >
 > **路 B · 現有強化導向(本檔):** Sprint 1 + 2 共 9.5h ≈ 1.5 天
 > → 使用者感覺「變穩了」· 維運更輕鬆 · 但老闆看不到「新」
@@ -204,7 +204,7 @@
 
 ## 🚫 低優先(不建議先做)
 
-- R14#8 lazy import · 3G 網路承富幾乎沒人用 · 公司內網 / Mac 都夠快
+- R14#8 lazy import · 3G 網路本公司幾乎沒人用 · 公司內網 / Mac 都夠快
 - R14#15 load test · 10 人公司 unit test + smoke 夠 · load test 過度工程
 - R14#17 fixtures · scripts 不常改 · 維護成本可接受
 

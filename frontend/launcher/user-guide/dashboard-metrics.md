@@ -175,6 +175,6 @@ won  / lost
 3. 公司忙 · 沒空試
 
 **Champion 該做**:
-- 拉該 user 到桌邊 · 一起跑 onboarding tour(localStorage 沒 chengfu-tour-done · 重 open launcher 自動跳)
+- 拉該 user 到桌邊 · 一起跑 onboarding tour(localStorage 沒 company-ai-tour-done · 重 open launcher 自動跳)
 - 教 1 個 /命令 + 1 個常用 Agent · 養 5 分鐘習慣
 - 1 週後再看 dashboard

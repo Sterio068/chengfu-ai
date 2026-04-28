@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-承富 AI · Skill 演化:從對話紀錄 + 👍 回饋建議新 Skill
+企業 AI · Skill 演化:從對話紀錄 + 👍 回饋建議新 Skill
 ==========================================================
 
 v1.5 半自動化 skill 產生流程:
@@ -92,9 +92,11 @@ def identify_patterns(liked_messages: list):
 
 def propose_skill_via_claude(pattern: dict, client):
     """用 Claude Opus 分析 pattern → 產出 Skill 草稿。"""
-    sys_prompt = """你是承富 AI 系統的 Skill 策展人。\n使用者提供一組「被 👍 的對話 pattern」,\n你要提煉成可複用的 Skill 草稿,格式如:\n\n```\n---\nskill_id: <英文 kebab-case>\nname: <繁中 skill 名稱>\nversion: 1.0-proposed\ntriggers:\n  - <使用者會說的觸發句>\n---\n\n# 何時用\n\n# 標準做法(步驟)\n\n# 優質範例\n\n# 檢查清單\n```\n\n請誠實:若資料不足以歸納,回「資料不足,需累積更多」即可。"""
+    sys_prompt = """你是企業 AI 系統的 Skill 策展人。\n使用者提供一組「被 👍 的對話 pattern」,\n你要提煉成可複用的 Skill 草稿,格式如:\n\n```\n---\nskill_id: <英文 kebab-case>\nname: <繁中 skill 名稱>\nversion: 1.0-proposed\ntriggers:\n  - <使用者會說的觸發句>\n---\n\n# 何時用\n\n# 標準做法(步驟)\n\n# 優質範例\n\n# 檢查清單\n```\n\n請誠實:若資料不足以歸納,回「資料不足,需累積更多」即可。"""
 
-    user_prompt = f"""這是某個 Agent 被按讚次數 {pattern['count']} 的 pattern:\n\n**Agent**: {pattern['agent']}\n\n**常見使用者輸入**:\n{chr(10).join([f'- {s}' for s in pattern['sample_user_inputs']])}\n\n**優質 AI 回應範例**:\n{chr(10).join([f'---\\n{r}' for r in pattern['sample_responses']])}\n\n請產出 Skill 草稿。若資料足夠歸納,請產 Markdown;不足請說明需要什麼。"""
+    common_inputs = "\n".join([f"- {s}" for s in pattern["sample_user_inputs"]])
+    sample_responses = "\n".join([f"---\n{r}" for r in pattern["sample_responses"]])
+    user_prompt = f"""這是某個 Agent 被按讚次數 {pattern['count']} 的 pattern:\n\n**Agent**: {pattern['agent']}\n\n**常見使用者輸入**:\n{common_inputs}\n\n**優質 AI 回應範例**:\n{sample_responses}\n\n請產出 Skill 草稿。若資料足夠歸納,請產 Markdown;不足請說明需要什麼。"""
 
     resp = client.messages.create(
         model="claude-opus-4-7",
@@ -112,7 +114,7 @@ def main():
                         help="同一 Agent 至少多少個 👍 才會產 Skill 建議")
     args = parser.parse_args()
 
-    mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/chengfu")
+    mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017/company_ai")
     client = MongoClient(mongo_uri)
     db = client.get_default_database()
 

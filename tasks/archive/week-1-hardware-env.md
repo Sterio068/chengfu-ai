@@ -1,7 +1,7 @@
 # Week 1 — 硬體與環境建置
 
 > **目標**:第 7 日結束時,Mac mini 已就位、UPS 接妥、Docker 就緒、Cloudflare Tunnel 可連線。
-> **前置**:承富已完成硬體採購(Mac mini M4 + UPS),收到貨。
+> **前置**:本公司已完成硬體採購(Mac mini M4 + UPS),收到貨。
 
 ---
 
@@ -17,7 +17,7 @@
   - [ ] 跳過所有 Apple ID 登入要求(工作用不需要)
   - [ ] 時區設為台北
 - [ ] **FileVault 開啟**:系統偏好 → 隱私與安全 → FileVault → 啟用
-  - [ ] 復原金鑰必須記錄在 1Password 或 Keychain,交給承富老闆一份紙本封存
+  - [ ] 復原金鑰必須記錄在 1Password 或 Keychain,交給本公司老闆一份紙本封存
 - [ ] 防火牆開啟:僅允許簽署的應用、接受進入的連線選擇性
 
 ### 任務 1.2:UPS 安裝
@@ -43,22 +43,22 @@
 ## Day 3:網路設定
 
 ### 任務 1.5:取得固定內網 IP
-- [ ] 聯絡承富網管(或自行登入 router),為 Mac mini 的 MAC address 綁定固定 IP
+- [ ] 聯絡本公司網管(或自行登入 router),為 Mac mini 的 MAC address 綁定固定 IP
 - [ ] 例:`192.168.1.50`
 - [ ] 記錄於 `docs/DECISIONS.md`
 
 ### 任務 1.6:設定主機名
 ```bash
-sudo scutil --set HostName 承富-ai
-sudo scutil --set LocalHostName 承富-ai
-sudo scutil --set ComputerName 承富-ai
+sudo scutil --set HostName 本公司-ai
+sudo scutil --set LocalHostName 本公司-ai
+sudo scutil --set ComputerName 本公司-ai
 dscacheutil -flushcache
 ```
-- [ ] 測試:從另一台電腦 `ping 承富-ai.local` 應能解析
+- [ ] 測試:從另一台電腦 `ping 本公司-ai.local` 應能解析
 
 ### 任務 1.7:開啟 SSH(遠端管理用)
 - [ ] 系統偏好 → 一般 → 共享 → 遠端登入:開啟,僅管理員
-- [ ] 測試:從 Sterio 自己的電腦 `ssh steadmin@承富-ai.local`
+- [ ] 測試:從 Sterio 自己的電腦 `ssh steadmin@本公司-ai.local`
 
 ---
 
@@ -90,8 +90,8 @@ brew install --cask visual-studio-code
 
 ### 任務 1.11:建立專案資料夾
 ```bash
-mkdir -p ~/chengfu-ai
-cd ~/chengfu-ai
+mkdir -p ~/company-ai
+cd ~/company-ai
 git init
 git remote add origin [待 Sterio 提供 private repo URL]
 ```
@@ -101,13 +101,13 @@ git remote add origin [待 Sterio 提供 private repo URL]
 ## Day 5-6:Cloudflare Tunnel 設定
 
 ### 任務 1.12:Cloudflare 帳號準備
-- [ ] 確認承富有 Cloudflare 帳號,且域名 `<承富domain>.com` 已 DNS 託管至 Cloudflare
-- [ ] 若無域名,Sterio 協助承富註冊(建議 `.com` 或 `.com.tw`)
+- [ ] 確認本公司有 Cloudflare 帳號,且域名 `<本公司domain>.com` 已 DNS 託管至 Cloudflare
+- [ ] 若無域名,Sterio 協助本公司註冊(建議 `.com` 或 `.com.tw`)
 
 ### 任務 1.13:建立 Tunnel
 ```bash
 cloudflared login        # 瀏覽器認證
-cloudflared tunnel create chengfu-ai
+cloudflared tunnel create company-ai
 # 會產出 <TUNNEL_ID>.json 在 ~/.cloudflared/
 ```
 - [ ] 記下 `<TUNNEL_ID>`
@@ -119,21 +119,21 @@ tunnel: <TUNNEL_ID>
 credentials-file: /Users/steadmin/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  - hostname: ai.<承富domain>.com
+  - hostname: ai.<本公司domain>.com
     service: http://localhost:3080
   - service: http_status:404
 ```
 
 - [ ] 設定 DNS 紀錄:
 ```bash
-cloudflared tunnel route dns chengfu-ai ai.<承富domain>.com
+cloudflared tunnel route dns company-ai ai.<本公司domain>.com
 ```
 
 ### 任務 1.15:啟動 Tunnel(先手動測試)
 ```bash
-cloudflared tunnel run chengfu-ai
+cloudflared tunnel run company-ai
 ```
-- [ ] 瀏覽器打開 `https://ai.<承富domain>.com` → 應該看到 404(因為 LibreChat 尚未部署)
+- [ ] 瀏覽器打開 `https://ai.<本公司domain>.com` → 應該看到 404(因為 LibreChat 尚未部署)
 - [ ] 若能連到 404 就表示 tunnel 本身通了
 
 ### 任務 1.16:設定 Tunnel 開機自啟
@@ -145,12 +145,12 @@ sudo cloudflared service install
 ### 任務 1.17:設定 Cloudflare Access(雙重保護)
 - [ ] 登入 Cloudflare dashboard
 - [ ] Zero Trust → Access → Applications → Add application
-- [ ] Self-hosted,subdomain = `ai`,domain = 承富domain
+- [ ] Self-hosted,subdomain = `ai`,domain = 本公司domain
 - [ ] 新增 Access Policy:
-  - [ ] Name:承富同仁白名單
+  - [ ] Name:本公司同仁白名單
   - [ ] Action:Allow
   - [ ] Include → Emails → 暫時先加 Sterio 自己的 email,之後再加 10 個同仁
-- [ ] 儲存 Policy,測試:非白名單 email 連 `https://ai.<承富domain>.com` 應被擋下
+- [ ] 儲存 Policy,測試:非白名單 email 連 `https://ai.<本公司domain>.com` 應被擋下
 
 ---
 
@@ -160,9 +160,9 @@ sudo cloudflared service install
 - [ ] Mac mini 穩定運行 48 小時無重啟
 - [ ] 測試拔插 UPS,確認 Mac mini 不掉電
 - [ ] `docker ps` 命令可執行(Docker Desktop 運作中)
-- [ ] `cloudflared tunnel list` 可見 `chengfu-ai` 狀態為 healthy
-- [ ] `https://ai.<承富domain>.com` 可連(目前是 404 正常)
-- [ ] `http://承富-ai.local:3080` 從公司內網可 ping 到
+- [ ] `cloudflared tunnel list` 可見 `company-ai` 狀態為 healthy
+- [ ] `https://ai.<本公司domain>.com` 可連(目前是 404 正常)
+- [ ] `http://本公司-ai.local:3080` 從公司內網可 ping 到
 
 ### 任務 1.19:產出週報
 在 `reports/week-1.md` 建立報告,格式:
@@ -178,9 +178,9 @@ sudo cloudflared service install
 ## 下週預計
 - Week 2 — 平台部署
 
-## 需承富配合
+## 需本公司配合
 - [ ] ...(例如:需要網管提供固定 IP)
 ```
 
 - [ ] 寄給 Sterio
-- [ ] 寄給承富老闆(精簡版,去除技術細節)
+- [ ] 寄給本公司老闆(精簡版,去除技術細節)

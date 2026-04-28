@@ -2,7 +2,7 @@
 
 > **背景:** 系統程式碼已到位(UI 95% · RBAC/測試/smoke/handbook 齊)。
 > **問題:** 部署、真實資料、訓練、ROI 量測未落地 = **交付當天一切皆為 0**。
-> **這份是 Sterio 帶去承富辦公室那週,每天早上打開逐項打勾的。**
+> **這份是 Sterio 帶去本公司辦公室那週,每天早上打開逐項打勾的。**
 
 ---
 
@@ -15,10 +15,10 @@
       (`ports:` 段不該有 `"27017:27017"`)· 只能 docker network 內互通
 - [ ] UPS 接上 · 拔電實測 5 分鐘還活著
 - [ ] Mac mini 網路:設固定 IP 或靜態 DHCP
-- [ ] `承富-ai.local` mDNS 能從 10 台同仁機 ping 通
+- [ ] `本公司-ai.local` mDNS 能從 10 台同仁機 ping 通
 - [ ] Apple ID 登入 · TimeMachine 接外接 USB(Mac mini 本機備份第一層)
 - [ ] 安裝 Docker Desktop · 登入 · 測 `docker run hello-world`
-- [ ] clone repo:`git clone https://github.com/Sterio068/company-ai-workspace.git /Users/<admin>/Workspace/ChengFu`
+- [ ] clone repo:`git clone https://github.com/Sterio068/company-ai-workspace.git /Users/<admin>/Workspace/CompanyAIWorkspace`
 
 ---
 
@@ -38,15 +38,15 @@
 
 這一步做不好,系統交付 = 空殼。
 
-- [ ] Sterio 或 Champion 從承富 NAS 撈 5-10 份代表性檔案複製到 `knowledge-base/samples/`:
+- [ ] Sterio 或 Champion 從本公司 NAS 撈 5-10 份代表性檔案複製到 `knowledge-base/samples/`:
   - 2 份過往得標建議書(dOCX)
   - 1 份近期結案報告
   - 1 份新聞稿範例
   - 1 份廠商比價信範例
-  - 1 份招標須知 PDF(承富曾判過的)
+  - 1 份招標須知 PDF(本公司曾判過的)
 - [ ] `python3 scripts/upload-knowledge-base.py` · 灌進 LibreChat file_search
 - [ ] 測試:對知識庫助手問「我們做過什麼 XX 類案子?」· 應能引用上述檔案
-- [ ] 承富完成 `docs/NAS-INTEGRATION-SPEC.md` 的 5 個前置問題回答(即便先不 NAS 接,有答案才能排 v1.1)
+- [ ] 本公司完成 `docs/NAS-INTEGRATION-SPEC.md` 的 5 個前置問題回答(即便先不 NAS 接,有答案才能排 v1.1)
 
 ---
 
@@ -84,29 +84,29 @@
 - [ ] 加進 `config-templates/docker-compose.yml` 或 host systemd
 - [ ] Cloudflare Access · 新增 Email allowlist policy + 2FA
 - [ ] 10 同仁 email 全加入 allowlist
-- [ ] 測試:手機 4G 上(不連公司 wifi)`https://ai.<承富domain>.com` → 能跳 Access 認證 → 進系統
+- [ ] 測試:手機 4G 上(不連公司 wifi)`https://ai.<本公司domain>.com` → 能跳 Access 認證 → 進系統
 
 ---
 
 ## Day -2(週六 · 可選)· 異機備份 + ROI baseline
 
 - [ ] `brew install rclone gnupg`
-- [ ] `gpg --full-generate-key`(name `chengfu`)
-- [ ] 註冊 Backblaze B2 免費方案 · `rclone config` 設定 `chengfu-offsite`
+- [ ] `gpg --full-generate-key`(name `company_ai`)
+- [ ] 註冊 Backblaze B2 免費方案 · `rclone config` 設定 `company-ai-offsite`
 - [ ] `./scripts/backup.sh` 跑一次 · 確認 B2 有檔
-- [ ] `rclone copy chengfu-offsite:chengfu-backup/daily/xxx.gpg /tmp/` + `gpg --decrypt` 能還原
-- [ ] launchd plist 設定每日 02:00 `backup.sh`(`~/Library/LaunchAgents/com.chengfu.backup.plist`)
+- [ ] `rclone copy company-ai-offsite:company-ai-backup/daily/xxx.gpg /tmp/` + `gpg --decrypt` 能還原
+- [ ] launchd plist 設定每日 02:00 `backup.sh`(`~/Library/LaunchAgents/com.company_ai.backup.plist`)
 - [ ] 寫 `docs/BASELINE.md` T0 快照:過去 6 個月月均投標件數 / 得標率 / 各類任務平均耗時(Sterio 跟老闆 Champion 座談 30 分鐘問出來)
 
 ---
 
 ## Day -1(週日)· 教育訓練前置
 
-- [ ] 印 A3 海報:`docs/DATA-CLASSIFICATION-POSTER.md` 貼承富辦公室
+- [ ] 印 A3 海報:`docs/DATA-CLASSIFICATION-POSTER.md` 貼本公司辦公室
 - [ ] 印 1 頁小抄(從 `docs/QUICKSTART.md` 濃縮 · A4 正反面)· 10 份
 - [ ] 印 10 張「帳號 + 密碼」紙條
 - [ ] Champion 跟 Sterio 一起實際跑一遍 `docs/CASES/01-海廢案端到端.md` 全流程(2 小時)· Champion 隔天就能上台示範
-- [ ] 準備 1 個真實承富當週案例當教學情境(例如某標案剛看到)
+- [ ] 準備 1 個真實本公司當週案例當教學情境(例如某標案剛看到)
 
 ---
 
@@ -139,7 +139,7 @@
   - 🎯 **PM:** 貼當週一個真實招標須知 → 產「Go/No-Go 評分」→ 截圖存證
   - 📢 **業務:** 當週需要聯繫的廠商 → 產 1 封比價信 → 截圖存證
   - 📝 **公關寫手:** 當週要發的新聞稿主題 → 產 400 字初稿 → 截圖存證
-- [ ] 每人完成 first-win 後 · 截圖貼 LINE 群「承富 AI 互助」· 全組看到彼此成功
+- [ ] 每人完成 first-win 後 · 截圖貼 LINE 群「企業 AI 互助」· 全組看到彼此成功
 - [ ] Champion 現場解卡 · 不解釋 UI、只解為什麼 AI 那樣回
 
 ### 上午 Part B(90 分鐘)· 才開始講 UI
@@ -159,7 +159,7 @@
 - [ ] **Adoption 驗收:** 10 人登入成功 + **至少 7 人完成 first-win 並截圖**(不是只有登入)
 - [ ] **角色 first-win 清單:** 設計師 ≥ 1 人、PM ≥ 2 人、業務 ≥ 1 人完成 · 否則暫緩簽收
 - [ ] 老闆簽 `docs/ACCEPTANCE.md` 驗收書
-- [ ] 拍合照 · LINE 群組公告「承富 AI 正式上線」
+- [ ] 拍合照 · LINE 群組公告「企業 AI 正式上線」
 - [ ] 留 Sterio 聯絡方式 + 值班 SLA
 - [ ] 當場印 `docs/CASES/FAQ-Day1.md` 給 Champion 作為 Day 1 FAQ Top 10 話術卡
 
@@ -168,7 +168,7 @@
 ## Day +1 到 Day +7(交付後第一週)· 觀察
 
 - [ ] 每天早上看 Admin 面板:用量 / 滿意度 / 標案漏斗
-- [ ] 每天 LINE 群「承富 AI 互助」確認沒卡在單一問題
+- [ ] 每天 LINE 群「企業 AI 互助」確認沒卡在單一問題
 - [ ] Week 1 結束彙整:
   - 👍/👎 比率最低的助手是哪幾個?
   - 被問最多的 3 個問題是?(寫進下版 handbook FAQ)
@@ -183,23 +183,23 @@
 - [ ] **備份 restore dry-run** · 證明備份可還原
   ```bash
   # 1. 從異機抓最新備份
-  rclone copy chengfu-offsite:chengfu-backup/daily/$(rclone lsf chengfu-offsite:chengfu-backup/daily/ | sort | tail -1) /tmp/
+  rclone copy company-ai-offsite:company-ai-backup/daily/$(rclone lsf company-ai-offsite:company-ai-backup/daily/ | sort | tail -1) /tmp/
 
   # 2. GPG 解密
-  gpg --decrypt /tmp/chengfu-*.archive.gpg > /tmp/restore.archive
+  gpg --decrypt /tmp/company-ai-*.archive.gpg > /tmp/restore.archive
 
   # 3. Restore 到暫存 DB(不動 production)
-  docker exec -i chengfu-mongo mongorestore --archive --db chengfu_test_restore < /tmp/restore.archive
+  docker exec -i company-ai-mongo mongorestore --archive --db company_ai_test_restore < /tmp/restore.archive
 
   # 4. 驗:user count > 0 / agents count = 10 / projects count >= 1
-  docker exec chengfu-mongo mongosh chengfu_test_restore --quiet --eval '
+  docker exec company-ai-mongo mongosh company_ai_test_restore --quiet --eval '
     print("users:", db.users.countDocuments());
     print("agents:", db.agents.countDocuments());
     print("projects:", db.projects.countDocuments());
   '
 
   # 5. 清暫存 DB
-  docker exec chengfu-mongo mongosh --eval 'db.getSiblingDB("chengfu_test_restore").dropDatabase()'
+  docker exec company-ai-mongo mongosh --eval 'db.getSiblingDB("company_ai_test_restore").dropDatabase()'
   ```
 - [ ] 結果寫進 `reports/restore-drill-<YYYY-MM>.md`(時間 + 備份檔名 + counts + pass/fail)
 - [ ] 連續 3 個月 fail · 觸發**異機備份方案重新評估**
@@ -214,7 +214,7 @@
 
 ## 交付後才開始的 P1(v1.1 · 2 週後)
 
-- [ ] NAS 接入(承富 SPEC 5 問回答完成後)
+- [ ] NAS 接入(本公司 SPEC 5 問回答完成後)
 - [ ] LINE 貼上偵測(方案 C · 2-3h 小改)
 - [ ] 串 Fal.ai Recraft v3(設計夥伴真生圖)
 - [ ] 附件 PDF 真接檔案(投標顧問省 70% 複製貼上)

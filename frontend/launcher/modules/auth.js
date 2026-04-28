@@ -13,7 +13,7 @@ import { escapeHtml } from "./util.js";
 let _jwt = null;
 let _userEmail = null;
 let _sessionExpiredNotified = false;
-const REFRESH_LOCK_KEY = "chengfu-auth-refresh-lock";
+const REFRESH_LOCK_KEY = "company-ai-auth-refresh-lock";
 
 function _sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

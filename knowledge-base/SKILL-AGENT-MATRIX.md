@@ -7,7 +7,7 @@ load_for_agent: all
 priority: high
 ---
 
-# 承富 Skill-Agent 對照矩陣
+# 本公司 Skill-Agent 對照矩陣
 
 每個 Agent 在啟動對話時,**務必先用 file_search 載入自己對應的 Skills**。
 主管家(Agent 00)在分派任務時,**明確告知子 Agent 要用哪個 Skill**。
@@ -16,7 +16,7 @@ priority: high
 
 ## 🗺️ 核心對照表
 
-| Agent | 承富 Skills(knowledge-base/skills/) | Claude Skills(knowledge-base/claude-skills/) | OpenClaw Ref |
+| Agent | 本公司 Skills(knowledge-base/skills/) | Claude Skills(knowledge-base/claude-skills/) | OpenClaw Ref |
 |---|---|---|---|
 | **00 主管家** | 全部可查 · 優先查「相關情境」 | `pdf` `docx` `pptx` `xlsx` `internal-comms` `skill-creator` `consolidate-memory` | 全部 |
 | **01 投標顧問** | **01** 政府標案結構分析 · **02** Go/No-Go · **03** 建議書 5 章 | `pdf`(必) · `docx`(必 · 產建議書) · `pptx`(必 · 簡報) · `internal-comms`(提送 Email) | — |
@@ -36,17 +36,17 @@ priority: high
 主管家(00)收到請求時,**依關鍵字 → 指派 Agent + Skill**:
 
 ### 投標類
-- 招標 PDF / 評審 / 配分 → **Agent 01** + Skill `pdf` + 承富 Skill 01
-- Go / No-Go / 值不值得 → **Agent 01** + 承富 Skill 02
-- 寫建議書 / 提案 → **Agent 01** + Skill `docx` + 承富 Skill 03
+- 招標 PDF / 評審 / 配分 → **Agent 01** + Skill `pdf` + 本公司 Skill 01
+- Go / No-Go / 值不值得 → **Agent 01** + 本公司 Skill 02
+- 寫建議書 / 提案 → **Agent 01** + Skill `docx` + 本公司 Skill 03
 - 投標簡報 → **Agent 01** + Skill `pptx`
 - 競品研究 → **Agent 01** + web_search
 
 ### 活動類
-- 3D 場景 / 空間規劃 → **Agent 02** + Skill `canvas-design` + 承富 Skill 07
-- 舞台 / 燈光 / 音響 → **Agent 02** + 承富 Skill 08
+- 3D 場景 / 空間規劃 → **Agent 02** + Skill `canvas-design` + 本公司 Skill 07
+- 舞台 / 燈光 / 音響 → **Agent 02** + 本公司 Skill 08
 - 動線 / 交通 / 人流 → **Agent 02** + artifacts(SVG 動線圖)
-- 廠商比價 → **Agent 02** + Skill `xlsx` + 承富 Skill 09
+- 廠商比價 → **Agent 02** + Skill `xlsx` + 本公司 Skill 09
 
 ### 設計類
 - 主視覺 / KV → **Agent 03** + Skill `brand-guidelines` + `canvas-design` + Fal.ai(Recraft v3)
@@ -56,9 +56,9 @@ priority: high
 - 活動視覺系統 → **Agent 03** + `theme-factory`
 
 ### 公關類
-- 新聞稿 → **Agent 04** + 承富 Skill 04 + Skill `docx`
-- 社群貼文 → **Agent 04** + 承富 Skill 05
-- Email 草稿 → **Agent 04** + `internal-comms` + 承富 Skill 06
+- 新聞稿 → **Agent 04** + 本公司 Skill 04 + Skill `docx`
+- 社群貼文 → **Agent 04** + 本公司 Skill 05
+- Email 草稿 → **Agent 04** + `internal-comms` + 本公司 Skill 06
 - 月計劃 → **Agent 04** + Skill `xlsx`(月曆表)
 
 ### 會議
@@ -66,11 +66,11 @@ priority: high
 - 會後 Email → **Agent 05** + `internal-comms`
 
 ### 知識
-- 查承富過往 → **Agent 06**(file_search 是主要工具)
+- 查本公司過往 → **Agent 06**(file_search 是主要工具)
 - 建新 skill → **Agent 06** + `skill-creator`
 
 ### 財務
-- 毛利 / 試算 → **Agent 07** + Skill `xlsx` + 承富 Skill 10
+- 毛利 / 試算 → **Agent 07** + Skill `xlsx` + 本公司 Skill 10
 - 報價單 → **Agent 07** + 會計 API(`/quotes`)+ `xlsx`
 - 廠商比價表 → **Agent 07** + `xlsx`
 - 發票 → **Agent 07** + 會計 API(`/invoices`)
@@ -81,9 +81,9 @@ priority: high
 - 稅務問題 → **Agent 08** + web_search(最新法規)
 
 ### 營運
-- 結案報告 → **Agent 09** + 承富 Skill 12 + Skill `docx` + `pptx`
+- 結案報告 → **Agent 09** + 本公司 Skill 12 + Skill `docx` + `pptx`
 - 里程碑 → **Agent 09** + artifacts(甘特圖 SVG)+ Skill `xlsx`
-- CRM → **Agent 09** + 承富 Skill 11
+- CRM → **Agent 09** + 本公司 Skill 11
 - 新人 Onboarding → **Agent 09** + `doc-coauthoring`
 
 ---
@@ -111,11 +111,11 @@ Agent 啟動時的「隱含動作」(透過 system prompt 觸發):
 
 當主管家判斷需要分派時,用這個格式告訴使用者:
 
-```\n✨ 主管家建議:\n這件事交給 [🎯 投標顧問],會用到:\n- 承富 Skill 01(政府標案結構)\n- Claude Skill pdf(讀 PDF)\n- Claude Skill docx(產建議書)\n\n想直接分派過去嗎?或我先幫你抓出重點?\n```
+```\n✨ 主管家建議:\n這件事交給 [🎯 投標顧問],會用到:\n- 本公司 Skill 01(政府標案結構)\n- Claude Skill pdf(讀 PDF)\n- Claude Skill docx(產建議書)\n\n想直接分派過去嗎?或我先幫你抓出重點?\n```
 
 若主管家決定自己處理(不分派):
 
-```\n我直接幫你處理。將引用:\n- 承富 Skill 04(新聞稿 AP Style)\n- 承富 Company Memory · 品牌口吻\n- Claude Skill docx(若你要 Word 檔)\n```
+```\n我直接幫你處理。將引用:\n- 本公司 Skill 04(新聞稿 AP Style)\n- 本公司 Company Memory · 品牌口吻\n- Claude Skill docx(若你要 Word 檔)\n```
 
 ---
 

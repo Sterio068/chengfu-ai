@@ -49,8 +49,8 @@ function eq(a, b, msg) {
 }
 
 // 清預設 state
-localStorage.removeItem("chengfu-ai-provider");
-localStorage.removeItem("chengfu-active-project");
+localStorage.removeItem("company-ai-provider");
+localStorage.removeItem("company-ai-active-project");
 
 test("get default · engine = openai", () => {
   eq(store.get("engine"), "openai");
@@ -59,7 +59,7 @@ test("get default · engine = openai", () => {
 test("set engine → persist + retrievable", () => {
   store.set("engine", "anthropic");
   eq(store.get("engine"), "anthropic");
-  eq(localStorage.getItem("chengfu-ai-provider"), "anthropic");
+  eq(localStorage.getItem("company-ai-provider"), "anthropic");
 });
 
 test("set 不變值 · listener 不該 fire(no-op)", () => {
@@ -133,7 +133,7 @@ test("activeWorkspace · null default · no localStorage write", () => {
   store.set("activeWorkspace", "tender");
   eq(store.get("activeWorkspace"), "tender");
   // 沒 legacyKey · 不寫 localStorage
-  eq(localStorage.getItem("chengfu_store_v1__activeWorkspace"), null);
+  eq(localStorage.getItem("company_ai_store_v1__activeWorkspace"), null);
 });
 
 const summary = document.createElement("h2");

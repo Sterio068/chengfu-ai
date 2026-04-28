@@ -2,7 +2,7 @@
 知識庫增量索引器 · V1.1-SPEC §E-2
 =====================================
 每日凌晨 02:00 cron 跑 · 遍歷所有 enabled knowledge_sources · 各別增量 index 到 Meili
-所有 source 共用一個 Meili index `chengfu_knowledge` · 透過 filterableAttributes 區隔
+所有 source 共用一個 Meili index `company_ai_knowledge` · 透過 filterableAttributes 區隔
 
 - 增量:比對 last_indexed_at · 只處理 mtime 之後的檔
 - 排除:source.exclude_patterns + dir 結尾 / 斜線
@@ -21,9 +21,9 @@ from bson import ObjectId
 
 from .knowledge_extract import extract
 
-logger = logging.getLogger("chengfu.indexer")
+logger = logging.getLogger("company_ai.indexer")
 
-MEILI_INDEX_NAME = "chengfu_knowledge"
+MEILI_INDEX_NAME = "company_ai_knowledge"
 
 # Meili index 設定(idempotent)· 索引不存在時會自動建
 MEILI_SETTINGS = {

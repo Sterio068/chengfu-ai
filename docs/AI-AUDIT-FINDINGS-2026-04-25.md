@@ -1,4 +1,4 @@
-# 承富 AI 系統 · 4-Agent 審計結果彙整
+# 企業 AI 系統 · 4-Agent 審計結果彙整
 
 > 日期:2026-04-25
 > 方法:並行跑 3 個審計 agent(產品策略 / UI/UX / 架構)+ 1 個 meta-review agent
@@ -11,12 +11,12 @@
 
 ### Q1 · 3 個 AI 都說要大改 · 真的該大改嗎?
 
-**不要一次大改**。3 份報告有 70% 共識 · 但他們都讀同一份 brief · 集體往「更像 ChatGPT」的方向推。承富的價值**不在變得更像 ChatGPT**(因為 ChatGPT 免費)· 而在於「系統知道承富的客戶 / 標案 / 知識庫 / 上個月做過什麼」。這個差異化藏在會計 / CRM / 工作包 / 標案 cron 裡 · 不在輸入框長什麼樣。
+**不要一次大改**。3 份報告有 70% 共識 · 但他們都讀同一份 brief · 集體往「更像 ChatGPT」的方向推。本公司的價值**不在變得更像 ChatGPT**(因為 ChatGPT 免費)· 而在於「系統知道本公司的客戶 / 標案 / 知識庫 / 上個月做過什麼」。這個差異化藏在會計 / CRM / 工作包 / 標案 cron 裡 · 不在輸入框長什麼樣。
 
 ### Q2 · 如果只能做 3 件事,建議做哪 3 件?
 
 1. **拆 app.js 成模組 + esbuild cutover**(1 週 · 不改 UX · 技術債清理 · 全站載入 +30%)
-2. **chat 完整綁 project_id · AI 回覆一鍵存工作包 · 交棒卡 AI 預填 + 一鍵複製 LINE/Email**(2 週 · 這是真正承富 > ChatGPT 的差異化)
+2. **chat 完整綁 project_id · AI 回覆一鍵存工作包 · 交棒卡 AI 預填 + 一鍵複製 LINE/Email**(2 週 · 這是真正本公司 > ChatGPT 的差異化)
 3. **Agent 對同仁改名為「小編 / 投標顧問 / 會計師」等角色稱 · 保留可見(不叫 Agent)· 同時讓老闆儀表板更亮**(1 週 · ROI narrative)
 
 合計 **4 週** · 不動 sidebar / 不動 Workspace / 不引進 intake-form。
@@ -59,7 +59,7 @@
 
 | 編號 | 嚴重度 | 面向 | 檔案/位置 | 問題 | 建議修正 |
 |---|---|---|---|---|---|
-| F01 | P0 | 定位 | `AI-HANDOFF.md` L11-14, `index.html` L7 | 自稱「AI 協作平台 / 智慧助理 / 10 人協作平台」· 定位散 | slogan 改「承富工作包 · 丟進來就有下一棒」 |
+| F01 | P0 | 定位 | `AI-HANDOFF.md` L11-14, `index.html` L7 | 自稱「AI 協作平台 / 智慧助理 / 10 人協作平台」· 定位散 | slogan 改「本公司工作包 · 丟進來就有下一棒」 |
 | F02 | P0 | IA | `index.html` L28-236 sidebar | 平鋪 4 主區 + 5 Workspace + 14 次層 + 3 快速工具 = 26 個入口 | sidebar 砍到 4 項:今日 / 工作包 / 資料庫 / 中控 |
 | F03 | P0 | 心智 | `index.html` L362-406 projects + L509-525 workflows + `modules/chat.js` chat pane | 「對話 / 工作包 / 流程模板 / 建議下一步」四個入口是同一件事的不同切面,但各自獨立 | 以工作包為容器 · 對話 / workflow / handoff 全是 tab |
 | F04 | P0 | Agent 揭露 | `config.js` L43-54 `CORE_AGENTS` | 前台到處「Agent / 主管家 / 專家 / 技能庫 29」 | 前台只留「輸入要做什麼」· Router 隱形 |
@@ -83,9 +83,9 @@
 ### A · 建議產品定位
 
 **Slogan 三選項**(推薦 #1):
-1. **「承富工作包 · 把今天的工作交給下一棒」** ← 推薦 · 對上 timeline
-2. 「承富 AI 工作台 · 丟進來就有交付品與下一棒」
-3. 「承富的公司大腦 · 每個工作都接得上」
+1. **「本公司工作包 · 把今天的工作交給下一棒」** ← 推薦 · 對上 timeline
+2. 「企業 AI 工作台 · 丟進來就有交付品與下一棒」
+3. 「本公司的公司大腦 · 每個工作都接得上」
 
 **目標用戶 persona**:
 
@@ -151,10 +151,10 @@
 | 編號 | 嚴重度 | 面向 | 檔案:行號 | 問題 | 建議修正 |
 |---|---|---|---|---|---|
 | F-01 | P0 | IA / 首屏 | `index.html:17-237` | 25 個入口 · 使用者必須建立「今日 vs 工作包 vs Workspace vs 次層 vs 快速工具」5 同層概念 | 砍到 4 個主要 entry:收件箱 / 工作包 / 知識庫 / 我的 |
-| F-02 | P0 | 首屏 | `index.html:290-310` | textarea + 3 個按鈕(建立工作包 / 看所有 / 交給主管家)· 使用者停頓 | 改單一 CTA「送給承富 AI 處理」 |
+| F-02 | P0 | 首屏 | `index.html:290-310` | textarea + 3 個按鈕(建立工作包 / 看所有 / 交給主管家)· 使用者停頓 | 改單一 CTA「送給企業 AI 處理」 |
 | F-03 | P0 | 任務輸入 | `index.html:295-310` vs `ui-vnext-demo.html:35-68` | 正式版缺 drop zone / prompt bank / process preview | 把 demo 的 intake-form 整個搬進正式版首頁 |
 | F-04 | P1 | 導航 | `index.html:104-205` | 次層 14 項並列 · 工作包重複 | 工作包內情境下拉 + 管理員中控二分 |
-| F-05 | P1 | 術語 | `index.html:48/51/227/233/913` | 「中控 / 管理面板 / Ops」3 稱呼 · 「助手 / Agent / 主管家 / 智慧引擎」4 稱呼 | 全站只用:承富 AI / 助手 / 流程 |
+| F-05 | P1 | 術語 | `index.html:48/51/227/233/913` | 「中控 / 管理面板 / Ops」3 稱呼 · 「助手 / Agent / 主管家 / 智慧引擎」4 稱呼 | 全站只用:企業 AI / 助手 / 流程 |
 | F-06 | P1 | 自動分派 | `index.html:934-978` vs `ui-vnext-demo.html:95-116` | 正式版 chat-pane 沒顯示系統做了什麼 | 採 demo 的 process-list + source-list 卡片 |
 | F-07 | P1 | 附件 | `index.html:957/976-977` | 沒有「系統會讀這些」視覺確認 | 附檔後顯示「✔ 招標須知.pdf · 已讀取」chips |
 | F-08 | P1 | 交付品 | `index.html:934-978` | AI 回覆塞聊天氣泡 · 不能分頁編輯 | 採 demo 的 artifact-window 分 4 tab(摘要/任務/交付/交棒) |
@@ -172,7 +172,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  [承富 AI]   收件箱     工作包     知識庫              [👤 小玉 / ⌘K]  │
+│  [企業 AI]   收件箱     工作包     知識庫              [👤 小玉 / ⌘K]  │
 └─────────────────────────────────────────────────────────────────────────┘
 
                  早安 小玉 · 今天是週二 4/24
@@ -186,7 +186,7 @@
 │  └────────────────────────────────────────────────────────────────┘    │
 │  快速開始:                                                              │
 │  [ 標案判斷 ]  [ 會議交棒 ]  [ 活動企劃 ]  [ 寫新聞稿 ]  [ 場勘 ]       │
-│                                           [ 送給承富 AI 處理 →  ⌘⏎ ]    │
+│                                           [ 送給企業 AI 處理 →  ⌘⏎ ]    │
 └─────────────────────────────────────────────────────────────────────────┘
 
 接續你昨天的工作                                  看全部工作包 →
@@ -210,7 +210,7 @@
 │  ─────────────────────────────────────────────────────────    │
 │  📎 本次使用資料:                                                  │
 │  ✓ 招標須知.pdf (你上傳的)                                          │
-│  ✓ 承富 2024 文化活動履約案例 (公司知識庫)                         │
+│  ✓ 本公司 2024 文化活動履約案例 (公司知識庫)                         │
 │  ◻ 預算表 (尚未上傳)                                              │
 │  ┌─────────────────────────────────────────────────┐             │
 │  │ [摘要] [任務清單] [送件檢查] [交棒卡]          │             │
@@ -227,7 +227,7 @@
 ```
 首頁(iPhone 14)        加附件?             處理中
 ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
-│  承富 AI         │   │   加入附件?      │   │   處理中...      │
+│  企業 AI         │   │   加入附件?      │   │   處理中...      │
 │  👋 早安 小玉    │   │   [📷 拍照]       │   │   ① 讀取 ✓       │
 │                  │   │   [🖼 相簿]       │   │   ② 比對資料 ✓  │
 │  今天要做什麼?   │   │   [📄 檔案]       │   │   ③ 分派 ●      │
@@ -256,12 +256,12 @@
 | 技能庫 | `index.html:142` | (移除) | 一般人不懂「技能」 |
 | 建議下一步 | `index.html:151` | (併入送出按鈕後顯示) | 獨立 view 不合理 |
 | 管理面板 | `index.html:168` | 管理中控(admin) | 「面板」語義弱 |
-| 主管家 | `index.html:227,924,1049` | 承富 AI | 「主管家 / Agent」打架 |
+| 主管家 | `index.html:227,924,1049` | 企業 AI | 「主管家 / Agent」打架 |
 | 智慧引擎 | `index.html:238-248` | (刪元件) | 使用者不該看到「主力 / 備援」 |
-| 承富智慧助理 | `index.html:22` | 承富 AI | 簡短有識別 |
+| 企業 AI 工作台 | `index.html:22` | 企業 AI | 簡短有識別 |
 | 今天要把哪一棒往前推? | `index.html:293` | 今天要做什麼?把需求丟進來 | 「棒」老闆語言 |
-| 3 CTA(建立工作包/看所有/交給主管家) | `index.html:299-301` | (合併為 1 個)送給承富 AI | 同等權重沒主次 |
-| 10 人協作平台 | `index.html:23` | (刪)或「承富創意整合行銷」 | 「10 人」是內部數字 |
+| 3 CTA(建立工作包/看所有/交給主管家) | `index.html:299-301` | (合併為 1 個)送給企業 AI | 同等權重沒主次 |
+| 10 人協作平台 | `index.html:23` | (刪)或「本公司」 | 「10 人」是內部數字 |
 | 幫我把今天客戶會議整理...(placeholder) | `index.html:297` | 例:幫我看這份招標須知,整理缺件清單、判斷接不接 | 具體到附件+動作 |
 | 先接一件工作 · 不是先找工具 | `index.html:306` | (刪 sidecar 整個) | 看 10 次是雜訊 |
 | 🤝 交棒卡 · 給下一位同事看 | `index.html:811` | 傳給下一位同事 | 「卡」Jira 術語 |
@@ -288,7 +288,7 @@
 
 ### C · 架構總評
 
-Launcher 已具備成熟的 module 骨架(28 ES module + `app.js` 1732 行主控 + `launcher.css` 882 行 token system)。最大的結構風險不是「vanilla JS 本身」而是 `app.js` 單檔塞 6 個邏輯面向 / HTML 37 處 inline `onclick` 形成隱性耦合 / demo 與正式版 CSS token 雙軌定義。10 人承富場景 vanilla ES module 仍可維護無需上 React · 但不重構會在 v1.5 某 feature 同時改 Today / Projects / Work Detail 時崩潰。
+Launcher 已具備成熟的 module 骨架(28 ES module + `app.js` 1732 行主控 + `launcher.css` 882 行 token system)。最大的結構風險不是「vanilla JS 本身」而是 `app.js` 單檔塞 6 個邏輯面向 / HTML 37 處 inline `onclick` 形成隱性耦合 / demo 與正式版 CSS token 雙軌定義。10 人本公司場景 vanilla ES module 仍可維護無需上 React · 但不重構會在 v1.5 某 feature 同時改 Today / Projects / Work Detail 時崩潰。
 
 **可維護性**:**需優化**(黃牌 · 不到警戒)
 
@@ -431,7 +431,7 @@ app.js (entry)
 
 #### 🔴 盲點 1 · 「3 秒理解」本身就是錯的量尺
 
-3 AI 都接受 brief 的第一問「3 秒內理解」· 往「更像 ChatGPT」拉。但承富是**內部工具**不是 landing page · 有 training + Champion + 強制全員用。**真正該問的是同仁用 2 週後、一天敲鍵盤 3 小時,哪裡最煩?** 不是第一次登入卡在哪。
+3 AI 都接受 brief 的第一問「3 秒內理解」· 往「更像 ChatGPT」拉。但本公司是**內部工具**不是 landing page · 有 training + Champion + 強制全員用。**真正該問的是同仁用 2 週後、一天敲鍵盤 3 小時,哪裡最煩?** 不是第一次登入卡在哪。
 
 #### 🔴 盲點 2 · 5 Workspace 是老闆已決議的心智模型
 
@@ -460,9 +460,9 @@ DECISIONS.md `D-007` pin v0.8.4。LibreChat v0.9 已在路上。前端大改「W
 
 #### 🔴 盲點 7 · 10 人公司 KPI 不是 UX · 是老闆覺得 NT$ 12,000 花得值
 
-3 AI 全從 UX 切入。但承富真正成敗判準:
+3 AI 全從 UX 切入。但本公司真正成敗判準:
 1. 老闆 admin dashboard 能不能 show「本月省 X 小時 / 產 Y 報告 / 降 Z 次外包」?
-2. 承富提案給客戶時能不能說「我們有內部 AI」?
+2. 本公司提案給客戶時能不能說「我們有內部 AI」?
 3. NT$ 12,000/月 vs 10 人 ChatGPT Plus NT$ 6,800 差額值不值得?
 
 B 提 22 條文案 / C 提 37 處 onclick · **改不了任何一項老闆 KPI**。admin dashboard polish 反而該是第一順位。
@@ -515,7 +515,7 @@ B 說「4 元件搬進」· C 說「token 不對齊要 alias 層」· A 說「de
 | 交棒卡 AI 預填 | Agent 背景化 | 預填要看 Agent 名字 vs 藏掉 · 自相矛盾 |
 | intake-form 首頁 | 角色化首頁 | 登入第一眼是哪個? |
 | sidebar 砍 3 項 | 會計/CRM/社群入口 | 砍了去哪找? |
-| 22 條文案替換 | chengfu_permissions 等技術詞保留 | admin 和同仁兩套詞彙? |
+| 22 條文案替換 | company_ai_permissions 等技術詞保留 | admin 和同仁兩套詞彙? |
 | 「今天要做什麼」首頁 | 工作包主心智 | 任務列表 vs 工作包列表 |
 
 **結論**:6 項共識 MVP 並行 · **至少 3 對衝突**。實際可並行 ≤ 2。
@@ -526,7 +526,7 @@ B 說「4 元件搬進」· C 說「token 不對齊要 alias 層」· A 說「de
 |---|---|---|---|---|
 | 1 | Sidebar 砍到 3-4 項 | **採納但分階段** | 一次砍太激進 | v1.4 砍到 8 項 · v1.5 再評估 4 項 |
 | 2 | 首頁改 intake-form | **拒絕當 default** | 違背「不是聊天工具」| 進 `+ 新任務` modal · 不當首頁 hero |
-| 3 | chat 綁 project_id + 自動存 | **✅ 採納(優先)** | 真正承富 > ChatGPT | 對話 3 輪才提示存(避免過度設計) |
+| 3 | chat 綁 project_id + 自動存 | **✅ 採納(優先)** | 真正本公司 > ChatGPT | 對話 3 輪才提示存(避免過度設計) |
 | 4 | 交棒卡 AI 預填 + 一鍵複製 | **✅ 採納** | Phase C 已有基礎 · 低成本高感知 | 預設展開限 7 天內 · 老的收起 |
 | 5 | Agent / Workspace 從前台消失 | **修正採納** | 完全消失傷 feedback 分類 + 放棄賣點 | Agent 改名「小編 / 投標顧問」保留可見 · Workspace 保留 5 個換視覺 · Skill 只 admin 見 |
 | 6 | app.js 拆分 | **✅ 採納(獨立 PR)** | 不與 UX 並行(矛盾 3) | v1.4 只做拆 + esbuild cutover · UX 改 v1.5 |
@@ -538,7 +538,7 @@ B 說「4 元件搬進」· C 說「token 不對齊要 alias 層」· A 說「de
 1. **拆 app.js 7 module + esbuild cutover**(1 週)
    - 不改 UX · 純技術債清理 · 全站載入 +30%
 2. **chat 綁 project_id + AI 回覆一鍵存工作包 + 交棒卡 AI 預填 + 一鍵複製 LINE/Email**(2 週)
-   - 真正承富 > ChatGPT 的差異化
+   - 真正本公司 > ChatGPT 的差異化
 3. **Agent 改名角色稱(小編 / 投標顧問 / 會計師)+ 儀表板 polish**(1 週)
    - 保留可見 · 儀表板給老闆 ROI narrative
 
@@ -581,24 +581,24 @@ B 說「4 元件搬進」· C 說「token 不對齊要 alias 層」· A 說「de
 ## 附:相關檔案(絕對路徑)
 
 ### 審計文件
-- `/Users/sterio/Workspace/ChengFu/docs/AI-AUDIT-BRIEF-FORMAL-2026-04-25.md` — 委託 brief
-- `/Users/sterio/Workspace/ChengFu/docs/AI-AUDIT-FINDINGS-2026-04-25.md` — 本文件
-- `/Users/sterio/Workspace/ChengFu/AI-HANDOFF.md` — 系統全貌
-- `/Users/sterio/Workspace/ChengFu/docs/DECISIONS.md` — 歷史決議
-- `/Users/sterio/Workspace/ChengFu/docs/ROADMAP-vNext.md` — 下一版計畫
-- `/Users/sterio/Workspace/ChengFu/SYSTEM-DESIGN.md` — 設計語言
+- `/Users/sterio/Workspace/CompanyAIWorkspace/docs/AI-AUDIT-BRIEF-FORMAL-2026-04-25.md` — 委託 brief
+- `/Users/sterio/Workspace/CompanyAIWorkspace/docs/AI-AUDIT-FINDINGS-2026-04-25.md` — 本文件
+- `/Users/sterio/Workspace/CompanyAIWorkspace/AI-HANDOFF.md` — 系統全貌
+- `/Users/sterio/Workspace/CompanyAIWorkspace/docs/DECISIONS.md` — 歷史決議
+- `/Users/sterio/Workspace/CompanyAIWorkspace/docs/ROADMAP-vNext.md` — 下一版計畫
+- `/Users/sterio/Workspace/CompanyAIWorkspace/SYSTEM-DESIGN.md` — 設計語言
 
 ### 前端(審計標的)
-- `/Users/sterio/Workspace/ChengFu/frontend/launcher/index.html`
-- `/Users/sterio/Workspace/ChengFu/frontend/launcher/launcher.css`
-- `/Users/sterio/Workspace/ChengFu/frontend/launcher/app.js`(1732 行)
-- `/Users/sterio/Workspace/ChengFu/frontend/launcher/modules/README.md`
-- `/Users/sterio/Workspace/ChengFu/frontend/launcher/ui-vnext-demo.html/css/js`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/frontend/launcher/index.html`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/frontend/launcher/launcher.css`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/frontend/launcher/app.js`(1732 行)
+- `/Users/sterio/Workspace/CompanyAIWorkspace/frontend/launcher/modules/README.md`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/frontend/launcher/ui-vnext-demo.html/css/js`
 
 ### 後端(審計標的)
-- `/Users/sterio/Workspace/ChengFu/backend/accounting/main.py`
-- `/Users/sterio/Workspace/ChengFu/backend/accounting/routers/*.py`
-- `/Users/sterio/Workspace/ChengFu/tests/e2e/critical-journeys.spec.ts`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/backend/accounting/main.py`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/backend/accounting/routers/*.py`
+- `/Users/sterio/Workspace/CompanyAIWorkspace/tests/e2e/critical-journeys.spec.ts`
 
 ---
 

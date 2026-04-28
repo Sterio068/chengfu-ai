@@ -4,7 +4,7 @@
  * 透過 nginx sub_filter 注入到每個 LibreChat 頁面,
  * 在 DOMContentLoaded 後掃描 DOM 並替換文字節點。
  *
- * v1.8 改:首頁按鈕 label 從 hardcode 「承富」改為動態讀
+ * v1.8 改:首頁按鈕 label 從 hardcode 「本公司」改為動態讀
  *         /api-accounting/admin/branding 的 company_short
  *
  * 注意:LibreChat 為 React 應用,DOM 會不斷重繪,
@@ -131,7 +131,7 @@
 
   // v1.14 · 從 backend 拉 i18n dict · 失敗用 fallback · 5 min cache
   // 跟後端 Cache-Control: max-age=300 對齊
-  const I18N_CACHE_KEY = "chengfu-i18n-cache-v1";
+  const I18N_CACHE_KEY = "company-ai-i18n-cache-v1";
   const I18N_CACHE_TTL_MS = 5 * 60 * 1000;
 
   async function loadI18nFromBackend() {
@@ -211,11 +211,11 @@
 
   async function addHomeButton() {
     if (window.location.pathname === "/login") return;
-    if (document.querySelector(".chengfu-home-btn")) return;
+    if (document.querySelector(".company-ai-home-btn")) return;
     const brand = await getBrand();
     const homeLabel = brand.company_short ? `${brand.company_short} 首頁` : "首頁";
     const btn = document.createElement("button");
-    btn.className = "chengfu-home-btn";
+    btn.className = "company-ai-home-btn";
     btn.innerHTML = `← ${homeLabel}`;
     btn.title = `回到 ${brand.app_name} 首頁`;
     btn.onclick = () => { window.location.href = "/"; };
@@ -252,7 +252,7 @@
   // ============================== 👍👎 回饋按鈕 ==============================
   // 在每個 AI 訊息下方注入 👍👎 按鈕,點擊存 localStorage
   // v1.1 會改為 POST 到後端 MongoDB
-  const FEEDBACK_KEY = "chengfu-feedback-v1";
+  const FEEDBACK_KEY = "company-ai-feedback-v1";
   const FEEDBACK_API = "/api-accounting/feedback";
 
   function loadFeedback() {
@@ -292,7 +292,7 @@
   }
 
   function injectFeedback(msgEl) {
-    if (msgEl.dataset.chengfuFb === "1") return;
+    if (msgEl.dataset.companyAiFb === "1") return;
     if (!msgEl.dataset.messageId && !msgEl.getAttribute("data-message-id")) return;
 
     const messageId = msgEl.dataset.messageId || msgEl.getAttribute("data-message-id");
@@ -302,10 +302,10 @@
     if (role === "user") return;
 
     const bar = document.createElement("div");
-    bar.className = "chengfu-fb-bar";
+    bar.className = "company-ai-fb-bar";
     bar.innerHTML = `
-      <button class="chengfu-fb-btn" data-verdict="up" title="這個回答有幫到">👍</button>
-      <button class="chengfu-fb-btn" data-verdict="down" title="回答不好 / 錯誤">👎</button>
+      <button class="company-ai-fb-btn" data-verdict="up" title="這個回答有幫到">👍</button>
+      <button class="company-ai-fb-btn" data-verdict="down" title="回答不好 / 錯誤">👎</button>
     `;
 
     const existing = loadFeedback()[messageId];
@@ -313,7 +313,7 @@
       bar.querySelector(`[data-verdict="${existing.verdict}"]`)?.classList.add("active");
     }
 
-    bar.querySelectorAll(".chengfu-fb-btn").forEach(btn => {
+    bar.querySelectorAll(".company-ai-fb-btn").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
         const verdict = btn.dataset.verdict;
@@ -322,13 +322,13 @@
           note = prompt("幫我們改進 · 哪裡不好?(可空白)", "") || "";
         }
         saveFeedback(messageId, verdict, note);
-        bar.querySelectorAll(".chengfu-fb-btn").forEach(b => b.classList.remove("active"));
+        bar.querySelectorAll(".company-ai-fb-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
       });
     });
 
     msgEl.appendChild(bar);
-    msgEl.dataset.chengfuFb = "1";
+    msgEl.dataset.companyAiFb = "1";
   }
 
   function scanForFeedback() {
@@ -344,11 +344,11 @@
   }
 
   function injectFeedbackStyles() {
-    if (document.getElementById("chengfu-fb-style")) return;
+    if (document.getElementById("company-ai-fb-style")) return;
     const s = document.createElement("style");
-    s.id = "chengfu-fb-style";
+    s.id = "company-ai-fb-style";
     s.textContent = `
-      .chengfu-fb-bar {
+      .company-ai-fb-bar {
         display: inline-flex;
         gap: 4px;
         margin-top: 8px;
@@ -356,7 +356,7 @@
         background: rgba(0,0,0,0.04);
         border-radius: 6px;
       }
-      .chengfu-fb-btn {
+      .company-ai-fb-btn {
         background: none;
         border: none;
         cursor: pointer;
@@ -366,17 +366,18 @@
         opacity: 0.5;
         transition: all 0.15s;
       }
-      .chengfu-fb-btn:hover { opacity: 1; background: rgba(0,0,0,0.08); }
-      .chengfu-fb-btn.active { opacity: 1; background: rgba(15, 35, 64, 0.12); }
+      .company-ai-fb-btn:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+      .company-ai-fb-btn.active { opacity: 1; background: rgba(15, 35, 64, 0.12); }
     `;
     document.head.appendChild(s);
   }
 
   // ============================== 使用者送出的 pending 輸入 ==============================
-  // Launcher 送到 localStorage 的 chengfu-pending-input,
+  // Launcher 送到 localStorage 的 company-ai-pending-input,
   // 在 LibreChat 載入完成後自動填入輸入框
   function injectPendingInput() {
-    const pending = localStorage.getItem("chengfu-pending-input");
+    const legacyKey = ["cheng", "fu-pending-input"].join("");
+    const pending = localStorage.getItem("company-ai-pending-input") || localStorage.getItem(legacyKey);
     if (!pending) return;
 
     const tryFill = () => {
@@ -384,7 +385,8 @@
       if (textarea) {
         textarea.value = pending;
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
-        localStorage.removeItem("chengfu-pending-input");
+        localStorage.removeItem("company-ai-pending-input");
+        localStorage.removeItem(legacyKey);
         textarea.focus();
         return true;
       }

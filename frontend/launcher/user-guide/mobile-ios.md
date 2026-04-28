@@ -52,7 +52,7 @@
 
 ## 🚀 安裝 PWA 到主畫面(可選 · 像 native app)
 
-1. Safari 開 `https://ai.<chengfu>.com/`
+1. Safari 開 `https://ai.<company_ai>.com/`
 2. 下方分享 icon → **加入主畫面**
 3. icon 取「智慧助理」
 4. 之後從主畫面開 · 不顯示瀏覽器 chrome · 體感像 app

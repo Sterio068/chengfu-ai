@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================
-# 承富 AI 系統 · Keychain 機密初始化
+# 企業 AI 工作台 · Keychain 機密初始化
 # ========================================
 # 用途:將所有機密(API key / JWT secret / 加密金鑰)存入 macOS Keychain。
 # 之後 scripts/start.sh 會從 Keychain 讀取並注入環境變數。
@@ -13,10 +13,10 @@
 
 set -euo pipefail
 
-SERVICE_PREFIX="chengfu-ai"
+SERVICE_PREFIX="${SERVICE_PREFIX:-company-ai}"
 
 echo "============================================"
-echo "  承富 AI 系統 · Keychain 機密初始化"
+echo "  企業 AI 工作台 · Keychain 機密初始化"
 echo "============================================"
 echo ""
 echo "本腳本會將以下機密寫入 macOS Keychain:"
@@ -59,7 +59,7 @@ put_secret() {
     security delete-generic-password -s "$full_key" -a "$USER" > /dev/null 2>&1 || true
     # 加新值
     security add-generic-password -s "$full_key" -a "$USER" -w "$value" \
-        -l "ChengFu AI · ${key}" -j "承富 AI 系統機密 · 由 setup-keychain.sh 寫入"
+        -l "企業 AI 工作台 · ${key}" -j "企業 AI 工作台機密 · 由 setup-keychain.sh 寫入"
     echo "  ✅ 已存入 Keychain: $full_key"
 }
 
@@ -185,4 +185,4 @@ echo "  cd config-templates && cp .env.example .env  # 填入非機密欄位"
 echo "  cd .. && ./scripts/start.sh                   # 啟動系統"
 echo ""
 echo "驗證 Keychain 項目:"
-echo "  security find-generic-password -s 'chengfu-ai-openai-key' -w"
+echo "  security find-generic-password -s 'company-ai-openai-key' -w"

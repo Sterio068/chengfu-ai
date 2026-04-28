@@ -19,7 +19,7 @@ def _reset_cache():
 @pytest.fixture
 def db():
     client = mongomock.MongoClient()
-    return client.chengfu_test
+    return client.company_ai_test
 
 
 @pytest.fixture
@@ -131,7 +131,7 @@ def test_budget_status_with_signed_number_schema(db):
 
 
 def test_user_month_token_usage_signed_number_schema(db, users_col):
-    uid = users_col.insert_one({"email": "staff@x.com"}).inserted_id
+    uid = users_col.insert_one({"email": "staff@x.example"}).inserted_id
     now = datetime.now(timezone.utc)
     db.transactions.insert_many([
         {
@@ -149,7 +149,7 @@ def test_user_month_token_usage_signed_number_schema(db, users_col):
             "createdAt": now,
         },
     ])
-    r = admin_metrics.user_month_token_usage(db, users_col, "staff@x.com", monthly_limit=999)
+    r = admin_metrics.user_month_token_usage(db, users_col, "staff@x.example", monthly_limit=999)
     assert r["ok"] is True
     assert r["monthlyUsage"] == 140
     assert r["monthlyLimit"] == 999
@@ -171,7 +171,7 @@ def test_budget_status_over_budget(db):
 
 
 def test_quota_check_off_mode(db, users_col):
-    r = admin_metrics.quota_check(db, users_col, "a@b.com", mode="off")
+    r = admin_metrics.quota_check(db, users_col, "a@b.example", mode="off")
     assert r["allowed"] is True
 
 
@@ -194,9 +194,9 @@ def test_quota_check_no_email_hard_stop_blocks(db, users_col):
 def test_quota_check_override_admin(db, users_col):
     """admin 白名單永遠過"""
     r = admin_metrics.quota_check(
-        db, users_col, "admin@x.com",
+        db, users_col, "admin@x.example",
         mode="hard_stop",
-        admin_allowlist={"admin@x.com"},
+        admin_allowlist={"admin@x.example"},
     )
     assert r["allowed"] is True
     assert r.get("override") is True
@@ -204,7 +204,7 @@ def test_quota_check_override_admin(db, users_col):
 
 def test_quota_check_hard_stop_over(db, users_col):
     """超 100% + hard_stop = 擋"""
-    uid = users_col.insert_one({"email": "staff@x.com"}).inserted_id
+    uid = users_col.insert_one({"email": "staff@x.example"}).inserted_id
     db.transactions.insert_one({
         "rawAmount": {"prompt": 100_000_000, "completion": 50_000_000},
         "model": "claude-opus-4-7",
@@ -212,7 +212,7 @@ def test_quota_check_hard_stop_over(db, users_col):
         "createdAt": datetime.now(timezone.utc),
     })
     r = admin_metrics.quota_check(
-        db, users_col, "staff@x.com",
+        db, users_col, "staff@x.example",
         mode="hard_stop",
         user_soft_cap_ntd=1200.0,
     )
@@ -222,7 +222,7 @@ def test_quota_check_hard_stop_over(db, users_col):
 
 def test_quota_check_soft_warn_over(db, users_col):
     """超 100% + soft_warn = 過 + warning"""
-    uid = users_col.insert_one({"email": "staff@x.com"}).inserted_id
+    uid = users_col.insert_one({"email": "staff@x.example"}).inserted_id
     db.transactions.insert_one({
         "rawAmount": {"prompt": 100_000_000, "completion": 50_000_000},
         "model": "claude-opus-4-7",
@@ -230,7 +230,7 @@ def test_quota_check_soft_warn_over(db, users_col):
         "createdAt": datetime.now(timezone.utc),
     })
     r = admin_metrics.quota_check(
-        db, users_col, "staff@x.com",
+        db, users_col, "staff@x.example",
         mode="soft_warn",
         user_soft_cap_ntd=1200.0,
     )
@@ -264,7 +264,7 @@ def test_tender_funnel_empty(db):
 # ============================================================
 def test_user_month_spend_returns_dict_with_ok(db, users_col):
     """正常路徑回 ok=True · spent_ntd 數字"""
-    r = admin_metrics.user_month_spend_ntd(db, users_col, "x@y.com")
+    r = admin_metrics.user_month_spend_ntd(db, users_col, "x@y.example")
     assert isinstance(r, dict)
     assert r["ok"] is True
     assert r["spent_ntd"] == 0.0
@@ -277,13 +277,13 @@ def test_user_month_spend_data_source_error_returns_ok_false(users_col):
         @property
         def transactions(self):
             raise ConnectionError("Mongo down")
-    r = admin_metrics.user_month_spend_ntd(BrokenDB(), users_col, "x@y.com")
-    # users_col.find_one("x@y.com") 會回 None · 走 user_not_in_librechat
+    r = admin_metrics.user_month_spend_ntd(BrokenDB(), users_col, "x@y.example")
+    # users_col.find_one("x@y.example") 會回 None · 走 user_not_in_librechat
     # 改用 broken users_col 才會觸發 exception
     class BrokenUsers:
         def find_one(self, *a, **kw):
             raise ConnectionError("users col down")
-    r = admin_metrics.user_month_spend_ntd(BrokenDB(), BrokenUsers(), "x@y.com")
+    r = admin_metrics.user_month_spend_ntd(BrokenDB(), BrokenUsers(), "x@y.example")
     assert r["ok"] is False
     assert "data_source_error" in r["reason"]
 
@@ -298,7 +298,7 @@ def test_quota_hard_stop_fail_safe_blocks_normal_user(db, users_col):
         def find_one(self, *a, **kw):
             raise ConnectionError("users col down")
     r = admin_metrics.quota_check(
-        BrokenDB(), BrokenUsers(), "staff@x.com",
+        BrokenDB(), BrokenUsers(), "staff@x.example",
         mode="hard_stop", user_soft_cap_ntd=1200.0,
     )
     assert r["allowed"] is False
@@ -317,9 +317,9 @@ def test_quota_hard_stop_fail_safe_admin_passes(db, users_col):
         def find_one(self, *a, **kw):
             raise ConnectionError("users col down")
     r = admin_metrics.quota_check(
-        BrokenDB(), BrokenUsers(), "admin@chengfu.local",
+        BrokenDB(), BrokenUsers(), "admin@company-ai.local",
         mode="hard_stop",
-        admin_allowlist={"admin@chengfu.local"},
+        admin_allowlist={"admin@company-ai.local"},
     )
     assert r["allowed"] is True
     assert r.get("override") is True
@@ -331,7 +331,7 @@ def test_quota_soft_warn_fail_safe_passes_with_warning(db, users_col):
         def find_one(self, *a, **kw):
             raise ConnectionError("Mongo flaky")
     r = admin_metrics.quota_check(
-        db, BrokenUsers(), "staff@x.com",
+        db, BrokenUsers(), "staff@x.example",
         mode="soft_warn", user_soft_cap_ntd=1200.0,
     )
     assert r["allowed"] is True
@@ -364,7 +364,7 @@ def test_whisper_cost_from_site_audio(db):
     """site_surveys.audio_notes[].duration_sec 加總"""
     from datetime import datetime, timezone
     db.site_surveys.insert_one({
-        "owner": "pm@x.com",
+        "owner": "pm@x.example",
         "created_at": datetime.now(timezone.utc),
         "audio_notes": [
             {"duration_sec": 30.5, "transcript": "x"},

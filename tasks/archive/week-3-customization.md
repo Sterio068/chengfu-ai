@@ -1,11 +1,11 @@
 # Week 3 — 客製化
 
-> **目標**:第 21 日結束時,10 個承富專屬 Preset 已可用、公司知識庫灌入、資料分級 SOP 文件到位。
+> **目標**:第 21 日結束時,10 個本公司專屬 Preset 已可用、公司知識庫灌入、資料分級 SOP 文件到位。
 > **前置**:Week 2 驗收項全部打勾,同仁已能登入使用基本 LibreChat。
 
 ---
 
-## Day 15-16:29 個承富 Preset 匯入
+## Day 15-16:29 個本公司 Preset 匯入
 
 ### 背景
 
@@ -55,7 +55,7 @@ LibreChat 的 Preset = 預設系統提示詞 + 預設模型 + 預設參數。
 
 ### 任務 3.1:匯入 Preset
 ```bash
-cd ~/chengfu-ai
+cd ~/company-ai
 # LibreChat 提供 import API 或從 admin panel 匯入
 for f in config-templates/presets/*.json; do
   # 使用 LibreChat API 或手動 admin panel 匯入
@@ -64,7 +64,7 @@ done
 ```
 - [ ] 29 個 Preset 在 admin panel 中可見
 - [ ] 設定為「全公司可用」(不是特定用戶)
-- [ ] 命名統一加上「承富 · 」前綴(JSON 內 title 已預設好)
+- [ ] 命名統一加上「本公司 · 」前綴(JSON 內 title 已預設好)
 - [ ] 依照五大類在 UI 分組(可用 tags 欄位做分類)
 
 ### 任務 3.2:測試每個 Preset
@@ -90,8 +90,8 @@ done
 - [ ] `docker compose up -d rag-api vectordb`
 - [ ] 確認:`curl http://localhost:8000/health` 應回 OK
 
-### 任務 3.4:準備承富知識庫內容
-從承富取得以下資料,放在 `knowledge-base/` 資料夾:
+### 任務 3.4:準備本公司知識庫內容
+從本公司取得以下資料,放在 `knowledge-base/` 資料夾:
 
 **必備(去識別化後)**:
 - [ ] 過去 3 年服務建議書(優質版本,至少 5 份)
@@ -116,10 +116,10 @@ done
 
 ### 任務 3.6:灌入 Vector DB
 ```bash
-cd ~/chengfu-ai
+cd ~/company-ai
 python3 scripts/import-knowledge.py \
   --folder knowledge-base/ \
-  --collection chengfu-kb \
+  --collection company-ai-kb \
   --chunk-size 500 \
   --overlap 50
 ```
@@ -127,11 +127,11 @@ python3 scripts/import-knowledge.py \
 - [ ] 向量總數與預期符合(每份文件約 20-50 chunks)
 
 ### 任務 3.7:設定「公司知識庫查詢」Preset
-- [ ] 打開 Preset 07,設定它預設連接 `chengfu-kb` collection
+- [ ] 打開 Preset 07,設定它預設連接 `company-ai-kb` collection
 - [ ] 測試:問「我們去年環保局案的預算結構大概怎麼配?」
-  - 應回傳基於承富過往結案報告的具體內容
+  - 應回傳基於本公司過往結案報告的具體內容
 - [ ] 測試:問「新聞稿的標題風格是?」
-  - 應基於承富過往新聞稿給出分析
+  - 應基於本公司過往新聞稿給出分析
 
 ---
 
@@ -142,7 +142,7 @@ python3 scripts/import-knowledge.py \
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  承富資料分級 SOP                                 │
+│  本公司資料分級 SOP                                 │
 │  ─────────────────────                          │
 │                                                   │
 │  ● LEVEL 01 · 公開                              │
@@ -162,7 +162,7 @@ python3 scripts/import-knowledge.py \
 └─────────────────────────────────────────────────┘
 ```
 
-- [ ] 輸出 PDF 給承富印刷
+- [ ] 輸出 PDF 給本公司印刷
 - [ ] 協助貼在同仁能看到的位置(IT 櫃、飲水機旁)
 
 ### 任務 3.9:SOP 納入 LibreChat 的系統提示
@@ -176,8 +176,8 @@ python3 scripts/import-knowledge.py \
 
 ## Day 20:品牌口吻微調
 
-### 任務 3.10:建立承富語料庫
-提取承富過往優質文件的**標題、段落、用語**,建立:
+### 任務 3.10:建立本公司語料庫
+提取本公司過往優質文件的**標題、段落、用語**,建立:
 - [ ] `knowledge-base/brand-voice/優質標題集.md` — 100 個經典標題
 - [ ] `knowledge-base/brand-voice/慣用句型.md` — 常用開頭結尾、過渡語
 - [ ] `knowledge-base/brand-voice/禁用詞.md` — 大陸用語、不合品牌的表達
@@ -187,7 +187,7 @@ python3 scripts/import-knowledge.py \
 - [ ] 新聞稿 Preset、貼文 Preset、建議書 Preset 的 system prompt 中引用這些檔案
 
 ### 任務 3.12:試用調整循環
-邀請 2-3 位承富資深同仁試用:
+邀請 2-3 位本公司資深同仁試用:
 - [ ] 用真實任務跑一遍(例:最近一個新聞稿)
 - [ ] 紀錄他們對 AI 輸出的修改
 - [ ] 把修改模式反映到 Preset prompt 中
@@ -199,7 +199,7 @@ python3 scripts/import-knowledge.py \
 
 ### 任務 3.13:本週驗收項
 - [ ] 10 個 Preset 全數可用,且各有被測試過
-- [ ] 知識庫查詢能基於承富自家資料回答
+- [ ] 知識庫查詢能基於本公司自家資料回答
 - [ ] 資料分級 SOP 海報貼牆、納入所有 Preset 系統提示
 - [ ] 品牌語料庫已建立並注入
 - [ ] 2-3 位資深同仁試用滿意度 > 80%
@@ -207,5 +207,5 @@ python3 scripts/import-knowledge.py \
 ### 任務 3.14:產出週報
 在 `reports/week-3.md` 建立。包含各同仁的試用回饋與調整紀錄。
 
-- [ ] 寄給 Sterio 與承富老闆
+- [ ] 寄給 Sterio 與本公司老闆
 - [ ] 下週 Week 4 開始教育訓練與驗收

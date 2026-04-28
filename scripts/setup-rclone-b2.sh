@@ -2,7 +2,7 @@
 # v1.3 A4 · 互動式設定 Backblaze B2 異機備份
 #
 # 為什麼 B2:
-# - 0 cost 10 GB free(承富 1 年備份估 ~5 GB)
+# - 0 cost 10 GB free(本公司 1 年備份估 ~5 GB)
 # - 比 S3 便宜 5x · 比 R2 便宜 2x
 # - rclone 原生支援 · 不用 AWS SDK
 #
@@ -12,12 +12,12 @@
 # 前置:
 # 1. 到 https://www.backblaze.com/b2/ 註冊(信用卡認證)
 # 2. App Keys → Add a New Application Key
-#    - Name: chengfu-ai-backup
+#    - Name: company-ai-backup
 #    - Allow access: All buckets(or 指定 bucket)
 #    - Type: Read and Write
 #    - 複製 keyID + applicationKey(只顯示 1 次)
 # 3. Buckets → Create a Bucket
-#    - Name: chengfu-backup-(隨機後綴 · B2 全球唯一)
+#    - Name: company-ai-backup-(隨機後綴 · B2 全球唯一)
 #    - Files: Private
 #    - Encryption: Server-side(預設)
 
@@ -29,7 +29,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${GREEN}═══════════════════════════════════════════${NC}"
-echo -e "${GREEN}  承富 AI · Backblaze B2 異機備份設定 (A4)${NC}"
+echo -e "${GREEN}  企業 AI · Backblaze B2 異機備份設定 (A4)${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════${NC}"
 echo ""
 
@@ -42,19 +42,19 @@ fi
 echo -e "${GREEN}✓${NC} rclone 已安裝 · $(rclone version | head -1)"
 
 # ---------- 檢查 GPG ----------
-if ! gpg --list-keys chengfu > /dev/null 2>&1; then
-    echo -e "${RED}❌ 缺 'chengfu' GPG key${NC}"
-    echo "請先建:gpg --full-generate-key(name 設 'chengfu')"
+if ! gpg --list-keys company_ai > /dev/null 2>&1; then
+    echo -e "${RED}❌ 缺 'company_ai' GPG key${NC}"
+    echo "請先建:gpg --full-generate-key(name 設 'company_ai')"
     echo "詳:docs/05-SECURITY.md §6"
     exit 1
 fi
-echo -e "${GREEN}✓${NC} GPG key 'chengfu' 已配置(B2 上的檔案會 GPG 加密)"
+echo -e "${GREEN}✓${NC} GPG key 'company_ai' 已配置(B2 上的檔案會 GPG 加密)"
 
 # ---------- 檢查既有 remote ----------
-EXISTING_REMOTE="chengfu-offsite"
+EXISTING_REMOTE="company-ai-offsite"
 if rclone listremotes 2>/dev/null | grep -q "^${EXISTING_REMOTE}:"; then
     echo ""
-    echo -e "${YELLOW}⚠ 'chengfu-offsite' remote 已存在${NC}"
+    echo -e "${YELLOW}⚠ 'company-ai-offsite' remote 已存在${NC}"
     read -p "覆寫?(y/N): " confirm
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
         echo "已取消 · 既有設定保留"
@@ -84,10 +84,10 @@ rclone config create "$EXISTING_REMOTE" b2 \
     --non-interactive
 
 # 把 B2 keys 也存進 macOS Keychain · 給 backup.sh + dr-drill.sh 找
-security delete-generic-password -s "chengfu-ai-b2-key-id" -a "$USER" 2>/dev/null || true
-security add-generic-password -s "chengfu-ai-b2-key-id" -a "$USER" -w "$B2_KEY_ID"
-security delete-generic-password -s "chengfu-ai-b2-app-key" -a "$USER" 2>/dev/null || true
-security add-generic-password -s "chengfu-ai-b2-app-key" -a "$USER" -w "$B2_APP_KEY"
+security delete-generic-password -s "company-ai-b2-key-id" -a "$USER" 2>/dev/null || true
+security add-generic-password -s "company-ai-b2-key-id" -a "$USER" -w "$B2_KEY_ID"
+security delete-generic-password -s "company-ai-b2-app-key" -a "$USER" 2>/dev/null || true
+security add-generic-password -s "company-ai-b2-app-key" -a "$USER" -w "$B2_APP_KEY"
 
 # ---------- 驗證 ----------
 echo ""
@@ -108,18 +108,18 @@ echo "下一步:配 backup.sh 用此 remote"
 echo ""
 echo "在 ~/.zshenv(或 .bash_profile)加:"
 echo ""
-echo -e "${YELLOW}  export CHENGFU_OFFSITE_REMOTE=\"chengfu-offsite:${B2_BUCKET}\"${NC}"
+echo -e "${YELLOW}  export COMPANY_AI_OFFSITE_REMOTE=\"company-ai-offsite:${B2_BUCKET}\"${NC}"
 echo ""
 echo "或 launchd plist 內 EnvironmentVariables 段:"
 echo ""
 echo -e "${YELLOW}  <key>EnvironmentVariables</key>${NC}"
 echo -e "${YELLOW}  <dict>${NC}"
-echo -e "${YELLOW}    <key>CHENGFU_OFFSITE_REMOTE</key>${NC}"
-echo -e "${YELLOW}    <string>chengfu-offsite:${B2_BUCKET}</string>${NC}"
+echo -e "${YELLOW}    <key>COMPANY_AI_OFFSITE_REMOTE</key>${NC}"
+echo -e "${YELLOW}    <string>company-ai-offsite:${B2_BUCKET}</string>${NC}"
 echo -e "${YELLOW}  </dict>${NC}"
 echo ""
 echo "驗收(明日 02:00 cron 跑後):"
-echo "  rclone ls chengfu-offsite:${B2_BUCKET}/daily/ | head"
+echo "  rclone ls company-ai-offsite:${B2_BUCKET}/daily/ | head"
 echo ""
 echo "災難還原(用 dr-drill.sh):"
 echo "  ./scripts/dr-drill.sh --from-offsite"

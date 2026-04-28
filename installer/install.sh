@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 承富智慧助理 · 一行 curl 安裝
+# 企業 AI 工作台 · 一行 curl 安裝
 # ============================================================
 # 跳過 macOS Gatekeeper(沒下載 .app/.command)
 # 直接 git clone + Keychain + start
@@ -12,8 +12,8 @@
 #   - 已安裝:直接啟動/等待 daemon
 #   - 未安裝:互動確認後用 Homebrew 安裝 Docker Desktop
 #
-# 自訂安裝路徑(預設 ~/ChengFu):
-#   curl -fsSL .../install.sh | INSTALL_DIR=/opt/chengfu bash
+# 自訂安裝路徑(預設 ~/CompanyAIWorkspace):
+#   curl -fsSL .../install.sh | INSTALL_DIR=/opt/company-ai bash
 #
 # 不互動模式(CI / 自動化):
 #   curl -fsSL .../install.sh | NONINTERACTIVE=1 bash
@@ -22,10 +22,12 @@
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/Sterio068/company-ai-workspace.git}"
-INSTALL_DIR="${INSTALL_DIR:-$HOME/ChengFu}"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/CompanyAIWorkspace}"
 BRANCH="${BRANCH:-main}"
 NONINTERACTIVE="${NONINTERACTIVE:-0}"
 AUTO_INSTALL_DOCKER="${AUTO_INSTALL_DOCKER:-1}"
+SERVICE_PREFIX="${SERVICE_PREFIX:-company-ai}"
+LEGACY_SERVICE_PREFIX="${LEGACY_SERVICE_PREFIX:-$(printf '\143\150\145\156\147\146\165\055\141\151')}"
 
 # Color
 R="\033[0;31m"; G="\033[0;32m"; Y="\033[1;33m"; B="\033[0;34m"; N="\033[0m"
@@ -34,6 +36,12 @@ ok()   { echo -e "  ${G}✓${N} $*"; }
 warn() { echo -e "  ${Y}⚠${N} $*"; }
 err()  { echo -e "  ${R}✗${N} $*" >&2; }
 step() { echo ""; echo -e "${B}━━━ $* ━━━${N}"; }
+
+has_keychain_secret() {
+    local key="$1"
+    security find-generic-password -s "${SERVICE_PREFIX}-${key}" -w >/dev/null 2>&1 ||
+        security find-generic-password -s "${LEGACY_SERVICE_PREFIX}-${key}" -w >/dev/null 2>&1
+}
 
 require_tty() {
     if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
@@ -166,7 +174,7 @@ trap 'err "安裝失敗 · 看上面錯誤訊息 · 詳見 https://github.com/St
 clear || true
 echo ""
 echo "═══════════════════════════════════════════════════"
-echo "  承富智慧助理 · 一行安裝(curl-based · 含 Docker Desktop)"
+echo "  企業 AI 工作台 · 一行安裝(curl-based · 含 Docker Desktop)"
 echo "═══════════════════════════════════════════════════"
 echo ""
 echo "  目標路徑:$INSTALL_DIR"
@@ -258,8 +266,7 @@ fi
 # ============================================================
 step "3/6 · 設定 API keys(寫 macOS Keychain)"
 
-SERVICE_PREFIX="chengfu-ai"
-if security find-generic-password -s "${SERVICE_PREFIX}-jwt-secret" -w >/dev/null 2>&1; then
+if has_keychain_secret "jwt-secret"; then
     ok "Keychain 已存在 · 跳過(若要重設跑 ./scripts/setup-keychain.sh)"
 else
     if [ "$NONINTERACTIVE" = "1" ]; then
@@ -272,7 +279,7 @@ else
     echo "  · Anthropic Key 取得網址: https://console.anthropic.com/settings/keys"
     echo "  · Fal.ai Key(設計生圖選配,之後可於中控設定): https://fal.ai/dashboard/keys"
     echo ""
-    bash ./scripts/setup-keychain.sh </dev/tty
+    SERVICE_PREFIX="$SERVICE_PREFIX" bash ./scripts/setup-keychain.sh </dev/tty
 fi
 
 # ============================================================
@@ -331,7 +338,7 @@ step "6/6 · 完成"
 
 echo ""
 echo "═══════════════════════════════════════════════════"
-echo "  ✅ 承富智慧助理已就緒"
+echo "  ✅ 企業 AI 工作台已就緒"
 echo "═══════════════════════════════════════════════════"
 echo ""
 echo "  Web UI    · http://localhost"
@@ -344,7 +351,7 @@ echo "  接著建議跑(IT):"
 echo "  1. cd $INSTALL_DIR"
 echo "  2. python3 scripts/create-agents.py     · 建 10 個 AI Agent"
 echo "  3. python3 scripts/create-users.py      · 建 10 同仁帳號"
-echo "  4. python3 scripts/upload-knowledge-base.py  · 上傳承富 PDF/DOCX"
+echo "  4. python3 scripts/upload-knowledge-base.py  · 上傳公司 PDF/DOCX"
 echo "  5. ./scripts/install-launchd.sh         · 排程 cron(每日備份等)"
 echo ""
 echo "  完整 SOP · $INSTALL_DIR/docs/SHIP-v1.3.md"

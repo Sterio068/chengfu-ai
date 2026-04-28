@@ -1,10 +1,10 @@
-# 承富 AI
+# 企業 AI
 
-**讓 AI 成為承富的第 11 位同事 · 本地部署 · 10 人共用 · OpenAI 預設 + Claude 可切換**
+**讓 AI 成為公司的第 11 位同事 · 本地部署 · 10 人共用 · OpenAI 預設 + Claude 可切換**
 
 ---
 
-## ⚡ 快速安裝(承富 IT)
+## ⚡ 快速安裝(公司 IT)
 
 Mac mini 接好網路後 · 開 Terminal 貼一行。腳本會自動檢查/安裝 [Docker Desktop](https://www.docker.com/products/docker-desktop/) 並啟動服務:
 
@@ -41,14 +41,14 @@ curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main
 
 ## 📦 系統概覽
 
-一套**本地部署的 AI 協作平台**,放在承富辦公室的 Mac mini 上,10 位同仁用瀏覽器就能用。
+一套**本地部署的 AI 協作平台**,放在公司辦公室的 Mac mini 上,10 位同仁用瀏覽器就能用。
 
 ✅ **對話、檔案、知識庫全部留在公司**,不上 OpenAI/Anthropic 以外的雲端
 ✅ **OpenAI 作為預設主力**,前端可切換 Claude 備援
-✅ **10 個承富專屬助手**,以 **5 個工作區**(投標 / 活動 / 設計 / 公關 / 營運)有邏輯地組織
+✅ **10 個公司專屬助手**,以 **5 個工作區**(投標 / 活動 / 設計 / 公關 / 營運)有邏輯地組織
 ✅ **macOS 設計語言**:首頁 Dashboard、⌘K 指令面板、深淺色模式、毛玻璃 UI
 ✅ **4 週內全員上線**,第一個月底同仁就已產出實際成果
-✅ **首 3 個月免費試用期**,不滿意不續約,資料 100% 留在承富
+✅ **首 3 個月免費試用期**,不滿意不續約,資料 100% 留在公司
 
 ---
 
@@ -65,7 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main
 
 ---
 
-## 💰 給承富老闆看的數字
+## 💰 給公司管理者看的數字
 
 ### 一次性投入
 - 顧問服務費(首發價 30% off):**NT$ 88,000**
@@ -103,18 +103,18 @@ claude-code-handoff/
 
 | 角色 | 該讀哪些 |
 |---|---|
-| 承富老闆 | 只讀這份 `README.md` 即可 |
-| 承富 AI Champion(指派同仁) | 讀 `docs/03-TRAINING.md`、`docs/04-OPERATIONS.md` |
+| 公司管理者 | 只讀這份 `README.md` 即可 |
+| 企業 AI Champion(指派同仁) | 讀 `docs/03-TRAINING.md`、`docs/04-OPERATIONS.md` |
 | 技術執行者(Claude Code 或外部工程師) | 從 `CLAUDE.md` 開始,依週順序執行 `tasks/` |
-| 承富 IT 顧問(若有) | 讀 `ARCHITECTURE.md`、`docs/05-SECURITY.md` |
+| 公司 IT 顧問(若有) | 讀 `ARCHITECTURE.md`、`docs/05-SECURITY.md` |
 
 ---
 
 ## 🎯 驗收標準(4 週末尾)
 
-第 28 天,承富可以用這份清單逐項打勾:
+第 28 天,公司可以用這份清單逐項打勾:
 
-- [ ] 從公司任一電腦打開 `http://承富-ai.local`,10 秒內看到 LibreChat 介面
+- [ ] 從公司任一電腦打開 `http://company-ai.local`,10 秒內看到 LibreChat 介面
 - [ ] 用自己的帳號登入,選擇「招標須知解析器」Preset
 - [ ] 上傳一份範例招標 PDF,10 分鐘內產出結構化重點表
 - [ ] 從家裡用手機打開 `https://ai.<公司域名>.com`,同樣能登入與使用
@@ -129,9 +129,9 @@ claude-code-handoff/
 ## 📞 聯絡
 
 **顧問**:Sterio
-**專案代號**:承富 AI v1.1
+**專案代號**:企業 AI v1.1
 **提案日期**:2026 年 4 月
 **有效期**:30 日內
-**承富方聯絡**:[待填寫]
+**公司方聯絡**:[待填寫]
 
 若在執行過程中遇到 Claude Code 無法解決的問題,請聯絡 Sterio 協調。

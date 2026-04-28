@@ -47,7 +47,7 @@ class TestBatchMessages:
         from services.conversation_meta import get_recent_metas
         db = self._make_db(conv_count=5)
 
-        get_recent_metas(db, "test@example.com", "uid1", limit=5)
+        get_recent_metas(db, "test@example.example", "uid1", limit=5)
 
         # messages.find 應 == 1(batch · 不是 5)
         assert db.messages.find.call_count == 1, (
@@ -59,7 +59,7 @@ class TestBatchMessages:
         from services.conversation_meta import get_recent_metas
         db = self._make_db(conv_count=3)
 
-        get_recent_metas(db, "test@example.com", "uid1", limit=3)
+        get_recent_metas(db, "test@example.example", "uid1", limit=3)
 
         call_args = db.messages.find.call_args
         query = call_args[0][0] if call_args[0] else call_args[1].get("filter")
@@ -94,7 +94,7 @@ class TestCachedMsgsReuse:
         msg_cursor.sort.return_value = iter(msgs)
         db.messages.find.return_value = msg_cursor
 
-        metas = get_recent_metas(db, "u@e.com", "u1", limit=1)
+        metas = get_recent_metas(db, "u@e.example", "u1", limit=1)
         assert len(metas) == 1
         assert "_cached_msgs" in metas[0]
         assert metas[0]["_cached_msgs"] == msgs

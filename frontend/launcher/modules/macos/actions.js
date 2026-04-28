@@ -3,9 +3,9 @@
  * v1.50 · 從 menubar.js / shortcuts.js / control-center.js 各自重複的實作抽出
  *
  * 之前狀態:
- *   - shortcuts.js _toggleTheme 寫 localStorage('chengfu-theme', ...) · toast
- *   - menubar.js   _toggleTheme 寫 localStorage('chengfu-theme', ...) · toast
- *   - control-center.js _setTheme 寫 localStorage('chengfu-theme', ...) · 不 toast · 還 _render
+ *   - shortcuts.js _toggleTheme 寫 localStorage('company-ai-theme', ...) · toast
+ *   - menubar.js   _toggleTheme 寫 localStorage('company-ai-theme', ...) · toast
+ *   - control-center.js _setTheme 寫 localStorage('company-ai-theme', ...) · 不 toast · 還 _render
  *   → 三套各漂移 · 容易出 bug · CC 改 theme 時 menubar 不 sync
  *
  * 抽出後:
@@ -13,7 +13,7 @@
  *   - 派 'theme-changed' CustomEvent · 任何想 sync 的模組 listen 即可
  */
 
-const THEME_KEY = "chengfu-theme";
+const THEME_KEY = "company-ai-theme";
 
 export function setTheme(id) {
   const html = document.documentElement;

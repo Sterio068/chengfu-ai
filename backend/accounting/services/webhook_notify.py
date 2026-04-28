@@ -1,14 +1,14 @@
 """
 Webhook Notify · v1.2 Day 3 R26#2 修(取代 LINE Notify · 已停服 2025-03-31)
 
-承富同事可選任一 webhook(Slack / Discord / Telegram bot / Mattermost / 自架)
+本公司同事可選任一 webhook(Slack / Discord / Telegram bot / Mattermost / 自架)
 而非綁死 LINE Notify(LINE Notify 2025-03-31 已停服 · 官方公告 notify-bot.line.me)
 
 webhook URL 通常長這樣:
-- Slack:https://hooks.slack.com/services/T.../B.../...
+- Slack:https://hooks.slack.example/services/T.../B.../...
 - Discord:https://discord.com/api/webhooks/.../...
 - Telegram bot:https://api.telegram.org/bot{TOKEN}/sendMessage(需 chat_id 在 query)
-- Mattermost:https://mm.example.com/hooks/...
+- Mattermost:https://mm.example.example/hooks/...
 
 不同平台 payload 格式略不同 · 我們用「猜」:
 - 含 'slack' / 'discord' / 'mattermost' → JSON {"text": ...}
@@ -24,12 +24,12 @@ import socket
 import urllib.parse
 import urllib.request
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # R27#4 · SSRF 防護 · webhook URL user-supplied · 立刻 server-side fetch
 # 沒護欄 → 同仁可探內網(librechat/mongodb/meili/localhost/admin endpoint)
-# 白名單也行 · 但承富 user 自架 webhook(Mattermost on-prem)合法 · 改 IP block
+# 白名單也行 · 但本公司 user 自架 webhook(Mattermost on-prem)合法 · 改 IP block
 _BLOCKED_HOSTS = {"localhost", "metadata.google.internal"}
 
 
@@ -51,7 +51,7 @@ def validate_webhook_url(url: str) -> str:
     host = (parsed.hostname or "").lower()
     if not host or host in _BLOCKED_HOSTS:
         raise WebhookValidationError(f"webhook host 不允許:{host or '(空)'}")
-    # 解析 DNS · 拒絕內網 IP(防 attacker 用 evil.com → CNAME → 10.0.0.1)
+    # 解析 DNS · 拒絕內網 IP(防 attacker 用 evil.example → CNAME → 10.0.0.1)
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror as e:

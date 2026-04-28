@@ -1,6 +1,6 @@
 # macOS Dock 使用手冊(v1.4 Sprint A)
 
-> 承富智慧助理 v1.4 開始 · 底部新加 macOS 風 Dock。
+> 企業 AI 工作台 v1.4 開始 · 底部新加 macOS 風 Dock。
 > 預設放 7 個常用 AI 助手 · 滑鼠 hover 會放大 · 點擊開對話。
 
 ---
@@ -107,11 +107,11 @@ window.dock.dockStore?.reset();
 
 ## PWA 模式 + 頂部 Menu Bar(Sprint B 才完整)
 
-把承富智慧助理加到 macOS Dock(Chrome / Safari):
+把企業 AI 工作台加到 macOS Dock(Chrome / Safari):
 
 ### Chrome / Edge
-1. 進 http://localhost(或承富域名)
-2. 右上角 ⋮ → **「安裝『承富智慧助理』」**
+1. 進 http://localhost(或本公司域名)
+2. 右上角 ⋮ → **「安裝『企業 AI 工作台』」**
 3. 之後從 Launchpad / Spotlight 開 · 變獨立 app
 
 ### Safari
@@ -183,7 +183,7 @@ unsub();  // 取消訂閱
 
 ## 後續計畫(Sprint B)
 
-- [ ] 頂部 Menu Bar 內容(承富 / 檔案 / 編輯 / 顯示 / 視窗 / 說明)
+- [ ] 頂部 Menu Bar 內容(本公司 / 檔案 / 編輯 / 顯示 / 視窗 / 說明)
 - [ ] PWA 自動安裝提示
 - [ ] Window 系統(對話 = 獨立 window · cmd+W 關 · cmd+M 最小化)
 - [ ] Mission Control overview(cmd+↑ 看所有對話)

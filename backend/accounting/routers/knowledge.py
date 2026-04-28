@@ -32,7 +32,7 @@ from ._deps import require_admin_dep, require_user_dep
 
 
 router = APIRouter(tags=["knowledge"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # ============================================================
@@ -62,7 +62,7 @@ def _get_meili_client():
 _ALLOWED_SOURCE_ROOTS = [
     p.strip() for p in os.getenv(
         "KNOWLEDGE_ALLOWED_ROOTS",
-        "/Volumes,/data,/tmp/chengfu-test-sources",  # 預設不含 /Users · /mnt
+        "/Volumes,/data,/tmp/company-ai-test-sources",  # 預設不含 /Users · /mnt
     ).split(",") if p.strip()
 ]
 

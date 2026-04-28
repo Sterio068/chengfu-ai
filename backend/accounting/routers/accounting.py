@@ -31,7 +31,7 @@ from ._deps import require_permission_dep, require_user_dep
 # R27#2 · router-wide require login · nginx 直接公開 /api-accounting/* · 沒登入禁讀寫
 # 個別 admin 操作(seed / DELETE)在 endpoint 級再升 require_admin_dep
 router = APIRouter(tags=["accounting"], dependencies=[require_user_dep()])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 def _tx_oid(tx_id: str) -> ObjectId:

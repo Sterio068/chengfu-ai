@@ -1,6 +1,6 @@
 # docs/10-STREAMING-VERIFY.md — Streaming + nginx 相容性驗證
 
-> **問題**:承富架構 `nginx → LibreChat` 用 `sub_filter` 注入客製 CSS/JS。
+> **問題**:本公司架構 `nginx → LibreChat` 用 `sub_filter` 注入客製 CSS/JS。
 > 但 `sub_filter` 需要緩衝完整 response · 可能破壞 LibreChat 的 SSE 串流回應。
 >
 > 若使用者看到 Claude 回應是「一次全出」而非逐字,表示串流壞了。
@@ -25,7 +25,7 @@
 
 ### 1. 瀏覽器 DevTools 觀察
 1. 打開 Chrome DevTools → Network tab
-2. 打開承富 AI,進任何對話
+2. 打開企業 AI,進任何對話
 3. 送一個訊息「寫一首 100 字關於台灣的詩」
 4. 看 Network 有無 `/api/agents/chat` endpoint
 5. 點該 request → 看 `Response` 欄是否**逐漸增長**
@@ -33,7 +33,7 @@
 ### 2. curl 直接測(繞過 nginx)
 ```bash
 # 直接打 LibreChat 容器內部(port 3080)
-docker exec -it chengfu-librechat \
+docker exec -it company-ai-librechat \
     curl -N -X POST -H "Authorization: Bearer <JWT>" \
          -H "Content-Type: application/json" \
          http://localhost:3080/api/agents/chat \
@@ -65,7 +65,7 @@ location /chat {
     # sub_filter '</body>' '<script ...>';
 
     proxy_pass http://librechat:3080;
-    include /etc/nginx/chengfu-proxy.conf;
+    include /etc/nginx/company-ai-proxy.conf;
 
     # 串流必要
     proxy_buffering off;
@@ -75,18 +75,18 @@ location /chat {
 }
 ```
 
-但這樣 LibreChat 頁面就不會有承富客製 CSS/JS 了。解法:
+但這樣 LibreChat 頁面就不會有本公司客製 CSS/JS 了。解法:
 
 ### Option B · 把客製 CSS/JS 注入到 LibreChat 自身
 
 用 LibreChat 的 `customCSS` / `customJS` 配置(librechat.yaml):
 ```yaml
 interface:
-  customCSS: "/chengfu-custom/librechat-custom.css"
-  customJS: "/chengfu-custom/librechat-relabel.js"
+  customCSS: "/company-ai-custom/librechat-custom.css"
+  customJS: "/company-ai-custom/librechat-relabel.js"
 ```
 
-nginx 照樣代理 `/chengfu-custom/`,但不再 sub_filter 注入 · 串流不受影響。
+nginx 照樣代理 `/company-ai-custom/`,但不再 sub_filter 注入 · 串流不受影響。
 
 ### Option C · 只對特定 path sub_filter
 
@@ -137,7 +137,7 @@ chunked_transfer_encoding on;  # chunked response
 
 1. 跑「驗證步驟 1」確認是否壞
 2. 若壞:改 `frontend/nginx/default.conf`,對 `/api/agents/chat` 位置確認無 sub_filter 且 `proxy_buffering off`
-3. 重啟 nginx:`docker restart chengfu-nginx`
+3. 重啟 nginx:`docker restart company-ai-nginx`
 4. 重測
 5. 若需保留客製 CSS/JS,改用 LibreChat customCSS/customJS 配置
 6. 寫入 `reports/incident-YYYY-MM-DD.md`

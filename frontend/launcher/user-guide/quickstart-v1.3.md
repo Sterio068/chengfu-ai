@@ -6,7 +6,7 @@
 
 ## ❶ 第一次登入(2 分鐘)
 
-1. 瀏覽器開 `http://localhost/`(本機 dev)或 `https://ai.<chengfu>.com/`(prod)
+1. 瀏覽器開 `http://localhost/`(本機 dev)或 `https://ai.<company_ai>.com/`(prod)
 2. LibreChat 登入頁 · 用管理員給的 email + 密碼
 3. 自動跳 launcher · 看到 5 個 Workspace 卡片
 4. 第一次自動跳 onboarding tour 4 步 · 跟著做

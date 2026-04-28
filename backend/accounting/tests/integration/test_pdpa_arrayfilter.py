@@ -11,14 +11,14 @@ def test_array_filter_unsets_target_only(real_db):
     """update_many + arrayFilters $[n] · 只清 by==target 的 note · 其他保留"""
     real_db.crm_leads.insert_one({
         "title": "lead-x",
-        "owner": "boss@x.com",
+        "owner": "boss@x.example",
         "notes": [
-            {"text": "a", "by": "leaving@x.com", "at": "2026-01-01"},
-            {"text": "b", "by": "stay@x.com", "at": "2026-01-02"},
-            {"text": "c", "by": "leaving@x.com", "at": "2026-01-03"},
+            {"text": "a", "by": "leaving@x.example", "at": "2026-01-01"},
+            {"text": "b", "by": "stay@x.example", "at": "2026-01-02"},
+            {"text": "c", "by": "leaving@x.example", "at": "2026-01-03"},
         ],
     })
-    target = "leaving@x.com"
+    target = "leaving@x.example"
     r = real_db.crm_leads.update_many(
         {"notes.by": target},
         {"$set": {"notes.$[n].by": None}},
@@ -28,7 +28,7 @@ def test_array_filter_unsets_target_only(real_db):
     notes = real_db.crm_leads.find_one({"title": "lead-x"})["notes"]
     # leaving 兩個變 None · stay 不動
     assert notes[0]["by"] is None
-    assert notes[1]["by"] == "stay@x.com"
+    assert notes[1]["by"] == "stay@x.example"
     assert notes[2]["by"] is None
 
 
@@ -36,7 +36,7 @@ def test_array_filter_no_race_with_concurrent_push(real_db):
     """sim concurrent push 同時 unset · arrayFilter atomic 不該掉新 note
     (vs Python 端 read-modify-write 會掉)"""
     import threading
-    target = "leaving@x.com"
+    target = "leaving@x.example"
     real_db.crm_leads.insert_one({
         "title": "lead-race",
         "notes": [{"text": "old", "by": target, "at": "2026-01-01"}],
@@ -46,7 +46,7 @@ def test_array_filter_no_race_with_concurrent_push(real_db):
         for i in range(20):
             real_db.crm_leads.update_one(
                 {"title": "lead-race"},
-                {"$push": {"notes": {"text": f"new-{i}", "by": "stay@x.com", "at": f"2026-01-{i:02d}"}}},
+                {"$push": {"notes": {"text": f"new-{i}", "by": "stay@x.example", "at": f"2026-01-{i:02d}"}}},
             )
 
     def unset_target():

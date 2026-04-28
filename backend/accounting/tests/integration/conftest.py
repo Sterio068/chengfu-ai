@@ -8,10 +8,10 @@ mongomock 跟真 Mongo 行為差(R30/R31 證實):
 
 # 用法
 本地手動:
-    docker run -d --rm -p 27017:27017 --name chengfu-test-mongo mongo:7.0
+    docker run -d --rm -p 27017:27017 --name company-ai-test-mongo mongo:7.0
     INTEGRATION_MONGO_URL=mongodb://localhost:27017 \\
         python3 -m pytest tests/integration -v
-    docker stop chengfu-test-mongo
+    docker stop company-ai-test-mongo
 
 CI(.github/workflows/ci.yml):
     services:
@@ -61,7 +61,7 @@ def real_mongo():
 @pytest.fixture
 def real_db(real_mongo, request):
     """每 test module 獨立 db · 名稱含 module name 防衝突 · test 結束 drop"""
-    db_name = f"chengfu_int_{request.module.__name__.split('.')[-1]}"
+    db_name = f"company_ai_int_{request.module.__name__.split('.')[-1]}"
     db = real_mongo[db_name]
     # 清乾淨(防上次 test 失敗殘留)
     real_mongo.drop_database(db_name)

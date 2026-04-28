@@ -1,9 +1,9 @@
-# 承富 AI · LibreChat 升版測試 sandbox
+# 企業 AI · LibreChat 升版測試 sandbox
 # =====================================
 # 用途:在不影響 production 的情況下 · 測試新版 LibreChat 是否相容
 # 設計原則(Round 8 reviewer · LIBRECHAT-UPGRADE-CHECKLIST §3):
 #   - 完全隔離 · 不共用 production DB / volumes / port
-#   - 不同 project name · `chengfu-sandbox`(避免 docker compose 認為同套)
+#   - 不同 project name · `company-ai-sandbox`(避免 docker compose 認為同套)
 #   - Meili 共用 master key 但 index 是獨立 collection
 #   - accounting 容器跑 · 但連 sandbox mongo · 不污染正式資料
 #
@@ -13,7 +13,7 @@
 #
 #   2. 啟動 sandbox(不影響 production · 用不同 project name)
 #      docker compose -f config-templates/docker-compose.sandbox.yml \
-#                     -p chengfu-sandbox \
+#                     -p company-ai-sandbox \
 #                     up -d
 #
 #   3. 訪問
@@ -24,12 +24,12 @@
 #      SMOKE_BASE_URL=http://localhost:8080 ./scripts/smoke-librechat.sh
 #
 #   5. 跑 admin/librechat-contract 確認 transactions schema 沒變
-#      curl -H "X-User-Email: admin@chengfu.local" \
+#      curl -H "X-User-Email: admin@company-ai.local" \
 #           http://localhost:8081/admin/librechat-contract
 #
 #   6. 全綠才升 production · 紅旗回滾:
 #      docker compose -f config-templates/docker-compose.sandbox.yml \
-#                     -p chengfu-sandbox \
+#                     -p company-ai-sandbox \
 #                     down -v   # 連 volume 一起砍
 #
 # 注意事項:
@@ -41,7 +41,7 @@ services:
   # ==================== sandbox nginx · 對外 8080 ====================
   nginx-sandbox:
     image: nginx:1.27-alpine
-    container_name: chengfu-nginx-sandbox
+    container_name: company-ai-nginx-sandbox
     restart: "no"  # 測完就收 · 不要 unless-stopped
     depends_on:
       - librechat-sandbox
@@ -49,17 +49,17 @@ services:
       - "8080:80"  # 對外 8080(避開 production 的 80)
     volumes:
       - ../frontend/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ../frontend/nginx/chengfu-proxy.conf:/etc/nginx/chengfu-proxy.conf:ro
+      - ../frontend/nginx/company-ai-proxy.conf:/etc/nginx/company-ai-proxy.conf:ro
       - ../frontend/launcher:/var/www/launcher:ro
       - ../frontend/custom:/var/www/custom:ro
     networks:
-      - chengfu-sandbox-network
+      - company-ai-sandbox-network
     mem_limit: 256m
 
   # ==================== LibreChat sandbox(用待升版本)====================
   librechat-sandbox:
     image: ghcr.io/danny-avila/librechat:${SANDBOX_LIBRECHAT_VERSION:-v0.8.5-rc1}
-    container_name: chengfu-librechat-sandbox
+    container_name: company-ai-librechat-sandbox
     restart: "no"
     depends_on:
       - mongodb-sandbox
@@ -70,13 +70,13 @@ services:
     environment:
       - HOST=0.0.0.0
       # ⚠ 用 sandbox DB · 不汙染 production
-      - MONGO_URI=mongodb://mongodb-sandbox:27017/chengfu_sandbox
+      - MONGO_URI=mongodb://mongodb-sandbox:27017/company_ai_sandbox
       - MEILI_HOST=http://meilisearch-sandbox:7700
     volumes:
       - ./librechat.yaml:/app/librechat.yaml:ro
       - ./data-sandbox/uploads:/app/uploads
     networks:
-      chengfu-sandbox-network:
+      company-ai-sandbox-network:
         # Codex Round 10.5 fix · nginx conf 寫死 upstream `librechat:3080`
         # 加 alias · 共用 production 的 default.conf 不用改
         aliases:
@@ -86,7 +86,7 @@ services:
   # ==================== Mongo sandbox · 對外 27018 ====================
   mongodb-sandbox:
     image: mongo:7.0
-    container_name: chengfu-mongo-sandbox
+    container_name: company-ai-mongo-sandbox
     restart: "no"
     command: mongod --quiet --logpath /dev/null
     volumes:
@@ -94,13 +94,13 @@ services:
     ports:
       - "27018:27017"  # localhost 連 27018 進 sandbox mongo · 給 dump/restore 工具用
     networks:
-      - chengfu-sandbox-network
+      - company-ai-sandbox-network
     mem_limit: 1g
 
   # ==================== Meili sandbox ====================
   meilisearch-sandbox:
     image: getmeili/meilisearch:v1.12.0
-    container_name: chengfu-meili-sandbox
+    container_name: company-ai-meili-sandbox
     restart: "no"
     environment:
       - MEILI_NO_ANALYTICS=true
@@ -108,20 +108,20 @@ services:
     volumes:
       - ./data-sandbox/meili:/meili_data
     networks:
-      - chengfu-sandbox-network
+      - company-ai-sandbox-network
     mem_limit: 512m
 
   # ==================== accounting sandbox · 對外 8081 ====================
   # 用同一份 main.py · 但連 sandbox mongo · 確認 endpoint 對升版後 LibreChat 還能讀
   accounting-sandbox:
     build: ../backend/accounting
-    container_name: chengfu-accounting-sandbox
+    container_name: company-ai-accounting-sandbox
     restart: "no"
     depends_on:
       - mongodb-sandbox
       - meilisearch-sandbox
     environment:
-      - MONGO_URI=mongodb://mongodb-sandbox:27017/chengfu_sandbox
+      - MONGO_URI=mongodb://mongodb-sandbox:27017/company_ai_sandbox
       - LIBRECHAT_INTERNAL_URL=http://librechat:3080  # network alias
       - TZ=Asia/Taipei
       - MEILI_HOST=http://meilisearch-sandbox:7700
@@ -131,17 +131,17 @@ services:
     ports:
       - "8081:8000"  # 對外 8081 · 直接 curl /admin/* 不用 nginx
     networks:
-      chengfu-sandbox-network:
+      company-ai-sandbox-network:
         # 讓 nginx conf 的 `accounting:8000` 能解析
         aliases:
           - accounting
     mem_limit: 512m
 
 networks:
-  chengfu-sandbox-network:
+  company-ai-sandbox-network:
     driver: bridge
     # 不與 production network 共用 · 避免 sandbox accounting 誤連到正式 mongo
 
 # 升版完不再用後 · 一定要 cleanup:
-#   docker compose -f config-templates/docker-compose.sandbox.yml -p chengfu-sandbox down -v
+#   docker compose -f config-templates/docker-compose.sandbox.yml -p company-ai-sandbox down -v
 #   rm -rf config-templates/data-sandbox/

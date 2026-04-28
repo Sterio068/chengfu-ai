@@ -9,9 +9,9 @@ v2.0-β · 把 knowledge-base/skills/*.md 全 ingest 到 vector index
 """
 import json, os, pathlib, urllib.request, urllib.error
 
-BASE = os.environ.get("CHENGFU_BACKEND_URL", "http://localhost:80/api-accounting")
+BASE = os.environ.get("COMPANY_AI_BACKEND_URL", "http://localhost:80/api-accounting")
 TOKEN = os.environ.get("ECC_INTERNAL_TOKEN")
-ADMIN = os.environ.get("CHENGFU_ADMIN_EMAIL", "sterio068@gmail.com")
+ADMIN = os.environ.get("COMPANY_AI_ADMIN_EMAIL", "sterio068@gmail.com")
 SKILLS_DIR = pathlib.Path("knowledge-base/skills")
 COMPANY_DIR = pathlib.Path("knowledge-base/company")
 

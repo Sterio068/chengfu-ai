@@ -21,6 +21,14 @@ from bson import ObjectId
 from typing import Optional, Any
 from fastapi import Depends, HTTPException, Request
 
+from field_names import (
+    USER_ACTIVE_FIELDS,
+    USER_PERMISSIONS_FIELDS,
+    projection_for,
+    user_is_inactive,
+    user_permissions_from_doc,
+)
+
 
 # ============================================================
 # Serialization · 從 5 處複製抽出
@@ -93,8 +101,8 @@ def require_user_dep():
     def _check(caller: Optional[str] = Depends(current_user_email)) -> str:
         if not caller:
             raise HTTPException(403, "未識別使用者 · 請從 launcher 登入")
-        u = _find_user_for_auth(caller, {"chengfu_active": 1})
-        if u and u.get("chengfu_active") is False:
+        u = _find_user_for_auth(caller, projection_for(legacy_fields=USER_ACTIVE_FIELDS))
+        if user_is_inactive(u):
             raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
         return caller
 
@@ -139,8 +147,8 @@ def _is_admin_user(email: str) -> bool:
     """
     if not email:
         return False
-    user_doc = _find_user_for_auth(email, {"role": 1, "chengfu_active": 1})
-    if user_doc and user_doc.get("chengfu_active") is False:
+    user_doc = _find_user_for_auth(email, projection_for("role", legacy_fields=USER_ACTIVE_FIELDS))
+    if user_is_inactive(user_doc):
         return False
     try:
         from main import _admin_allowlist
@@ -152,22 +160,23 @@ def _is_admin_user(email: str) -> bool:
 
 
 def user_permissions(email: str) -> set[str]:
-    """Return effective chengfu permissions for a user.
+    """Return effective app permissions for a user.
 
     - ADMIN bypass is handled by callers.
-    - Missing chengfu_permissions means legacy LibreChat account; grant only low-risk defaults.
+    - Missing custom permissions means legacy LibreChat account; grant only low-risk defaults.
     - Explicit empty list means no permissions.
     """
-    u = _find_user_for_auth(email, {"chengfu_permissions": 1, "chengfu_active": 1})
-    if u and u.get("chengfu_active") is False:
+    u = _find_user_for_auth(email, projection_for(legacy_fields=USER_PERMISSIONS_FIELDS + USER_ACTIVE_FIELDS))
+    if user_is_inactive(u):
         return set()
-    if u and "chengfu_permissions" in u:
-        return set(u.get("chengfu_permissions") or [])
+    explicit_permissions = user_permissions_from_doc(u)
+    if explicit_permissions is not None:
+        return set(explicit_permissions)
     return set(LEGACY_DEFAULT_PERMISSIONS)
 
 
 def require_permission_dep(permission: str):
-    """factory: require a fine-grained chengfu permission.
+    """factory: require a fine-grained app permission.
 
     用法:
         def create_tx(_user: str = require_permission_dep("accounting.edit")):
@@ -181,8 +190,8 @@ def require_permission_dep(permission: str):
     ) -> str:
         if not caller:
             raise HTTPException(403, "未識別使用者 · 請從 launcher 登入")
-        u = _find_user_for_auth(caller, {"chengfu_active": 1})
-        if u and u.get("chengfu_active") is False:
+        u = _find_user_for_auth(caller, projection_for(legacy_fields=USER_ACTIVE_FIELDS))
+        if user_is_inactive(u):
             raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
         if _is_admin_user(caller):
             request.state.permission_bypass = "admin"

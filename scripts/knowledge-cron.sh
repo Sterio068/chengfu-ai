@@ -7,7 +7,7 @@
 # 會進 accounting 容器 · 呼叫 reindex_all() · 寫 log 到 scripts/knowledge-cron.log
 #
 # launchd plist 範例:
-#   ~/Library/LaunchAgents/tw.chengfu.knowledge-cron.plist
+#   ~/Library/LaunchAgents/tw.company-ai.knowledge-cron.plist
 #   ProgramArguments: ["/bin/bash", "<repo>/scripts/knowledge-cron.sh"]
 #   StartCalendarInterval: { Hour: 2, Minute: 0 }
 # ============================================================
@@ -19,7 +19,7 @@ LOG="$REPO_ROOT/scripts/knowledge-cron.log"
 echo "===== $(date '+%Y-%m-%d %H:%M:%S') knowledge-cron start =====" >>"$LOG"
 
 # 容器名可由 env 覆蓋(dev 可能不同)
-CONTAINER="${CHENGFU_ACCOUNTING_CONTAINER:-chengfu-accounting}"
+CONTAINER="${COMPANY_AI_ACCOUNTING_CONTAINER:-company-ai-accounting}"
 
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
     echo "[cron] accounting 容器 $CONTAINER 未運行 · skip" >>"$LOG"

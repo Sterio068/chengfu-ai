@@ -13,7 +13,7 @@ LOG_PREFIX="[ai-scan $(date +%H:%M)]"
 echo "$LOG_PREFIX start"
 
 # 從 Keychain 讀 internal token(start.sh 已注入 docker · 此處從 Keychain 直讀)
-TOKEN=$(security find-generic-password -s 'chengfu-ai-internal-token' -w 2>/dev/null || echo "")
+TOKEN=$(security find-generic-password -s 'company-ai-internal-token' -w 2>/dev/null || echo "")
 if [ -z "$TOKEN" ]; then
     # v1.8 · Keychain miss 時 · 寫到 cron audit + email admin(若有 sendmail)
     echo "$LOG_PREFIX CRITICAL · Keychain 沒 internal token · 跳過(請 setup-keychain.sh)"

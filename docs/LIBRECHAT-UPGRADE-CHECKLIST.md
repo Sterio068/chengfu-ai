@@ -1,7 +1,7 @@
 # LibreChat 升版 Checklist
 
 > 當要從 LibreChat v0.8.4 升到新版(v0.8.5+ / v0.9+)時 · 照這份跑完再動。
-> 目的:承富的 Route A + create-agents.py + SSE 串流依賴 LibreChat 內部行為,
+> 目的:本公司的 Route A + create-agents.py + SSE 串流依賴 LibreChat 內部行為,
 >       升版可能 breaking · 這份 checklist 幫你在升版前後雙跑驗證。
 
 ---
@@ -10,10 +10,10 @@
 
 ### 0. 先 dump agents collection(確保 _id 在升版後沒被重建)
 ```bash
-docker exec chengfu-mongo mongodump --db chengfu --collection agents \
+docker exec company-ai-mongo mongodump --db company_ai --collection agents \
     --archive=/tmp/agents-before.archive
-docker cp chengfu-mongo:/tmp/agents-before.archive /tmp/
-docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+docker cp company-ai-mongo:/tmp/agents-before.archive /tmp/
+docker exec company-ai-mongo mongosh company_ai --quiet --eval \
     'JSON.stringify(db.agents.find({}, {_id:1, name:1}).toArray(), null, 2)' > /tmp/agents-before.json
 cat /tmp/agents-before.json | head -20
 ```
@@ -78,7 +78,7 @@ macOS + apps: ~8GB
 | 模式 | 何時 | 做法 | 同仁影響 |
 |---|---|---|---|
 | 🟢 **夜間模式** | 週五 22:00 ~ 週六 02:00 | `docker compose stop librechat` + 啟 sandbox + 測完 down + 再 start production | 週末 4 小時服務中斷 · 事先 Slack 通知 |
-| 🟡 **外部機模式** | 任何時段 | 在 Sterio 自己的 Mac / 雲端 VM 跑 sandbox(不占承富 Mac mini) | 承富零影響 · 但 Sterio 要自備機 |
+| 🟡 **外部機模式** | 任何時段 | 在 Sterio 自己的 Mac / 雲端 VM 跑 sandbox(不占本公司 Mac mini) | 本公司零影響 · 但 Sterio 要自備機 |
 | 🔴 **雙跑模式** | 只做 30 分鐘契約測試 | 接受 swap · 只確認 sandbox 起得來 · 不做負載測 | 升版當下同仁可能卡 30 分鐘 |
 
 **預設:** 夜間模式 · 週五 Slack 通知「週五晚 10 點到六凌晨 2 點維護」
@@ -91,9 +91,9 @@ export SANDBOX_LIBRECHAT_VERSION=v0.8.5-rc1
 
 # 啟動 sandbox(不影響 production · -p 用獨立 project name)
 cd config-templates
-docker compose -f docker-compose.sandbox.yml -p chengfu-sandbox up -d
+docker compose -f docker-compose.sandbox.yml -p company-ai-sandbox up -d
 sleep 30
-docker compose -f docker-compose.sandbox.yml -p chengfu-sandbox ps
+docker compose -f docker-compose.sandbox.yml -p company-ai-sandbox ps
 ```
 
 **端口對照表(sandbox vs production):**
@@ -126,16 +126,16 @@ curl -sH "X-User-Email: sterio068@gmail.com" \
 ### 3. 把舊版 production agents dump 到 sandbox(模擬真實升版)
 ```bash
 # 從 production mongo 撈
-docker exec chengfu-mongo mongodump --db chengfu --collection agents \
+docker exec company-ai-mongo mongodump --db company_ai --collection agents \
     --archive 2>/dev/null > /tmp/agents-prod.archive
 
-# 灌進 sandbox mongo(注意 db rename 為 chengfu_sandbox)
-docker exec -i chengfu-mongo-sandbox mongorestore \
-    --nsFrom 'chengfu.agents' --nsTo 'chengfu_sandbox.agents' \
+# 灌進 sandbox mongo(注意 db rename 為 company_ai_sandbox)
+docker exec -i company-ai-mongo-sandbox mongorestore \
+    --nsFrom 'company_ai.agents' --nsTo 'company_ai_sandbox.agents' \
     --archive --quiet < /tmp/agents-prod.archive
 
 # 驗 agents _id 升版後是否穩定(下面 §5a 同邏輯但對 sandbox)
-docker exec chengfu-mongo-sandbox mongosh chengfu_sandbox --quiet --eval \
+docker exec company-ai-mongo-sandbox mongosh company_ai_sandbox --quiet --eval \
     'JSON.stringify(db.agents.find({},{_id:1,name:1}).toArray())' > /tmp/agents-sandbox.json
 diff /tmp/agents-before.json /tmp/agents-sandbox.json
 ```
@@ -144,7 +144,7 @@ diff /tmp/agents-before.json /tmp/agents-sandbox.json
 
 ### 5. sandbox cleanup(測完一定要收 · 否則占 RAM)
 ```bash
-docker compose -f config-templates/docker-compose.sandbox.yml -p chengfu-sandbox down -v
+docker compose -f config-templates/docker-compose.sandbox.yml -p company-ai-sandbox down -v
 rm -rf config-templates/data-sandbox/
 # 確認真的清:
 docker ps -a | grep sandbox  # 應該為空
@@ -167,7 +167,7 @@ cd config-templates
 docker compose pull librechat
 docker compose up -d librechat
 sleep 30  # 等 startup
-docker logs chengfu-librechat --tail 50
+docker logs company-ai-librechat --tail 50
 ```
 
 ### 3. 確認服務 healthy
@@ -230,7 +230,7 @@ diff /tmp/types-before /tmp/types-after
 ### 5a. Agent `_id` 穩定性(關鍵 · 若 `modelSpecs` 已 hard-pin id)
 ```bash
 # 升版後再 dump 一次
-docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+docker exec company-ai-mongo mongosh company_ai --quiet --eval \
     'JSON.stringify(db.agents.find({}, {_id:1, name:1}).toArray(), null, 2)' > /tmp/agents-after.json
 diff /tmp/agents-before.json /tmp/agents-after.json
 ```
@@ -239,7 +239,7 @@ diff /tmp/agents-before.json /tmp/agents-after.json
 
 ### 5. projectIds 共享機制仍有效
 ```bash
-docker exec chengfu-mongo mongosh chengfu --quiet --eval '
+docker exec company-ai-mongo mongosh company_ai --quiet --eval '
   const i = db.projects.findOne({name:"instance"})._id;
   const n = db.agents.countDocuments({projectIds: i});
   print(`共享 agents: ${n}`);
@@ -285,7 +285,7 @@ docker compose -f config-templates/docker-compose.yml up -d --force-recreate lib
 ./scripts/smoke-librechat.sh
 
 # 4. 還原 MongoDB (若 schema 有改動)
-# docker exec chengfu-mongo mongorestore ...
+# docker exec company-ai-mongo mongorestore ...
 ```
 
 ---

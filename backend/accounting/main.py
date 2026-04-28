@@ -1,7 +1,7 @@
 """
-承富 AI · 統一後端服務 FastAPI
+企業 AI · 統一後端服務 FastAPI
 ========================================
-整合承富所有非對話資料 · MongoDB 儲存 · 對接 LibreChat / Launcher / Agents
+整合公司所有非對話資料 · MongoDB 儲存 · 對接 LibreChat / Launcher / Agents
 
 模組:
   A. 會計:科目、交易、發票、報價、專案財務、應收應付、報表
@@ -30,6 +30,7 @@ import httpx
 from collections import OrderedDict
 from pymongo import MongoClient
 from bson import ObjectId
+from field_names import CONVERSATION_SUMMARIZED_AT_FIELD
 from infra.retention_policy import apply_retention_indexes
 
 # ============================================================
@@ -57,7 +58,7 @@ if _sentry_dsn:
 # ============================================================
 # MongoDB
 # ============================================================
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017/chengfu")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017/company_ai")
 client = MongoClient(MONGO_URI)
 db = client.get_default_database()
 
@@ -245,9 +246,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[ttl] design_jobs TTL index: %s", e)
     try:
-        db.conversations.create_index([("chengfu_summarized_at", -1)])
+        db.conversations.create_index([(CONVERSATION_SUMMARIZED_AT_FIELD, -1)])
     except Exception as e:
-        logger.debug("[index] conversations.chengfu_summarized_at skip: %s", e)
+        logger.debug("[index] conversations.summary timestamp skip: %s", e)
     # v1.57 perf P0-4 · workflow_runs / vision_extractions 索引(_daily_quota_check 與 audit 查詢用)
     try:
         db.workflow_runs.create_index(
@@ -379,7 +380,7 @@ async def lifespan(app: FastAPI):
 # App
 # ============================================================
 app = FastAPI(
-    title="承富會計 API",
+    title="公司會計 API",
     description="AI 系統 · 內建會計模組",
     version="1.0.0",
     lifespan=lifespan,
@@ -429,7 +430,7 @@ app.add_middleware(SlowAPIMiddleware)
 # ============================================================
 # CORS · 白名單(env CORS_ORIGINS 逗號分隔覆寫)
 # ============================================================
-_default_origins = "http://localhost,http://localhost:3080,http://承富-ai.local"
+_default_origins = "http://localhost,http://localhost:3080,http://company-ai.local"
 _cors_env = os.getenv("CORS_ORIGINS", _default_origins)
 # 另允許 Cloudflare Tunnel 網域(CLOUDFLARE_TUNNEL_DOMAIN 單一值)
 _tunnel = os.getenv("CLOUDFLARE_TUNNEL_DOMAIN", "").strip()
@@ -448,7 +449,7 @@ app.add_middleware(
 # ============================================================
 # Request ID + 結構化 log middleware
 # ============================================================
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 logging.basicConfig(
     level=logging.INFO,
     format='{"time":"%(asctime)s","level":"%(levelname)s","name":"%(name)s","msg":"%(message)s"}',
@@ -764,7 +765,7 @@ app.include_router(_social_router.router)
 
 # ============================================================
 # Social OAuth infra · v1.3 A5 · /social/oauth/{start,callback,disconnect,status}
-# B1 真接 Meta API 留 v1.4(等承富送 App)· A5 此 PR 走 mock provider
+# B1 真接 Meta API 留 v1.4(等公司送 App)· A5 此 PR 走 mock provider
 # ============================================================
 from routers import social_oauth as _social_oauth_router
 app.include_router(_social_oauth_router.router)
@@ -899,8 +900,8 @@ def access_urls(request: Request, _admin: str = Depends(require_admin)) -> dict:
       {
         "current_origin": "http://192.168.88.133",
         "lan_urls":  ["http://192.168.88.133", "http://192.168.50.147"],
-        "mdns_url":  "http://steriodemac-mini.local",
-        "tunnel_urls": ["https://ai.example.com"],
+        "mdns_url":  "http://steriodemac-mini-ai.local",
+        "tunnel_urls": ["https://ai.example.example"],
         "guidance": {
           "account_source": "由老闆統一設置 · 同仁向老闆領取 email + 預設密碼",
           "first_login": "首次登入後到右上角頭像 → 個人設定 改密碼"

@@ -26,7 +26,7 @@ from .._deps import require_admin_dep
 
 
 router = APIRouter(tags=["admin"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 MONITORED_COLLECTIONS = (

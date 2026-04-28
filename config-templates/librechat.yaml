@@ -106,7 +106,7 @@ endpoints:
 # 若 v1.2 要在 LibreChat UI 也呈現 5 Workspace · 步驟:
 #   1. python3 scripts/create-agents.py --tier core --provider both(取得 OpenAI / Claude agent_id)
 #   2. 從 mongo 撈出對應 _id:
-#      docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+#      docker exec company-ai-mongo mongosh company_ai --quiet --eval \
 #        'JSON.stringify(db.agents.find({},{_id:1,name:1}).toArray())'
 #   3. 取消下方註解 + 把 agent_id 填入 preset.agent_id
 #   4. docker compose restart librechat

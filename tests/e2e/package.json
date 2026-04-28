@@ -1,7 +1,7 @@
 {
-  "name": "chengfu-e2e",
+  "name": "company-ai-e2e",
   "version": "1.0.0",
-  "description": "承富 AI E2E 測試 · Playwright",
+  "description": "企業 AI E2E 測試 · Playwright",
   "scripts": {
     "install:browsers": "playwright install chromium webkit",
     "test":     "playwright test",

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================
-#  承富 AI · LibreChat 契約 smoke test
+#  企業 AI · LibreChat 契約 smoke test
 #  ========================================
 #  驗證 Route A 所依賴的 nginx 路由 + LibreChat API 行為在升版前後一致。
 #
@@ -11,16 +11,16 @@
 #
 #  用法:
 #    ./scripts/smoke-librechat.sh
-#    ./scripts/smoke-librechat.sh --base https://ai.chengfu.com  # 對遠端
+#    ./scripts/smoke-librechat.sh --base https://ai.company.example  # 對遠端
 # ========================================
 set -uo pipefail
 BASE="${1:-http://localhost}"
 if [[ "${1:-}" == "--base" && -n "${2:-}" ]]; then BASE="$2"; fi
 if [[ -z "${SMOKE_ADMIN_EMAIL:-}" && "$(uname -s)" == "Darwin" ]]; then
-    SMOKE_ADMIN_EMAIL="$(security find-generic-password -s chengfu-ai-admin-install-email -w 2>/dev/null || true)"
+    SMOKE_ADMIN_EMAIL="$(security find-generic-password -s company-ai-admin-install-email -w 2>/dev/null || true)"
 fi
 if [[ -z "${SMOKE_ADMIN_PASSWORD:-}" && "$(uname -s)" == "Darwin" ]]; then
-    SMOKE_ADMIN_PASSWORD="$(security find-generic-password -s chengfu-ai-admin-install-password -w 2>/dev/null || true)"
+    SMOKE_ADMIN_PASSWORD="$(security find-generic-password -s company-ai-admin-install-password -w 2>/dev/null || true)"
 fi
 
 UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/131.0.0.0"
@@ -45,7 +45,7 @@ echo "============================================"
 echo "  Route A 契約 smoke test · $BASE"
 echo "============================================"
 
-echo "[1] Launcher 入口 · 必須是承富 Launcher 不是 LibreChat"
+echo "[1] Launcher 入口 · 必須是本公司 Launcher 不是 LibreChat"
 expect_status "launcher root"          "/"           "200"
 expect_status "kill-sw.js"             "/sw.js"      "200"
 expect_status "launcher.css"           "/static/launcher.css" "200"

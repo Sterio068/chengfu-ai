@@ -26,7 +26,7 @@ from pydantic import BaseModel
 
 from .._deps import require_admin_dep
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 router = APIRouter(tags=["admin"])
 
 # Cache TTL · 30 分鐘 · 對齊「掃描頻率」承諾

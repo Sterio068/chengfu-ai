@@ -9,7 +9,7 @@ Scripts shared fixtures · R14#17 · v1.2 Sprint 3
 用法(scripts 內部):
   from fixtures import create_demo_user, create_demo_project, default_tender
 
-  user = create_demo_user("alice@chengfu.local", role="admin")
+  user = create_demo_user("alice@company-ai.local", role="admin")
   project = create_demo_project(name="海洋廢棄物案")
 """
 from datetime import datetime, timedelta
@@ -52,7 +52,7 @@ def create_demo_project(
         "deadline": (datetime.utcnow() + timedelta(days=deadline_days)).date().isoformat(),
         "description": f"[demo] {name}",
         "status": status,
-        "owner": owner or "demo@chengfu.local",
+        "owner": owner or "demo@company-ai.local",
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "_demo": True,
@@ -74,7 +74,7 @@ def create_demo_lead(
         "source": "manual",
         "budget": budget or 300000.0,
         "probability": 0.5,
-        "owner": owner or "demo@chengfu.local",
+        "owner": owner or "demo@company-ai.local",
         "notes": [],
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -126,7 +126,7 @@ def create_demo_feedback(
     message_id: str,
     verdict: str = "up",
     agent_name: str = "🎯 投標顧問",
-    user_email: str = "demo@chengfu.local",
+    user_email: str = "demo@company-ai.local",
     note: Optional[str] = None,
 ) -> dict:
     return {

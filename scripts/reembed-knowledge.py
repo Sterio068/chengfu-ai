@@ -10,13 +10,13 @@ v1.3 C3 · 強制重 embed 全知識庫
 
 用法:
     # 跑前先 stop 平日 cron 防衝突
-    launchctl unload ~/Library/LaunchAgents/tw.chengfu.knowledge-cron.plist
+    launchctl unload ~/Library/LaunchAgents/tw.company-ai.knowledge-cron.plist
 
-    # 然後跑(會在 chengfu-accounting 容器內執行)
+    # 然後跑(會在 company-ai-accounting 容器內執行)
     python3 scripts/reembed-knowledge.py
 
     # 跑完重 load cron
-    launchctl load ~/Library/LaunchAgents/tw.chengfu.knowledge-cron.plist
+    launchctl load ~/Library/LaunchAgents/tw.company-ai.knowledge-cron.plist
 
 驗收:每個 source stats.skipped_unchanged 應為 0(全重 extract)
 時間預估:50k 檔含 5k OCR · 2-3 小時(同首次 reindex)· 跑前評估
@@ -25,12 +25,12 @@ import sys
 import json
 import subprocess
 
-CONTAINER = "chengfu-accounting"
+CONTAINER = "company-ai-accounting"
 
 
 def main():
     print("=" * 60)
-    print("承富 AI 知識庫 · 強制重 embed")
+    print("企業 AI 知識庫 · 強制重 embed")
     print("=" * 60)
     print()
     print("⚠ 此操作會重跑 OCR + Meili index 全檔(可能 2-3 小時)")
@@ -85,11 +85,11 @@ if fail_count > 0:
 
     if result.returncode == 0:
         print()
-        print("✅ 完成 · 看 ~/Library/Logs/chengfu-knowledge-cron.log 詳細")
+        print("✅ 完成 · 看 ~/Library/Logs/company-ai-knowledge-cron.log 詳細")
     else:
         print()
         print(f"❌ 失敗 · exit code {result.returncode}")
-        print("   檢查 docker logs chengfu-accounting --tail 50")
+        print("   檢查 docker logs company-ai-accounting --tail 50")
         sys.exit(result.returncode)
 
 

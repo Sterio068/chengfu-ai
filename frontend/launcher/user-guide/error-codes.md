@@ -34,7 +34,7 @@
 
 ### `[E-003] 載入中... 卡住超過 30 秒`
 - **原因**:後端慢 / 網路斷 / docker 容器掛
-- **解 1**:`docker ps` 看 chengfu-* 是否全 running
+- **解 1**:`docker ps` 看 company-ai-* 是否全 running
 - **解 2**:`docker compose logs -f accounting` 看有無 error
 - **解 3**:`./scripts/start.sh` 重啟全套
 - **找誰**:Champion(看 §06-TROUBLESHOOTING)
@@ -133,7 +133,7 @@
 ### `[E-301] Admin endpoint 403 · "X-User-Email header 單獨不足以授權"`
 - **原因**:你用 X-User-Email curl · 但這 endpoint 要求 cookie 或 X-Internal-Token
 - **解 1**:先 launcher 登入 · 從瀏覽器 fetch · cookie 帶進
-- **解 2**:用 X-Internal-Token(從 keychain 拿:`security find-generic-password -s 'chengfu-ai-internal-token' -w`)
+- **解 2**:用 X-Internal-Token(從 keychain 拿:`security find-generic-password -s 'company-ai-internal-token' -w`)
 
 ### `[E-302] /admin/cost · "anthropic_error LibreChat schema 異常"`
 - **原因**:LibreChat 升版後 transactions schema 改了
@@ -142,8 +142,8 @@
 
 ### `[E-303] dr-drill --from-offsite · "rclone unreachable"`
 - **原因**:B2 連不上 / app key revoked
-- **解 1**:`rclone listremotes` 看 chengfu-offsite 在不在
-- **解 2**:`rclone ls chengfu-offsite:bucket-name` 試連
+- **解 1**:`rclone listremotes` 看 company-ai-offsite 在不在
+- **解 2**:`rclone ls company-ai-offsite:bucket-name` 試連
 - **解 3**:重跑 `./scripts/setup-rclone-b2.sh`
 
 ---
@@ -156,11 +156,11 @@
 - **解 2**:`brew install --cask docker` 重裝
 - **找誰**:仍 fail → Sterio(可能 macOS 版本不相容)
 
-### `[E-402] Keychain · "chengfu-ai-anthropic-key 未設定"`
+### `[E-402] Keychain · "company-ai-anthropic-key 未設定"`
 - **原因**:首次部署沒跑 setup-keychain.sh
 - **解**:`./scripts/setup-keychain.sh`(會問各 API key)
 
-### `[E-403] CHENGFU_INTERNAL_TOKEN 沒 export`
+### `[E-403] COMPANY_AI_INTERNAL_TOKEN 沒 export`
 - **原因**:start.sh 沒從 Keychain 抓 internal-token
 - **解**:重跑 `./scripts/setup-keychain.sh` + `./scripts/start.sh`
 

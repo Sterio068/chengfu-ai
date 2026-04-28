@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-承富 AI · 政府電子採購網每日監測
+企業 AI · 政府電子採購網每日監測
 ==========================================================
 
-每日抓 g0v PCC API 看承富有興趣的關鍵字是否有新標案,
+每日抓 g0v PCC API 看本公司有興趣的關鍵字是否有新標案,
 發現新標案 → 寫入 MongoDB(Launcher 會看到)+ optional Slack/Email。
 
 用法:
   python3 scripts/tender-monitor.py
 
 cron(每日早上 9 點):
-  0 9 * * * cd /Users/chengfu-admin/ChengFu && /usr/bin/python3 scripts/tender-monitor.py
+  0 9 * * * cd /Users/company-ai-admin/CompanyAIWorkspace && /usr/bin/python3 scripts/tender-monitor.py
 
 環境變數(選配):
   TENDER_MONITOR_KEYWORDS='環保,文化,觀光,宣導,AI,永續'  # 逗號分隔
@@ -30,7 +30,7 @@ except ImportError:
     sys.exit("pip install pymongo")
 
 
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/chengfu")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/company_ai")
 DEFAULT_KEYWORDS = [k.strip() for k in os.environ.get(
     "TENDER_MONITOR_KEYWORDS",
     "環保,文化,觀光,宣導,AI,永續,行銷,公關,活動策劃"
@@ -123,7 +123,7 @@ def main():
     total_scanned = 0
 
     keywords = settings["keywords"]
-    print(f"[{now}] 承富標案監測啟動 · 關鍵字 {len(keywords)} 個")
+    print(f"[{now}] 本公司標案監測啟動 · 關鍵字 {len(keywords)} 個")
     print(f"   {', '.join(keywords)}")
     if settings["counties"] or settings["units"]:
         print(f"   範圍:縣市={','.join(settings['counties']) or '不限'} · 機關={','.join(settings['units']) or '不限'}")
@@ -175,9 +175,9 @@ def main():
     # Slack 通知
     if new_count > 0 and SLACK_WEBHOOK:
         send_slack(
-            f"📢 承富標案監測 · {datetime.now():%Y-%m-%d}\n"
+            f"📢 本公司標案監測 · {datetime.now():%Y-%m-%d}\n"
             f"發現 {new_count} 個新標案(掃描 {total_scanned} 筆 · {len(keywords)} 關鍵字)\n"
-            f"打開承富 AI Launcher 看詳情。"
+            f"打開企業 AI Launcher 看詳情。"
         )
 
     db.settings.update_one(

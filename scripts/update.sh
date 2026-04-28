@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================
-# 承富智慧助理 · 系統更新腳本
+# 企業 AI 工作台 · 系統更新腳本
 # ========================================
 # 安全的 in-place 更新 · 流程:
 #   1. 紀錄目前 commit(失敗可 rollback)
@@ -26,7 +26,7 @@ cd "$PROJECT_DIR"
 
 COMPOSE_FILE="config-templates/docker-compose.yml"
 HISTORY_FILE="$PROJECT_DIR/reports/update-history.jsonl"
-LOCK_FILE="/tmp/chengfu-update.lock"
+LOCK_FILE="/tmp/company-ai-update.lock"
 
 YES=0
 CHECK_ONLY=0
@@ -132,7 +132,7 @@ fi
 if [ "$YES" -eq 0 ] && [ "$JSON" -eq 0 ]; then
     echo ""
     echo "================================================"
-    echo "  即將更新承富智慧助理"
+    echo "  即將更新企業 AI 工作台"
     echo "================================================"
     echo "  目前版本:$BEFORE_SHORT($BEFORE_DATE)"
     echo "  目標版本:$REMOTE_SHORT($REMOTE_DATE)"

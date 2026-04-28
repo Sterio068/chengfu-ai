@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================
-# 承富智慧助理 · 每日檢查 GitHub 是否有新版
+# 企業 AI 工作台 · 每日檢查 GitHub 是否有新版
 # ========================================
 # 寫 status JSON 到 reports/update-status.json
 # launchd 每日 03:00 跑(install 後)

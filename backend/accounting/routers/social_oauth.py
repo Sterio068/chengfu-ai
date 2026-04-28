@@ -8,12 +8,12 @@ Endpoints:
 - GET  /social/oauth/status                 → admin 看誰連了誰
 
 設計:
-- B1 真打 Meta API 留 v1.4(等承富送 Meta App 審核)
+- B1 真打 Meta API 留 v1.4(等本公司送 Meta App 審核)
 - A5 此 PR 走 mock provider · 真 Meta 來 callback URL 即生效
 - platform handler 走 services/social_providers.py(目前 mock)
 
 Future cutover(B1):
-1. 承富老闆送 Meta App 審核 · 取 app_id + app_secret
+1. 本公司老闆送 Meta App 審核 · 取 app_id + app_secret
 2. 寫 services/oauth_providers/meta.py · 真打 https://graph.facebook.com
 3. social_oauth.py callback 改走真 provider
 4. mock 退役
@@ -32,7 +32,7 @@ from auth_deps import _is_prod
 
 
 router = APIRouter(tags=["social-oauth"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 ALLOWED_PLATFORMS = {"facebook", "instagram", "linkedin"}
 
@@ -74,7 +74,7 @@ def _redirect_uri(request: Request) -> str:
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             raise HTTPException(
                 500,
-                "OAUTH_REDIRECT_BASE_URL 設定錯 · 必須 https://domain.com 格式",
+                "OAUTH_REDIRECT_BASE_URL 設定錯 · 必須 https://domain.example 格式",
             )
         return f"{_OAUTH_BASE_URL}/api-accounting/social/oauth/callback"
 

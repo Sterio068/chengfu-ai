@@ -4,7 +4,7 @@ theme: default
 paginate: true
 size: 16:9
 backgroundColor: #fff
-header: '承富 AI 系統 · 上線教育訓練'
+header: '企業 AI 系統 · 上線教育訓練'
 footer: '2026-04 · v1.0'
 style: |
   section { font-family: -apple-system, "PingFang TC", sans-serif; }
@@ -16,13 +16,13 @@ style: |
   code { background: #F5F5F5; padding: 2px 6px; border-radius: 4px; }
 ---
 
-# 承富 AI 系統
+# 企業 AI 系統
 ## 上線教育訓練 · 90 分鐘
 
 <br>
 
 **講者:** Sterio + Champion
-**對象:** 承富全體同仁
+**對象:** 本公司全體同仁
 **目標:** 下班前每人能用它做出 1 件真實工作
 
 <br>
@@ -231,7 +231,7 @@ style: |
    ↓
 2. 先問 Champion(她/他在現場)·能解?→ 結束
    ↓
-3. Champion 也不會 · 寫 Slack「#chengfu-ai 求救」
+3. Champion 也不會 · 寫 Slack「#company-ai 求救」
    ↓
 4. Sterio 4 小時內回(SLA)
    ↓
@@ -272,7 +272,7 @@ style: |
 
 老闆會逐一問每個人:
 
-> 「這 4 週你用承富 AI · 省了多少時間?」
+> 「這 4 週你用企業 AI · 省了多少時間?」
 
 <br>
 
@@ -307,7 +307,7 @@ style: |
 
 這套系統存在 · 是因為老闆認為:
 
-> **承富的人是我們最珍貴的資源 · 不該花時間在電腦能做的事上**
+> **本公司的人是我們最珍貴的資源 · 不該花時間在電腦能做的事上**
 
 <br>
 

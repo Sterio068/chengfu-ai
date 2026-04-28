@@ -1,6 +1,6 @@
-# docs/04-OPERATIONS.md — 承富 AI 系統 · 維運手冊
+# docs/04-OPERATIONS.md — 企業 AI 系統 · 維運手冊
 
-> Day-2 日常維運 SOP。交付後,Sterio 每週檢視 / 承富 AI Champion 每日檢視。
+> Day-2 日常維運 SOP。交付後,Sterio 每週檢視 / 企業 AI Champion 每日檢視。
 
 ---
 
@@ -8,14 +8,14 @@
 
 ### 每日(5 分鐘)
 - [ ] `./scripts/smoke-test.sh` 確認系統健康
-- [ ] 查備份昨夜有跑:`ls -la ~/chengfu-backups/daily/` 最新檔在 24h 內
+- [ ] 查備份昨夜有跑:`ls -la ~/company-ai-backups/daily/` 最新檔在 24h 內
 - [ ] (若有告警)查 `docker compose logs --tail=100 librechat` 找錯誤
 
 ### 每週(30 分鐘)
 - [ ] 檢視用量後台(LibreChat admin panel):誰接近月上限?
 - [ ] 查 `docker stats` 記憶體是否接近上限(LibreChat > 5GB 需注意)
 - [ ] 檢視磁碟剩餘空間:`df -h`(Mac mini SSD 警戒線 < 100 GB)
-- [ ] 檢查 `~/Library/Logs/chengfu-backup.log` 有無 cron 失敗
+- [ ] 檢查 `~/Library/Logs/company-ai-backup.log` 有無 cron 失敗
 
 ### 每月(1 小時)
 - [ ] 月用量報告產出(手動從 admin panel 截圖 + 觀察同仁採納率)
@@ -28,11 +28,11 @@
 - [ ] 更新 macOS 安全更新
 - [ ] **真 Mongo 整合 test 跑一輪(v1.3 C1)**:
   ```bash
-  docker run -d --rm -p 27018:27017 --name chengfu-test-mongo mongo:7.0
+  docker run -d --rm -p 27018:27017 --name company-ai-test-mongo mongo:7.0
   cd backend/accounting
   INTEGRATION_MONGO_URL=mongodb://localhost:27018 \
       pytest tests/integration -v
-  docker stop chengfu-test-mongo
+  docker stop company-ai-test-mongo
   ```
   CI 已自動跑 · 但季度手動驗一次 · 防 Mongo 7.0 升 8.0 行為差
 
@@ -61,13 +61,13 @@ docker run -d --name uptime-kuma -p 3001:3001 \
 ### 3.1 備份策略
 - **頻率**:每日 02:00(cron)
 - **保留**:每日 30 天 + 每週日 12 週
-- **位置**:`~/chengfu-backups/`(daily 與 weekly)
-- **加密**:GPG · 'chengfu' key(見 `docs/05-SECURITY.md` 第 6 節)
+- **位置**:`~/company-ai-backups/`(daily 與 weekly)
+- **加密**:GPG · 'company_ai' key(見 `docs/05-SECURITY.md` 第 6 節)
 - **異地備份(v1.3)**:Backblaze B2 · 自動 rclone copy 加密檔
   - 設定:`./scripts/setup-rclone-b2.sh`(互動式 · 需 B2 keyID + applicationKey + bucket)
   - 已 GPG 加密的檔才上傳 · 明文不出門
   - 異地端保留 60 天 · 跟本地 30 天雙保險
-  - B2 5 GB 內 0 cost(承富 1 年估 ~5 GB)
+  - B2 5 GB 內 0 cost(本公司 1 年估 ~5 GB)
   - 還原:`./scripts/dr-drill.sh --from-offsite`
 
 ### 3.2 RTO / RPO(災難恢復目標)
@@ -88,18 +88,18 @@ docker run -d --name uptime-kuma -p 3001:3001 \
 ./scripts/stop.sh
 
 # 2. 刪掉 MongoDB 資料卷(模擬損壞)
-docker volume rm $(docker volume ls -q | grep chengfu-mongo) || true
+docker volume rm $(docker volume ls -q | grep company-ai-mongo) || true
 rm -rf config-templates/data/mongo
 
 # 3. 啟動(MongoDB 會重建空資料庫)
 ./scripts/start.sh
 
 # 4. 從最新備份還原
-LATEST=$(ls -t ~/chengfu-backups/daily/chengfu-*.archive.gz | head -1)
-gunzip -c "$LATEST" | docker exec -i chengfu-mongo mongorestore --archive --drop
+LATEST=$(ls -t ~/company-ai-backups/daily/company-ai-*.archive.gz | head -1)
+gunzip -c "$LATEST" | docker exec -i company-ai-mongo mongorestore --archive --drop
 
 # 5. 重啟 LibreChat 讓它重連
-docker restart chengfu-librechat
+docker restart company-ai-librechat
 
 # 6. 驗證
 ./scripts/smoke-test.sh
@@ -108,7 +108,7 @@ docker restart chengfu-librechat
 
 若備份是 GPG 加密的:
 ```bash
-gpg --decrypt "$LATEST.gpg" | gunzip -c | docker exec -i chengfu-mongo mongorestore --archive --drop
+gpg --decrypt "$LATEST.gpg" | gunzip -c | docker exec -i company-ai-mongo mongorestore --archive --drop
 ```
 
 **驗收**:演練後寫入 `reports/dr-drill-YYYY-MM.md`,記錄還原時間與遇到的問題。
@@ -119,17 +119,17 @@ gpg --decrypt "$LATEST.gpg" | gunzip -c | docker exec -i chengfu-mongo mongorest
 
 ```bash
 # 1. 確認 B2 已配(否則先跑 setup-rclone-b2.sh)
-rclone listremotes | grep chengfu-offsite
+rclone listremotes | grep company-ai-offsite
 
 # 2. 假裝本機 backup 全沒(實際演練先備出來)
-mv ~/chengfu-backups ~/chengfu-backups.演練前備份
+mv ~/company-ai-backups ~/company-ai-backups.演練前備份
 
 # 3. 從 B2 抓 + 還原 + 全測一輪
 ./scripts/dr-drill.sh --from-offsite
 
 # 4. 演練完恢復
-rm -rf ~/chengfu-backups
-mv ~/chengfu-backups.演練前備份 ~/chengfu-backups
+rm -rf ~/company-ai-backups
+mv ~/company-ai-backups.演練前備份 ~/company-ai-backups
 ```
 
 **驗收**:`dr-drill.sh --from-offsite` 走完不報錯 + smoke test 全綠 + 對話歷史完整
@@ -143,7 +143,7 @@ mv ~/chengfu-backups.演練前備份 ~/chengfu-backups
 ### 4.1 升級前準備
 ```bash
 # 1. 確認當前版本
-docker inspect chengfu-librechat --format='{{.Config.Image}}'
+docker inspect company-ai-librechat --format='{{.Config.Image}}'
 
 # 2. 看 LibreChat release notes
 # 到 https://github.com/danny-avila/LibreChat/releases 查要升到哪版、有無 breaking change
@@ -152,7 +152,7 @@ docker inspect chengfu-librechat --format='{{.Config.Image}}'
 ./scripts/backup.sh
 
 # 4. 全盤備份 config
-tar czf ~/chengfu-config-backup-$(date +%Y-%m-%d).tar.gz \
+tar czf ~/company-ai-config-backup-$(date +%Y-%m-%d).tar.gz \
     config-templates/.env \
     config-templates/librechat.yaml \
     config-templates/docker-compose.yml \
@@ -286,16 +286,16 @@ nginx mount 改回原 `frontend/launcher/`(0 downtime · 既有 modules/*.js 都
 ```
 ┌─────────────────────────────────────────────┐
 │ 1. 重啟                                      │
-│    cd ~/Workspace/ChengFu && ./scripts/start.sh │
+│    cd ~/Workspace/CompanyAIWorkspace && ./scripts/start.sh │
 │    5 分鐘內應該回來                          │
 │                                             │
 │ 2. 看備份                                    │
-│    ls ~/chengfu-backups/daily/ | tail -3   │
+│    ls ~/company-ai-backups/daily/ | tail -3   │
 │    若最新的 < 24h → 有 restore 本錢          │
 │                                             │
 │ 3. 截圖 + 打給備援工程師                      │
 │    docker ps > /tmp/docker-status.txt      │
-│    docker logs chengfu-librechat --tail 100 > /tmp/lc.log │
+│    docker logs company-ai-librechat --tail 100 > /tmp/lc.log │
 │    LINE 備援工程師(電話 + email 見 §B)     │
 └─────────────────────────────────────────────┘
 ```
@@ -334,8 +334,8 @@ nginx mount 改回原 `frontend/launcher/`(0 downtime · 既有 modules/*.js 都
 
 備援工程師 ___________ 可使用以下 · 且只能使用以下:
 
-1. Mac mini 實體 · 從 Sterio 桌上 PC 遠端 SSH(ssh chengfu-mini)
-   帳號:chengfu-ops · 密碼在 Keychain(Champion 提供紙條)
+1. Mac mini 實體 · 從 Sterio 桌上 PC 遠端 SSH(ssh company-ai-mini)
+   帳號:company-ai-ops · 密碼在 Keychain(Champion 提供紙條)
 
 2. Cloudflare Dashboard
    帳號:<cloudflare-email> · 2FA 由 Sterio 把一次性 recovery code 交 Champion
@@ -344,9 +344,9 @@ nginx mount 改回原 `frontend/launcher/`(0 downtime · 既有 modules/*.js 都
    https://github.com/Sterio068/company-ai-workspace · collaborator 權限
 
 4. macOS Keychain 僅限讀取下列項目:
-   · chengfu-ai-anthropic-key
-   · chengfu-ai-mongo-password
-   · chengfu-ai-nas-user / password
+   · company-ai-anthropic-key
+   · company-ai-mongo-password
+   · company-ai-nas-user / password
    其他不可讀
 
 5. 不可做:
@@ -372,11 +372,11 @@ nginx mount 改回原 `frontend/launcher/`(0 downtime · 既有 modules/*.js 都
 
 ```bash
 # 先把所有對話資料 dump
-docker exec chengfu-mongo mongodump --db chengfu --archive --gzip \
-    > ~/chengfu-emergency-$(date +%Y%m%d).archive.gz
+docker exec company-ai-mongo mongodump --db company_ai --archive --gzip \
+    > ~/company-ai-emergency-$(date +%Y%m%d).archive.gz
 
 # 上傳異機
-rclone copy ~/chengfu-emergency-*.archive.gz chengfu-offsite:chengfu-emergency/
+rclone copy ~/company-ai-emergency-*.archive.gz company-ai-offsite:company-ai-emergency/
 
 # 關機保數據
 ./scripts/stop.sh
@@ -391,9 +391,9 @@ docker compose down   # 不帶 -v · 保留 volume
 ## 8. 常態巡檢 checklist(列印貼牆)
 
 ```
-承富 AI 系統 · 每日巡檢
+企業 AI 系統 · 每日巡檢
 ─────────────────────────────
-□ docker ps 有 3 個 chengfu-* 都 Up
+□ docker ps 有 3 個 company-ai-* 都 Up
 □ curl http://localhost:3080/api/config 有 json 回應
 □ 最新備份在 24h 內
 □ 磁碟空間 > 100 GB
@@ -406,7 +406,7 @@ docker compose down   # 不帶 -v · 保留 volume
 
 ## 9. 知識庫更新
 
-承富新增優質建議書 / 結案報告時:
+本公司新增優質建議書 / 結案報告時:
 ```bash
 # 1. 放到 knowledge-base/ 對應資料夾
 cp 新建議書.pdf knowledge-base/建議書/

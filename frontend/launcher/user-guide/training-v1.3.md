@@ -49,7 +49,7 @@
 場勘照片留在 PM 手機 · 沒人看到 · 設計師回去問東問西
 
 ### 怎麼用(iPhone)
-1. 場勘前 · 在 iPhone 開 launcher(`https://ai.<chengfu>.com/`)
+1. 場勘前 · 在 iPhone 開 launcher(`https://ai.<company_ai>.com/`)
 2. 加到主畫面(safari → 分享 → 加入主畫面)
 3. 跳 📸 場勘 view
 4. 點「加照片」 → 開相機 → 連拍 3-5 張
@@ -85,7 +85,7 @@
 ### 怎麼用(admin)
 1. 跳 🎬 媒體 CRM view
 2. 上方「⬇ 匯出 CSV」按鈕
-3. 自動下載 `chengfu-media-contacts-2026-04-23.csv`
+3. 自動下載 `company-ai-media-contacts-2026-04-23.csv`
 4. Excel / Numbers 開(BOM 中文不亂碼)
 
 ### 安全
@@ -123,10 +123,10 @@
 3. 試一個 Agent(打字觸發)
 4. 鼓勵填一個 Handoff
 
-走完 · localStorage 記 `chengfu-tour-done` · 不再跳。
+走完 · localStorage 記 `company-ai-tour-done` · 不再跳。
 
 **Champion 帶新人**:
-- 不要跳過 tour(reset:browser console `localStorage.removeItem('chengfu-tour-done')` 重 open)
+- 不要跳過 tour(reset:browser console `localStorage.removeItem('company-ai-tour-done')` 重 open)
 - 一起走一輪 · 5 分鐘
 - 然後試 1 個 /命令(`/news` 寫新聞稿)· 養 5 分鐘習慣
 

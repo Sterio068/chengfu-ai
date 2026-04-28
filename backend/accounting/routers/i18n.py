@@ -10,7 +10,7 @@ Endpoints:
 
 設計:
   - 公開端點 · login 前可調(launcher / LibreChat 任何頁面都能 fetch)
-  - 預設 zh-TW · 從 branding.locale 推
+  - 預設 zh-TW · 從 branding-ai.locale 推
   - terms 字典 hash 當 etag(內容變才 cache miss · 304 friendly)
   - 不存 DB · TERMS 寫死 · v1.13 改 admin 可改
 """
@@ -115,7 +115,7 @@ def get_i18n(
     """公開 · 給 launcher + librechat-relabel 共用 TERMS dict
 
     Args:
-        locale: 強制指定 · 預設讀 branding.locale
+        locale: 強制指定 · 預設讀 branding-ai.locale
         if_none_match: 若 hash 沒變 · 回 304(節流)
     """
     from main import db

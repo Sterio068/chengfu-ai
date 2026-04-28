@@ -39,7 +39,7 @@
 
 #### 前置
 
-- 公司有一級網域(例如 `chengfu.com.tw`)
+- 公司有一級網域(例如 `company.example.tw`)
 - Cloudflare 帳號(免費版可用)+ 域名已加入 Cloudflare DNS
 
 #### 安裝 cloudflared
@@ -56,14 +56,14 @@ cloudflared --version  # 確認可用
 cloudflared tunnel login
 
 # 2. 建立 tunnel
-cloudflared tunnel create chengfu-ai
+cloudflared tunnel create company-ai
 
 # 3. 設 DNS · 把 ai.<公司域名>.com 指到此 tunnel
-cloudflared tunnel route dns chengfu-ai ai.<公司域名>.com
+cloudflared tunnel route dns company-ai ai.<公司域名>.com
 
 # 4. 寫設定檔
 cat > ~/.cloudflared/config.yml <<EOF
-tunnel: chengfu-ai
+tunnel: company-ai
 credentials-file: /Users/$USER/.cloudflared/<tunnel-UUID>.json
 ingress:
   - hostname: ai.<公司域名>.com

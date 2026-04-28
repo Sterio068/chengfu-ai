@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 承富 AI · 乾淨 Mac/VM 安裝後 自動驗證腳本
+# 企業 AI · 乾淨 Mac/VM 安裝後 自動驗證腳本
 # ==========================================================
 # 用途:在乾淨 macOS VM(Tart / OrbStack / VirtualBuddy)裝完 DMG 之後 ·
 #       由 IT 在 VM 內 跑這個 script · 驗證:
@@ -17,7 +17,7 @@
 # F-08 對應 EXTERNAL-AUDIT-2026-04-25.md · 補完即可進 Phase 1 pilot
 #
 # 用法(在 VM 內):
-#   cd /Users/<vm-user>/Workspace/ChengFu  # 或 ~/ChengFu
+#   cd /Users/<vm-user>/Workspace/CompanyAIWorkspace  # 或 ~/CompanyAIWorkspace
 #   bash scripts/clean-install-verify.sh
 #
 # 結果寫到:
@@ -65,7 +65,7 @@ fail() {
 # Gate 1.1 · Docker stack
 # ---------------------------------------------------
 start_section "1.1 Docker 容器全 healthy"
-EXPECTED_CONTAINERS=("chengfu-nginx" "chengfu-librechat" "chengfu-mongo" "chengfu-meili" "chengfu-accounting")
+EXPECTED_CONTAINERS=("company-ai-nginx" "company-ai-librechat" "company-ai-mongo" "company-ai-meili" "company-ai-accounting")
 for c in "${EXPECTED_CONTAINERS[@]}"; do
   status=$(docker inspect --format='{{.State.Status}}' "$c" 2>/dev/null || echo "missing")
   if [ "$status" = "running" ]; then
@@ -117,7 +117,7 @@ done
 # Gate 1.4 · admin user 真存在
 # ---------------------------------------------------
 start_section "1.4 admin user 已建立"
-ADMIN_COUNT=$(docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+ADMIN_COUNT=$(docker exec company-ai-mongo mongosh company_ai --quiet --eval \
   'db.users.countDocuments({role:"ADMIN"})' 2>/dev/null | tr -d '[:space:]')
 if [ "${ADMIN_COUNT:-0}" -ge 1 ]; then
   pass "users.role=ADMIN · count=$ADMIN_COUNT"
@@ -129,7 +129,7 @@ fi
 # Gate 1.5 · 10 core Agent 真建好
 # ---------------------------------------------------
 start_section "1.5 10 個 core Agent 已建立"
-AGENT_COUNT=$(docker exec chengfu-mongo mongosh chengfu --quiet --eval \
+AGENT_COUNT=$(docker exec company-ai-mongo mongosh company_ai --quiet --eval \
   'db.agents.countDocuments({})' 2>/dev/null | tr -d '[:space:]')
 if [ "${AGENT_COUNT:-0}" -ge 10 ]; then
   pass "agents collection · count=$AGENT_COUNT(≥ 10)"

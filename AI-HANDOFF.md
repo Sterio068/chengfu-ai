@@ -1,4 +1,4 @@
-# 🤖 AI Handoff · 承富 AI 系統
+# 🤖 AI Handoff · 企業 AI 系統
 
 > 給接手開發的 AI 看的單一入口。
 > 讀完這份 + `docs/DECISIONS.md` 即可開始改 code。
@@ -8,7 +8,7 @@
 
 ## 60 秒上手
 
-**這是什麼**:原為台灣公關行銷公司「承富」(10 人)建置、現正往多公司可用白標化推進的 AI 協作平台 · 本地部署在公司 Mac mini · LibreChat + 自製 launcher + FastAPI 後端組合。正式前端已清除可見「承富」品牌字樣,內部文件/歷史檔名仍保留專案脈絡。
+**這是什麼**:原為台灣公關行銷公司「本公司」(10 人)建置、現正往多公司可用白標化推進的 AI 協作平台 · 本地部署在公司 Mac mini · LibreChat + 自製 launcher + FastAPI 後端組合。正式前端已清除可見「本公司」品牌字樣,內部文件/歷史檔名仍保留專案脈絡。
 
 **現在狀態 (v1.8 Sprint 1 · 2026-04-28)**:v1.69 帳號 CRUD / AI 主備源 / 同仁連線網址 / RAG/file_search 已完成後,又完成 NotebookLM 功能最大化與全系統 4 代理深度審計。NotebookLM 採「本地資料庫為主、NotebookLM Enterprise 為深讀副本」,支援資料包、單檔、多檔、整個專案資料夾、1 工作包 1 notebook,且資料等級只標記不阻擋。v1.8 P1/P2 已補 NotebookLM batch/resume、設定寫前 token 驗證、Secret/Retention/Action registry、Mongo collection 健康度、OpenAPI client 接縫、全前端 inline handler 歸零。最新 Sprint 1 交付硬化已補 `ACTION_BRIDGE_TOKEN` 低權限 Action bridge、Help markdown sanitize、備份無 GPG fail-loud、OAuth production origin pin、OAuth token 明文 fallback 禁止。最新五大日常模組強化已把商機追蹤 / 會計 / 會議速記 / 場勘 / 使用教學工作台化,加入今日接續、複製摘要/brief、HEIC 場勘、五模組 SOP。最新驗證:`release-verify.sh` **13/13 PASS**,backend **406 passed / 10 skipped**,Playwright **73 passed / 5 skipped**。
 
@@ -25,7 +25,7 @@
 - 內建會計模組(台灣統編發票 · 月報 · 預算)
 - 標案 cron(每日抓政府電子採購網)
 - v1.3 同仁管理 UI(admin 在前端建帳號 + 7 preset 頭銜 + 28 權限勾選)
-- vNext Round 2 已讓 accounting / social / site survey 等高風險入口開始吃 `chengfu_permissions`;停用帳號會被全域擋下。
+- vNext Round 2 已讓 accounting / social / site survey 等高風險入口開始吃 `company_ai_permissions`;停用帳號會被全域擋下。
 - Project / handoff / workflow draft / meeting push / site survey push 已有 owner/admin 邊界,避免知道 project_id 就能跨專案寫入。
 - 半自動 workflow 仍預設 draft-first,但可把主管家草稿寫入 project handoff 的 `workflow_draft` 並留下 audit log。
 - Chat 回答已可一鍵存回 project handoff 或列成下一步;從工作包「AI 判斷」建議卡開出的對話會自動帶回寫上下文,回覆完成後可直接回寫該工作包。Project 支援 `collaborators` / `next_owner`,協作者可接手 handoff,但刪除仍限 owner/admin。
@@ -52,17 +52,17 @@
 | 遠端 | Cloudflare Tunnel | 免費 + 免開 port + 加密 |
 | 監控 | Uptime Kuma | 簡單 · 老闆看得懂 |
 
-**不要**換成 React / Next.js / Tailwind 等。launcher 設計就是「vanilla JS + 漸進增強」· 為了讓承富 IT 未來改也不會因為 build chain 卡住。
+**不要**換成 React / Next.js / Tailwind 等。launcher 設計就是「vanilla JS + 漸進增強」· 為了讓本公司 IT 未來改也不會因為 build chain 卡住。
 
 ---
 
 ## Repo 結構 · 哪裡放什麼
 
 ```
-ChengFu/
+CompanyAIWorkspace/
 ├── CLAUDE.md                    ← 專案主控 · 給 Claude Code 讀的
 ├── AI-HANDOFF.md                ← 你正在讀
-├── README.md                    ← 給承富老闆看的概覽
+├── README.md                    ← 給本公司老闆看的概覽
 ├── DEPLOY.md                    ← Mac mini 部署 6 phase 手冊
 ├── ARCHITECTURE.md              ← 技術架構詳解(3+1 容器)
 ├── SYSTEM-DESIGN.md             ← UX 設計語言 + macOS 原則 + 5 工作區
@@ -135,7 +135,7 @@ ChengFu/
 │   │   ├── notebooklm-sync.md    ← NotebookLM 資料包 / 同步 / 單檔與資料夾上傳 SOP
 │   │   └── ...
 │   ├── custom/                  ← 注入 LibreChat 頁面的 css/js
-│   ├── nginx/                   ← nginx config(default.conf + chengfu-proxy.conf)
+│   ├── nginx/                   ← nginx config(default.conf + company-ai-proxy.conf)
 │   ├── modules/state/           ← localStorage wrapper
 │   └── dist/                    ← esbuild 輸出 · production 由 index.html 載 hash bundle
 │
@@ -164,7 +164,7 @@ ChengFu/
 │   └── tender-monitor.py        ← cron · 每日抓政府標案
 │
 ├── installer/                   ← Mac 原生安裝精靈(.app + .dmg)
-│   ├── ChengFu-AI-Installer.applescript  ← ⭐ 7 步精靈邏輯
+│   ├── Company-AI-Installer.applescript  ← ⭐ 7 步精靈邏輯
 │   ├── build.sh                 ← 先 npm build launcher · 再 osacompile + hdiutil 包 DMG
 │   └── dist/                    ← 產物(最新約 71M DMG · 內含 source 快照)
 │
@@ -175,7 +175,7 @@ ChengFu/
 │   ├── openclaw-reference/      ← 參考用
 │   └── SKILL-AGENT-MATRIX.md    ← skill ↔ agent 路由表
 │
-├── chrome-extension/            ← 同仁從任何網頁右鍵送內容到承富 AI(v1.3)
+├── chrome-extension/            ← 同仁從任何網頁右鍵送內容到企業 AI(v1.3)
 │
 └── tests/                       ← 跨層級的 E2E + integration
     └── e2e/                     ← Playwright(CI 跑 sandbox)
@@ -189,7 +189,7 @@ ChengFu/
 | `reports/release/release-manifest-2026-04-28-223907.md` | ⭐ 最新 release manifest · 13 passed / 0 failed · DMG SHA `72260b17131d9d3b6b201609a5b1e03dac893e786d09e53d8a10aa51157ebf6a` |
 | `reports/final-delivery-audit-2026-04-25.md` | 正式交付版本機 release gate 通過,列出現場剩餘 Gate |
 | `reports/release/release-manifest-*.md` | 最新 `release-verify.sh` 13 passed / 0 failed · 以最新 manifest 內的 DMG SHA 為準 |
-| `installer/dist/ChengFu-AI-Installer.dmg` | 最新 DMG 約 73M · release gate 已做內容與敏感檔抽查 |
+| `installer/dist/Company-AI-Installer.dmg` | 最新 DMG 約 73M · release gate 已做內容與敏感檔抽查 |
 | `reports/pre-pilot/pre-pilot-readiness-2026-04-28-143749.md` | 最新 pre-pilot manifest 追溯 · 交付包自檢用 |
 | `reports/multi-agent-ui-ux-hardening-2026-04-28.md` | 2026-04-28 早一輪多代理 UI/UX hardening · mobile/project/user modal a11y 與交付可信度補強 |
 | `reports/rag-verify/rag-verify-2026-04-28-100959.md` | LibreChat v0.8.5 RAG/file_search 本機 E2E PASS · OpenAI 知識庫 Agent 回出來源檔名 + 引用內容 |
@@ -281,11 +281,11 @@ def bar(_admin: str = require_admin_dep()):    # 必須 admin
 ```
 
 admin 認定:`ADMIN_EMAILS` env 白名單 OR LibreChat `users.role=ADMIN`(OR 關係)。
-停用帳號(`chengfu_active=false`)即使仍在 `ADMIN_EMAILS` 或有 `chengfu_permissions`,也會被 `require_user_dep()` / admin guard 擋下。
+停用帳號(`company_ai_active=false`)即使仍在 `ADMIN_EMAILS` 或有 `company_ai_permissions`,也會被 `require_user_dep()` / admin guard 擋下。
 
 ### A2 · 細部權限 enforcement
 
-`chengfu_permissions` 已不只是 UI 設定。高風險 endpoint 要用:
+`company_ai_permissions` 已不只是 UI 設定。高風險 endpoint 要用:
 
 ```python
 from routers._deps import require_permission_dep
@@ -310,7 +310,7 @@ def create_tx(..., _user: str = require_permission_dep("accounting.edit")):
 LibreChat 用 collections:`users`, `conversations`, `messages`, `agents`, `transactions`, `presets`, ...
 我們加的:`projects`, `feedback`, `tenders`, `crm_leads`, `social_posts`, `media_contacts`, `meetings`, `site_surveys`, `audit_log`, `knowledge_audit`, `social_oauth_states`, `social_oauth_tokens`, ...
 
-**用同一個 `chengfu` DB · 同一個 connection**。從 main.py `from main import db` 拿。
+**用同一個 `company_ai` DB · 同一個 connection**。從 main.py `from main import db` 拿。
 
 ### C · 前端 ES module · production 需 build
 
@@ -405,7 +405,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 
 - `./scripts/release-verify.sh http://localhost` → **13/13 PASS**
 - release manifest:`reports/release/release-manifest-2026-04-28-223907.md`
-- DMG:`installer/dist/ChengFu-AI-Installer.dmg` · 73M · SHA-256 `72260b17131d9d3b6b201609a5b1e03dac893e786d09e53d8a10aa51157ebf6a`
+- DMG:`installer/dist/Company-AI-Installer.dmg` · 73M · SHA-256 `72260b17131d9d3b6b201609a5b1e03dac893e786d09e53d8a10aa51157ebf6a`
 - backend full pytest:`406 passed / 10 skipped`
 - Playwright full E2E(desktop + mobile):`73 passed / 5 skipped`
 - 五大日常模組 focused E2E:`8 passed`
@@ -422,7 +422,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 - 安全 smoke:匿名 `/admin/access-urls` → 403 ✓ · 匿名 `/health/ai-providers` → 401 ✓ · X-Forwarded-Host XSS 注入被 regex 擋 ✓
 - 接手補強 smoke(2026-04-28):`./scripts/smoke-test.sh http://localhost` → 16/16 PASS · 含 nginx strip `X-User-Email` 後偽造 admin header 仍回 403
 - 多代理 UI/UX hardening(2026-04-28):修 mobile drawer `aria/inert/focus/Esc`,project modal dialog/focus trap,同仁 modal focus trap,移除 E2E 硬編碼密碼 fallback;`a11y-keyboard-smoke.json` → `ok:true`
-- RAG/file_search E2E(2026-04-28):OpenAI 知識庫 Agent `agent_O8Y-j5Ct1qoH9dbHINxeZ` 上傳去識別合成樣本,file_id `c0a1605e-d3c2-429c-a476-cf9ddfe2fcd1`,對話 `9d8aaf1b-5b5e-48e4-8936-626628c02755` 成功觸發 `file_search` 並引用 `chengfu-rag-synthetic-20260428.txt` 回答 `#0F766E` + KPI;RAG adapter 經 LibreChat short-lived JWT 驗證,nginx 外部 `/api-accounting/rag/*` 維持 403
+- RAG/file_search E2E(2026-04-28):OpenAI 知識庫 Agent `agent_O8Y-j5Ct1qoH9dbHINxeZ` 上傳去識別合成樣本,file_id `c0a1605e-d3c2-429c-a476-cf9ddfe2fcd1`,對話 `9d8aaf1b-5b5e-48e4-8936-626628c02755` 成功觸發 `file_search` 並引用 `company-ai-rag-synthetic-20260428.txt` 回答 `#0F766E` + KPI;RAG adapter 經 LibreChat short-lived JWT 驗證,nginx 外部 `/api-accounting/rag/*` 維持 403
 - 5 面向最終分數:Security 96 · A11y 91 · Python 92 · JS/TS 91 · Design 91 · **綜合 92.2**
 
 ### ✅ 全系統 4 代理深度審計處置(2026-04-28)
@@ -444,7 +444,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 | **帳號 CRUD UI** | `user_mgmt.js + user_mgmt.py` | 重設密碼 modal + 永久刪除二段式 (case-sensitive 確認) + `_showPasswordOnce` self-build dialog scope-safe |
 | **密碼政策** | `user_mgmt.py _validate_password_strength` | ≥10 字 + ≥3 類 + 弱密碼黑名單 + 同字元 ≤3 連續 · UserCreate + PasswordReset 共用 |
 | **session 強制踢出** | `user_mgmt.py reset_user_password` | 改密後 `$or [{user:str},{user:obj}]` 雙型別 cleanup + audit fail-loud 503 |
-| **permanent delete CAS guard** | `user_mgmt.py delete_user_permanent` | filter 加 `chengfu_active=False` 防 race + 任一 token cleanup 失敗 503 中止 |
+| **permanent delete CAS guard** | `user_mgmt.py delete_user_permanent` | filter 加 `company_ai_active=False` 防 race + 任一 token cleanup 失敗 503 中止 |
 | **教學文件** | `frontend/launcher/user-guide/{remote-access,account-management}.md` | sidebar 第 2-3 項 + 中控連線卡跳 anchor |
 | **共用 utility** | `util.js copyToClipboard` (含 execCommand fallback) + `user_mgmt.js _modalKeyHandler` | 集中所有 navigator.clipboard + Esc/Tab focus trap |
 | **NotebookLM UI/UX** | `frontend/launcher/modules/notebooklm.js` + `frontend/launcher/user-guide/notebooklm-sync.md` | 一個主任務 + 資料包語言 + 本地主資料庫/NotebookLM 深讀副本說明 |
@@ -477,7 +477,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 - inline handlers 已清到 0 · 後續新增 UI 一律用 `data-action` / delegated listener,不要回到 inline handler
 - Sidebar / 首頁 IA 仍偏功能中控 · 需 v1.70 收斂成「丟工作 → AI 判斷 → 交棒」工作台
 - 真 NotebookLM Enterprise API 尚未以 production token 完整跑過;目前測試覆蓋未設定 fallback、ACL、錯誤 recovery_hint、action schema 與後端契約
-- 歷史文件仍有部分「承富」/舊 29 Agent / 舊容器敘述;正式白標交付文件需另開 docs cleanup sprint
+- 歷史文件仍有部分「本公司」/舊 29 Agent / 舊容器敘述;正式白標交付文件需另開 docs cleanup sprint
 - 30+ MEDIUM polish 殘餘(來自 5 輪 agent audit · 不阻 ship)
 
 詳見 `docs/DECISIONS.md` 待決議區。
@@ -529,7 +529,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 | **2026-04-28** 五大日常模組 UX | `frontend/launcher/modules/crm.js` + `accounting.js` + `meeting.js` + `site_survey.js` + `help.js`;SOP:`frontend/launcher/user-guide/daily-ops-modules.md` |
 | **2026-04-28** 全系統深度審計 | `reports/full-system-multi-agent-deep-audit-2026-04-28.md`(4 代理 · NotebookLM + release gate + 殘餘風險) |
 | **2026-04-28** 最新 release manifest | `reports/release/release-manifest-2026-04-28-223907.md`(`release-verify.sh` 13/13 · DMG SHA 已列) |
-| **2026-04-28** 最新 DMG | `installer/dist/ChengFu-AI-Installer.dmg`(73M · SHA 見最新 manifest) |
+| **2026-04-28** 最新 DMG | `installer/dist/Company-AI-Installer.dmg`(73M · SHA 見最新 manifest) |
 | **2026-04-28** RAG/file_search 驗證 | `reports/rag-verify/rag-verify-2026-04-28-100959.md` + `backend/accounting/routers/rag_adapter.py` |
 | **2026-04-28** NotebookLM 最佳化 | `frontend/launcher/modules/notebooklm.js` + `frontend/launcher/user-guide/notebooklm-sync.md` + `backend/accounting/routers/notebooklm.py` + `docs/NOTEBOOKLM-KNOWLEDGE-ARCHITECTURE.md` + `reports/notebooklm-ui-ux-audit-2026-04-28.md` |
 | **2026-04-28** NotebookLM v1.7 W1 hardening | `reports/notebooklm-v1.7-hardening-2026-04-28.md`(Agent ACL / stable hash / L3 confirm / recovery_hint / UI 三區塊) |
@@ -537,7 +537,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 | **2026-04-28** NotebookLM 安裝契約 | `scripts/setup-keychain.sh` + `scripts/start.sh` + `config-templates/.env.example` |
 | **2026-04-28** Action bridge token | `ACTION_BRIDGE_TOKEN` in Keychain/env + `backend/accounting/main.py _action_bridge_path_allowed` + `auth_deps.py` |
 | **2026-04-28** Help markdown sanitize | `frontend/launcher/modules/help.js` + `frontend/launcher/modules/chat-sanitize.js` + `frontend/nginx/default.conf` |
-| **2026-04-28** 備份 fail-loud | `scripts/backup.sh`(無 GPG key `chengfu` 預設中止;dev 才可 `ALLOW_PLAINTEXT_BACKUP=1`) |
+| **2026-04-28** 備份 fail-loud | `scripts/backup.sh`(無 GPG key `company_ai` 預設中止;dev 才可 `ALLOW_PLAINTEXT_BACKUP=1`) |
 
 ---
 
@@ -545,7 +545,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 
 | 詞 | 解 |
 |---|---|
-| **承富** | 客戶公司「承富創意整合行銷」(10 人 PR/行銷公司) |
+| **本公司** | 客戶公司「本公司」(10 人 PR/行銷公司) |
 | **Champion** | 公司內 1 個半技術同仁 · 幫 IT 解日常問題(ADMIN role) |
 | **Sterio** | 系統作者 · 也是 fallback admin · email `sterio068@gmail.com` |
 | **5 工作區** | 投標 / 活動 / 設計 / 公關 / 營運 · ⌘1-5 切換 |
@@ -563,7 +563,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 | **Knowledge audit** | `knowledge_audit_col` · 讀 L2/L3 知識庫檔案的 trail · TTL 90d |
 | **AI 主備源** | sidebar 底部面板 · GPT-5.5 主力 + Claude Opus 4.7 備援 · admin 才可切 |
 | **連線網址** | 中控頁第一塊 · LAN/mDNS/cloudflared 動態列表 · 老闆貼給同仁登入 |
-| **CAS guard** | Compare-And-Swap · permanent delete `delete_one({"_id":id, "chengfu_active":False})` 防 multi-admin race |
+| **CAS guard** | Compare-And-Swap · permanent delete `delete_one({"_id":id, "company_ai_active":False})` 防 multi-admin race |
 | **cleanup-first guard** | permanent delete · 任一 sessions/refreshTokens 清失敗則 503 中止主刪 · 不留 orphan token |
 | **audit fail-loud** | 高風險 admin op · audit_log INSERT 失敗 → 503(不能 silent) |
 | **redacted view** | non-admin 查 `/health/ai-providers` 只見 state(綠/橙/紅/灰)· 不見 reason / configured |
@@ -573,7 +573,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 | **Project Notebook** | NotebookLM 一個工作包一本筆記本 · 資料包 / 單檔 / 多檔 / 資料夾都歸入同一本 |
 | **Folder upload** | NotebookLM 前端可選整個資料夾 · 後端用相對路徑自動比對工作包 · `/notebooklm/uploads/auto` |
 | **Sync run** | `notebooklm_sync_runs` · 每次同步資料包到 NotebookLM 的狀態紀錄 · 失敗需標 `failed` + `finished_at/error` |
-| **白標化** | 前端可見名稱不可綁死承富;內部 repo / 歷史文件仍可能保留 ChengFu 專案名 |
+| **白標化** | 前端可見名稱不可綁死本公司;內部 repo / 歷史文件仍可能保留 CompanyAIWorkspace 專案名 |
 
 ---
 
@@ -603,7 +603,7 @@ v1.3.0 release base 之上推進 v1.66/1.67/1.68/1.69 共 4 個 minor 批次,再
 22. **NotebookLM 資料等級只標記不阻擋** · D-015 決議功能最大化;UI/文件必須揭露同步或上傳會送到 NotebookLM Enterprise,但不要因 L1/L2/L3 擋功能
 23. **改 NotebookLM action schema 要同步 3 處**:`internal-services.json` / `notebooklm-bridge.json` / `scripts/wire-actions.py`;bridge 走 `ACTION_BRIDGE_TOKEN`,不是 `ECC_INTERNAL_TOKEN` / 一般 API_KEY
 24. **改 installer/build 或 launcher source 後跑 release gate**:`./scripts/release-verify.sh http://localhost`;最新合格 baseline 是 13/13,DMG SHA 在 `reports/release/release-manifest-2026-04-28-223907.md`
-25. **備份正式環境不可明文 fallback**:`scripts/backup.sh` 無 GPG key `chengfu` 會中止;不要為了方便在正式機設 `ALLOW_PLAINTEXT_BACKUP=1`
+25. **備份正式環境不可明文 fallback**:`scripts/backup.sh` 無 GPG key `company_ai` 會中止;不要為了方便在正式機設 `ALLOW_PLAINTEXT_BACKUP=1`
 
 ---
 

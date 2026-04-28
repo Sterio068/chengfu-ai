@@ -20,8 +20,8 @@ import { escapeHtml } from "./util.js";
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;  // 4 hours
 const POLL_INTERVAL_MS = 3000;
-const STATE_KEY = "chengfu-update-last-checked-at";
-const DISMISS_KEY = "chengfu-update-dismissed-sha";
+const STATE_KEY = "company-ai-update-last-checked-at";
+const DISMISS_KEY = "company-ai-update-dismissed-sha";
 
 let _polling = false;
 let _modalOpen = false;

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 承富 AI · 本機一鍵啟動
+# 企業 AI · 本機一鍵啟動
 # ============================================================
 # 首次本機測試用。自動處理:
 #   1. 檢查 Docker 是否跑
@@ -24,7 +24,7 @@ RED="\033[0;31m"; GREEN="\033[0;32m"; YELLOW="\033[1;33m"; BLUE="\033[0;34m"; NC
 
 echo ""
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║    承富 AI 系統 · 本機快速啟動               ║${NC}"
+echo -e "${BLUE}║    企業 AI 系統 · 本機快速啟動               ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -45,7 +45,7 @@ echo -e "   ${GREEN}✅${NC} Docker OK"
 # ---------- Step 2: Keychain ----------
 echo ""
 echo -e "${BLUE}[2/6]${NC} 檢查 Keychain 機密..."
-if ! security find-generic-password -s "chengfu-ai-anthropic-key" -a "$USER" > /dev/null 2>&1; then
+if ! security find-generic-password -s "company-ai-anthropic-key" -a "$USER" > /dev/null 2>&1; then
     echo -e "   ${YELLOW}⚠ Keychain 尚未設定機密${NC}"
     echo ""
     read -p "   現在執行 setup-keychain.sh? (y/N) " confirm
@@ -56,7 +56,7 @@ if ! security find-generic-password -s "chengfu-ai-anthropic-key" -a "$USER" > /
     fi
     bash "$PROJECT_DIR/scripts/setup-keychain.sh"
 fi
-echo -e "   ${GREEN}✅${NC} Keychain 已有 chengfu-ai-anthropic-key"
+echo -e "   ${GREEN}✅${NC} Keychain 已有 company-ai-anthropic-key"
 
 # ---------- Step 3: .env ----------
 echo ""
@@ -68,7 +68,7 @@ if [ ! -f .env ]; then
     # 本機用 localhost
     sed -i.bak 's|DOMAIN_CLIENT=.*|DOMAIN_CLIENT=http://localhost|' .env
     sed -i.bak 's|DOMAIN_SERVER=.*|DOMAIN_SERVER=http://localhost|' .env
-    sed -i.bak 's|ADMIN_EMAIL=.*|ADMIN_EMAIL=admin@chengfu.local|' .env
+    sed -i.bak 's|ADMIN_EMAIL=.*|ADMIN_EMAIL=admin@company-ai.local|' .env
     rm -f .env.bak
     echo -e "   ${GREEN}✅${NC} 已建立本機用 .env"
 else
@@ -106,7 +106,7 @@ open http://localhost/ 2>/dev/null || true
 
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║    ✨ 承富 AI 已啟動                          ║${NC}"
+echo -e "${GREEN}║    ✨ 企業 AI 已啟動                          ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
 echo ""
 echo "   前端首頁:http://localhost/"
@@ -134,10 +134,10 @@ echo -e "   ${BLUE}python3 scripts/seed-demo-data.py${NC}"
 echo ""
 echo "6. 測試主管家:Hero 輸入「幫我寫一則海洋廢棄物新聞稿」"
 echo "7. 進會計頁(⌘A)確認 ✅ API 連接正常"
-echo "8. 若登入 sterio@chengfu.local 為 ADMIN → 應看到 📊 管理面板(⌘M)"
+echo "8. 若登入 sterio@company-ai.local 為 ADMIN → 應看到 📊 管理面板(⌘M)"
 echo ""
 echo -e "${YELLOW}PWA 安裝(推薦):${NC}"
-echo "  Chrome 位址列右側「安裝」icon → 點「安裝」· 承富 AI 變桌面 app"
+echo "  Chrome 位址列右側「安裝」icon → 點「安裝」· 企業 AI 變桌面 app"
 echo "  iPhone Safari → 分享 → 加到主畫面"
 echo ""
 echo -e "${YELLOW}正式上線前:${NC}"

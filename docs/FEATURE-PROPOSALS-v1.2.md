@@ -1,7 +1,7 @@
-# 承富 AI v1.2+ 功能開發建議
+# 企業 AI v1.2+ 功能開發建議
 
 > **時機:** v1.1 release ready(21 輪 audit / 11 router / 115 pytest pass)· 等 Mac mini 上架
-> **對象:** Sterio + 承富老闆共決
+> **對象:** Sterio + 本公司老闆共決
 > **方法:** 按「ROI × 工時 × 差異化」排 · 不是按技術炫酷
 > **決策:** 老闆選 Tier 1 至少 3 個 · 每個功能走 TDD · 下一輪 Codex audit 驗收
 
@@ -15,13 +15,13 @@
 
 **流程:**
 - iPhone 或 MacBook 錄音(既有 macOS Voice Memos · 匯出 m4a)
-- Launcher「📣 公關」Workspace 上傳音檔 → Whisper STT(OpenAI · 承富已有 key)
+- Launcher「📣 公關」Workspace 上傳音檔 → Whisper STT(OpenAI · 本公司已有 key)
 - Haiku 4.5 整理成結構化紀錄:決議 / 待辦 / 關鍵數字 / 下次會議
 - 存進 projects handoff · 指派 next_actions 給相關同事
 
 **實作:**
 - `routers/memory.py` 加 `POST /memory/transcribe`
-- `whisper-1` 模型 · 承富 OPENAI_API_KEY 已可用(v1.2 新加 frontend_writable)
+- `whisper-1` 模型 · 本公司 OPENAI_API_KEY 已可用(v1.2 新加 frontend_writable)
 - launcher `modules/voice.js` 已存在(目前沒完整接)· 補 UI
 - 測試:5 分鐘模擬音檔 · 驗 transcribe + 整理 < 20 秒
 
@@ -31,10 +31,10 @@
 
 ### 2. 📱 LINE Notify 推播 · 標案截止 / 預算警告 / 月報通知 · **半天**
 
-**為什麼:** 承富同事不常開電腦看 launcher · LINE 必看。標案截止前 3 天 / 客戶提案收件 / 本月預算 80% · 全部推 LINE · 不遺漏重要 deadline。
+**為什麼:** 本公司同事不常開電腦看 launcher · LINE 必看。標案截止前 3 天 / 客戶提案收件 / 本月預算 80% · 全部推 LINE · 不遺漏重要 deadline。
 
 **流程:**
-- 承富註冊 LINE Notify(免費)· 每同事綁自己 token
+- 本公司註冊 LINE Notify(免費)· 每同事綁自己 token
 - accounting `services/notify.py` · 3 種觸發:
   1. tender-monitor cron(每日跑)· 新標案符合關鍵字 → LINE
   2. quota 80% / 95% 觸發 → LINE admin
@@ -52,7 +52,7 @@
 
 ### 3. 🔒 PII 自動偵測 · 對話裡出現身分證 / 電話 · 彈警告 · **1 天**
 
-**為什麼:** 承富常幫政府做民調 · 對話裡可能貼受訪者身分證 / 電話。一旦送 Claude API = PDPA 法律風險。自動偵測 = 法務保險。
+**為什麼:** 本公司常幫政府做民調 · 對話裡可能貼受訪者身分證 / 電話。一旦送 Claude API = PDPA 法律風險。自動偵測 = 法務保險。
 
 **流程:**
 - launcher `modules/chat.js` 送前攔截 · regex 掃:
@@ -77,7 +77,7 @@
 
 ### 4. 📰 輿論監測 Daily Digest · 關鍵字 RSS → 每日摘要寄 admin · **2-3 天**
 
-**為什麼:** 承富很多客戶有 「替我監測市場動向」需求(政府選舉期 / 食品安全事件 / 競品新聞)。目前是人工 google · 一週 3 小時浪費。**每個監測議題 = 一個潛在附加價值 case**(外包可收 NT$ 5,000 / 月)。
+**為什麼:** 本公司很多客戶有 「替我監測市場動向」需求(政府選舉期 / 食品安全事件 / 競品新聞)。目前是人工 google · 一週 3 小時浪費。**每個監測議題 = 一個潛在附加價值 case**(外包可收 NT$ 5,000 / 月)。
 
 **流程:**
 - admin 加關鍵字到 watchlist(e.g. 「海洋廢棄物」「減塑政策」)
@@ -100,7 +100,7 @@
 
 ### 5. 📅 社群貼文排程 · FB / IG / LinkedIn 排程發布 · **3-5 天**
 
-**為什麼:** 承富目前「04 新聞稿生成器 / 05 社群貼文生成器」只寫 · 沒排程發。PM 每週 2 小時手動發 · 錯時間 · 打掉重寫。排程 = 每週省 2h × 3 PM = **6 小時 / 週**。
+**為什麼:** 本公司目前「04 新聞稿生成器 / 05 社群貼文生成器」只寫 · 沒排程發。PM 每週 2 小時手動發 · 錯時間 · 打掉重寫。排程 = 每週省 2h × 3 PM = **6 小時 / 週**。
 
 **流程:**
 - launcher「📣 公關」Workspace 加「排程區」
@@ -111,7 +111,7 @@
 
 **實作:**
 - Meta Graph API(FB / IG)· LinkedIn Share API
-- 需承富註冊 Meta / LinkedIn developer app(1 天 · 老闆配合審核)
+- 需本公司註冊 Meta / LinkedIn developer app(1 天 · 老闆配合審核)
 - `routers/social.py` · scheduler + history + retry
 - 測試:mock Meta API · 驗 scheduler + failure 通知
 
@@ -121,11 +121,11 @@
 
 ### 6. 📇 媒體 CRM · 記者 / 主編資料庫 + 發稿歷史 · **2 天**
 
-**為什麼:** 承富現在 CRM 是標案 pipeline(B2B)· 沒管記者。發新聞稿是「想到誰就寄誰」· 搞不清每位記者發過幾次 / 哪些主題接受。整合後:PM 寫完新聞稿 → 自動推薦 TOP 10 相關記者(按歷史接受率)。
+**為什麼:** 本公司現在 CRM 是標案 pipeline(B2B)· 沒管記者。發新聞稿是「想到誰就寄誰」· 搞不清每位記者發過幾次 / 哪些主題接受。整合後:PM 寫完新聞稿 → 自動推薦 TOP 10 相關記者(按歷史接受率)。
 
 **流程:**
 - 新 collection `media_contacts`:姓名 / 媒體 / 負責主題 / email / 手機 / 發過幾次 / 接受率
-- launcher CRM 加「記者」tab · import from CSV(初始匯入承富現有名單)
+- launcher CRM 加「記者」tab · import from CSV(初始匯入本公司現有名單)
 - 每次 04 新聞稿生成 · 送前顯示推薦名單 + 一鍵寄 Email(經 send_email · rate limit)
 - 發稿後追蹤:24h 內 Google News 搜到 = 接受(手動 mark)
 
@@ -142,7 +142,7 @@
 
 ### 7. 📸 場勘表單 PWA · 活動現場 iPhone 拍照 + GPS + AI · **3-5 天**
 
-**為什麼:** 承富接活動案 · 場勘現場目前用 iPhone 拍照 + 手寫筆記 · 回辦公室用 Word 整理 2 小時。用 PWA:現場拍照 + 語音註記 + GPS → AI 整理成結構化 brief → 存進專案 handoff。
+**為什麼:** 本公司接活動案 · 場勘現場目前用 iPhone 拍照 + 手寫筆記 · 回辦公室用 Word 整理 2 小時。用 PWA:現場拍照 + 語音註記 + GPS → AI 整理成結構化 brief → 存進專案 handoff。
 
 **流程:**
 - launcher 已是 PWA(有 sw.js)· 加「場勘」路由
@@ -162,7 +162,7 @@
 
 ### 8. 📊 季度策略 AI 分析 · 老闆 quarterly review 自動產出 · **1-2 天**
 
-**為什麼:** 承富老闆每季看「標案勝率 / 案量 / 利潤」· 人工做一次 4 小時 × 4 季 = 16 小時 / 年。用 AI 做:「比 Q2 我們勝率 63% → Q3 47% · 下降主因:連 3 次競標都輸給同一對手 XX 公司 · 建議調整 pricing / service mix」。
+**為什麼:** 本公司老闆每季看「標案勝率 / 案量 / 利潤」· 人工做一次 4 小時 × 4 季 = 16 小時 / 年。用 AI 做:「比 Q2 我們勝率 63% → Q3 47% · 下降主因:連 3 次競標都輸給同一對手 XX 公司 · 建議調整 pricing / service mix」。
 
 **流程:**
 - `/admin/quarterly-review?q=2026-Q3` endpoint
@@ -205,7 +205,7 @@
 
 ### Week 1(Mac mini 上架後第 1 週 · 驗收基線 T0)
 - Day 0 教育訓練(v1.0 SOP 不動)
-- 承富老闆選 Tier 1 #1 / #2 / #3 走哪個
+- 本公司老闆選 Tier 1 #1 / #2 / #3 走哪個
 - Sterio 實作第 1 個(推薦 #1 會議速記)
 
 ### Week 2(v1.2.1)
@@ -229,8 +229,8 @@
 
 ## 🚫 **不建議做的**(清單外的 FOMO)
 
-1. ❌ **RAG vector embedding** · 承富知識庫 ~500 份 · Meilisearch BM25 夠用 · 加 pgvector = 複雜度暴增
-2. ❌ **自訓 LLM fine-tune** · 成本 USD $5k + GPU · 承富規模不值
+1. ❌ **RAG vector embedding** · 本公司知識庫 ~500 份 · Meilisearch BM25 夠用 · 加 pgvector = 複雜度暴增
+2. ❌ **自訓 LLM fine-tune** · 成本 USD $5k + GPU · 本公司規模不值
 3. ❌ **多節點 HA Kubernetes** · 10 人公司 1 台 Mac mini 死 = 1 小時回復 · 不需 HA
 4. ❌ **自建 SSO(Okta/Auth0)** · LibreChat 的帳號密碼 + 2FA 已足
 5. ❌ **自開發 mobile native app** · PWA 完全夠 · iOS / Android 原生 = 2 個月工程

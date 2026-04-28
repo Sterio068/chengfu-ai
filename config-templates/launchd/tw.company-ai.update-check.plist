@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  承富智慧助理 · 每日 03:00 檢查 GitHub 是否有新版(vNext C · auto-update)
+  企業 AI 工作台 · 每日 03:00 檢查 GitHub 是否有新版(vNext C · auto-update)
 
   跑 scripts/check-update.sh · 寫 reports/update-status.json
   Admin 進入 launcher · update-notifier.js GET /admin/update/status 看到通知
 
   安裝:./scripts/install-launchd.sh
-  卸載:launchctl unload ~/Library/LaunchAgents/tw.chengfu.update-check.plist
-  驗證:tail -f ~/Library/Logs/chengfu-update-check.log
+  卸載:launchctl unload ~/Library/LaunchAgents/tw.company-ai.update-check.plist
+  驗證:tail -f ~/Library/Logs/company-ai-update-check.log
         cat reports/update-status.json
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>tw.chengfu.update-check</string>
+    <string>tw.company-ai.update-check</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -33,9 +33,9 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-update-check.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-update-check.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-update-check.err.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-update-check.err.log</string>
 
     <!-- RunAtLoad=true · 安裝完馬上跑一次 · 第一次 admin 登入就能看到 status -->
     <key>RunAtLoad</key>

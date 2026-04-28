@@ -9,7 +9,7 @@
  * 配合 launcher.css :root[data-theme="dark"] { ... } 套色
  * auto 跟系統 prefers-color-scheme(launcher.css 已 @media 處理)
  */
-const STORAGE_KEY = "chengfu-theme";
+const STORAGE_KEY = "company-ai-theme";
 const VALUES = ["auto", "light", "dark"];
 
 export const theme = {

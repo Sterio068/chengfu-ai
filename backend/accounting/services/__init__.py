@@ -1,5 +1,5 @@
 """
-承富 AI · services · pure business logic · 不直接定義 FastAPI endpoint
+企業 AI · services · pure business logic · 不直接定義 FastAPI endpoint
 
 設計原則(Round 8 reviewer + 作者決策):
 - 拆 service 不是拆 router · FastAPI 註冊點仍只有 main.py 一個

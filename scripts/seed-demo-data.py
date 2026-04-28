@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-承富 AI · Demo 資料 seed
+企業 AI · Demo 資料 seed
 ==========================================================
 
 首次本機啟動後跑一次,讓系統立刻有「有內容可看」的狀態:
@@ -28,14 +28,14 @@ except ImportError:
     sys.exit("pip install pymongo")
 
 
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/chengfu")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/company_ai")
 
 
 def seed():
     client = MongoClient(MONGO_URI)
     db = client.get_default_database()
 
-    print("🌱 承富 AI · Demo 資料 seed 啟動")
+    print("🌱 企業 AI · Demo 資料 seed 啟動")
     print()
 
     # ============================================================
@@ -48,7 +48,7 @@ def seed():
             "client": "環境部環境管理署",
             "budget": 3_800_000,
             "deadline": "2026-10-31",
-            "description": "6 場在地說明會 + 3 場記者會 · 主打在地共創 · 承富熟悉案型 · 預估毛利 22%",
+            "description": "6 場在地說明會 + 3 場記者會 · 主打在地共創 · 本公司熟悉案型 · 預估毛利 22%",
             "status": "active",
             "owner": "王 PM",
             "created_at": datetime.utcnow() - timedelta(days=15),
@@ -129,7 +129,7 @@ def seed():
         (8, 35_000, "交通費 · 各案合計", "5204", None),
         (5, 450_000, "薪資 · 本月", "5301", None),
         (3, 62_000, "辦公室租金", "5401", None),
-        (1, 12_000, "軟體訂閱 · 承富 AI + Adobe", "5403", None),
+        (1, 12_000, "軟體訂閱 · 企業 AI + Adobe", "5403", None),
     ]:
         txs.append({
             "date": (base_date - timedelta(days=days_ago)).strftime("%Y-%m-%d"),
@@ -213,7 +213,7 @@ def seed():
     print("[5/6] 建立示範 👍👎 回饋...")
     db.feedback.delete_many({"_demo": True})
     feedbacks = [
-        ("msg_demo_01", "🎯 投標 · 投標顧問", "up",   "建議書結構很承富風格,省 2 小時"),
+        ("msg_demo_01", "🎯 投標 · 投標顧問", "up",   "建議書結構很本公司風格,省 2 小時"),
         ("msg_demo_02", "🎯 投標 · 投標顧問", "up",   "Go/No-Go 8 維度清楚"),
         ("msg_demo_03", "🎯 投標 · 投標顧問", "down", "部分數據有點舊,需要更新"),
         ("msg_demo_04", "📣 公關 · 公關寫手", "up",   "AP Style 導言很精確"),
@@ -226,7 +226,7 @@ def seed():
     ]
     fb_docs = [
         {"message_id": m, "agent_name": a, "verdict": v, "note": n,
-         "user_email": "demo@chengfu.local",
+         "user_email": "demo@company-ai.local",
          "created_at": base_date - timedelta(days=i),
          "_demo": True}
         for i, (m, a, v, n) in enumerate(feedbacks)

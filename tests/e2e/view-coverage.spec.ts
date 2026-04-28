@@ -51,10 +51,10 @@ function readKeychainSecret(service: string): string {
 
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL
   || process.env.LIBRECHAT_ADMIN_EMAIL
-  || readKeychainSecret('chengfu-ai-admin-install-email');
+  || readKeychainSecret('company-ai-admin-install-email');
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD
   || process.env.LIBRECHAT_ADMIN_PASSWORD
-  || readKeychainSecret('chengfu-ai-admin-install-password');
+  || readKeychainSecret('company-ai-admin-install-password');
 
 // 既知 noise · 不算 fail
 const NOISE_PATTERNS = [
@@ -80,8 +80,8 @@ async function loginAsAdmin(page: Page): Promise<void> {
   // 等 launcher 進入 app · view-dashboard active
   await page.locator('.view-dashboard.active').waitFor({ state: 'visible', timeout: 15_000 });
   await page.evaluate(() => {
-    localStorage.setItem('chengfu-onboarding-done', '1');
-    localStorage.setItem('chengfu-tour-done', '1');
+    localStorage.setItem('company-ai-onboarding-done', '1');
+    localStorage.setItem('company-ai-tour-done', '1');
     document.querySelectorAll('.tutorial-backdrop, #tour-backdrop, #tour-bubble').forEach(el => (el as HTMLElement).style.display = 'none');
     (window as any).tour?.skip?.();
   });
@@ -97,8 +97,8 @@ test.describe.serial('v1.68 Q4 · 14 view 全覆蓋', () => {
     sharedContext = await browser.newContext();
     sharedPage = await sharedContext.newPage();
     await sharedPage.addInitScript(() => {
-      localStorage.setItem('chengfu-onboarding-done', '1');
-      localStorage.setItem('chengfu-tour-done', '1');
+      localStorage.setItem('company-ai-onboarding-done', '1');
+      localStorage.setItem('company-ai-tour-done', '1');
     });
     await loginAsAdmin(sharedPage);
   });

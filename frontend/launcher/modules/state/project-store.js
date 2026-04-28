@@ -26,7 +26,7 @@ class ProjectStore extends EventTarget {
     this._state = new Map();
     // Cross-tab sync via existing channel
     if ("BroadcastChannel" in globalThis) {
-      this._bc = new BroadcastChannel("chengfu-project-store");
+      this._bc = new BroadcastChannel("company-ai-project-store");
       this._bc.onmessage = (e) => {
         if (e.data && e.data.type === "set" && e.data.key) {
           this._state.set(e.data.key, e.data.value);

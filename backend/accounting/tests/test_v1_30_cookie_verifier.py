@@ -48,8 +48,8 @@ class TestCookieVerify:
         from auth_deps import make_cookie_verifier
         users = MagicMock()
         verify, _ = make_cookie_verifier(users)
-        token = _encode({"email": "alice@example.com"})
-        assert verify(_make_request(token)) == "alice@example.com"
+        token = _encode({"email": "alice@example.example"})
+        assert verify(_make_request(token)) == "alice@example.example"
         users.find_one.assert_not_called()
 
     def test_payload_email_lowercase(self):
@@ -63,10 +63,10 @@ class TestCookieVerify:
         from auth_deps import make_cookie_verifier
         oid = ObjectId()
         users = MagicMock()
-        users.find_one.return_value = {"email": "carol@example.com"}
+        users.find_one.return_value = {"email": "carol@example.example"}
         verify, _ = make_cookie_verifier(users)
         token = _encode({"id": str(oid)})
-        assert verify(_make_request(token)) == "carol@example.com"
+        assert verify(_make_request(token)) == "carol@example.example"
         users.find_one.assert_called_once()
 
     def test_invalid_token_returns_none(self):
@@ -87,7 +87,7 @@ class TestCookieVerify:
         monkeypatch.setenv("JWT_REFRESH_SECRET", "")
         users = MagicMock()
         verify, _ = make_cookie_verifier(users)
-        token = _encode({"email": "x@y.com"})
+        token = _encode({"email": "x@y.example"})
         assert verify(_make_request(token)) is None
 
     def test_placeholder_secret_returns_none(self, monkeypatch):
@@ -95,7 +95,7 @@ class TestCookieVerify:
         monkeypatch.setenv("JWT_REFRESH_SECRET", "<GENERATE_ME>")
         users = MagicMock()
         verify, _ = make_cookie_verifier(users)
-        token = _encode({"email": "x@y.com"})
+        token = _encode({"email": "x@y.example"})
         assert verify(_make_request(token)) is None
 
 
@@ -103,10 +103,10 @@ class TestLookupUserEmail:
     def test_lookup_hit(self):
         from auth_deps import make_cookie_verifier
         users = MagicMock()
-        users.find_one.return_value = {"email": "Dave@example.com"}
+        users.find_one.return_value = {"email": "Dave@example.example"}
         _, lookup = make_cookie_verifier(users)
         oid = ObjectId()
-        assert lookup(str(oid)) == "dave@example.com"
+        assert lookup(str(oid)) == "dave@example.example"
 
     def test_lookup_user_not_found(self):
         from auth_deps import make_cookie_verifier
@@ -126,7 +126,7 @@ class TestLookupUserEmail:
     def test_lookup_caches(self):
         from auth_deps import make_cookie_verifier
         users = MagicMock()
-        users.find_one.return_value = {"email": "x@y.com"}
+        users.find_one.return_value = {"email": "x@y.example"}
         _, lookup = make_cookie_verifier(users)
         oid = str(ObjectId())
         lookup(oid)
@@ -137,7 +137,7 @@ class TestLookupUserEmail:
     def test_lookup_evicts_oldest_when_full(self):
         from auth_deps import make_cookie_verifier
         users = MagicMock()
-        users.find_one.side_effect = lambda q, p: {"email": f"u{q['_id']}@e.com"}
+        users.find_one.side_effect = lambda q, p: {"email": f"u{q['_id']}@e.example"}
         _, lookup = make_cookie_verifier(users)
         # 灌 200 個進去
         ids = [str(ObjectId()) for _ in range(201)]

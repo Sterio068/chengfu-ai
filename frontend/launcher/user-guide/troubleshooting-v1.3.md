@@ -11,7 +11,7 @@
 **原因**:Whisper API 沒回 / OpenAI key 沒設
 **檢查**:
 ```bash
-docker exec chengfu-accounting env | grep OPENAI
+docker exec company-ai-accounting env | grep OPENAI
 ```
 若 `OPENAI_API_KEY=` 空 → 沒設 · 跑 `setup-keychain.sh`
 
@@ -29,7 +29,7 @@ docker exec chengfu-accounting env | grep OPENAI
 - meeting 的 project_id 對嗎?
 - project 真存在?(看 /projects)
 - 你是 admin 或該 project owner 嗎?
-**解**:對的話直跑 `mongosh chengfu --eval 'db.projects.findOne({_id:ObjectId(...)})'` 看 handoff 真值
+**解**:對的話直跑 `mongosh company_ai --eval 'db.projects.findOne({_id:ObjectId(...)})'` 看 handoff 真值
 
 ---
 
@@ -82,7 +82,7 @@ docker exec chengfu-accounting env | grep OPENAI
 2. status 還是 queued · cron 沒跑:
    ```bash
    launchctl list | grep social-scheduler
-   tail -f ~/Library/Logs/chengfu-social-scheduler.log
+   tail -f ~/Library/Logs/company-ai-social-scheduler.log
    ```
 3. status 是 publishing 卡住 · publishing_until 超 5 min · 下次 cron 重 claim(R22#1 設計)
 4. status 是 failed · 看 error 欄(v1.3 mock 不該失敗)
@@ -91,7 +91,7 @@ docker exec chengfu-accounting env | grep OPENAI
 **原因**:Meta App ID 沒設 / redirect URI 沒對齊
 **檢查**:
 ```bash
-docker exec chengfu-accounting env | grep FACEBOOK_APP
+docker exec company-ai-accounting env | grep FACEBOOK_APP
 ```
 若空 · 此功能 v1.3 是 mock · v1.4 補(`social-oauth-fallback.md`)
 
@@ -109,12 +109,12 @@ docker exec chengfu-accounting env | grep FACEBOOK_APP
 **解**:不用刪 · 沒資料
 
 ### 症狀 15 · 「archive_failed」 · 不繼續刪
-**原因**:GPG 加密失敗(沒 'chengfu' key 或 disk full)
+**原因**:GPG 加密失敗(沒 'company_ai' key 或 disk full)
 **安全機制**:刻意不刪(防 silent data loss)
 **解**:
-- 確認 GPG key 在:`gpg --list-keys chengfu`
-- 沒就建:`gpg --full-generate-key`(name 設 'chengfu')
-- 看 disk:`df -h ~/chengfu-backups/`
+- 確認 GPG key 在:`gpg --list-keys company_ai`
+- 沒就建:`gpg --full-generate-key`(name 設 'company_ai')
+- 看 disk:`df -h ~/company-ai-backups/`
 
 ---
 
@@ -143,8 +143,8 @@ python3 scripts/reembed-knowledge.py
 
 ### 症狀 18 · backup.sh 完成 · B2 端沒檔
 **檢查**:
-1. `rclone listremotes | grep chengfu-offsite`
-2. `rclone ls chengfu-offsite:bucket-name | head`
+1. `rclone listremotes | grep company-ai-offsite`
+2. `rclone ls company-ai-offsite:bucket-name | head`
 3. backup.sh 結尾有 「☁ 已異機備份到 ...」?
 
 **沒看到**:檢查 GPG key(只 .gpg 檔上傳 · 防明文外洩)

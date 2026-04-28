@@ -13,14 +13,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from bson import ObjectId
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # ============================================================
 # Pricing(可追溯)· 更新時改 PRICE_VERSION 日期
 # ============================================================
 PRICE_VERSION = "2026-04-21"
-PRICE_SOURCE = "https://developers.openai.com/api/docs/models · https://www.anthropic.com/pricing"
+PRICE_SOURCE = "https://platform.openai.com/api/docs/models · https://www.anthropic.com/pricing"
 PRICE_NOTE = "USD per 1M tokens · 半年內請定期確認 OpenAI / Anthropic 是否調價"
 MODEL_PRICING_USD = {
     "gpt-5.4":           {"input": 2.50, "output": 15.0},
@@ -441,7 +441,7 @@ def adoption_metrics(db, users_col, projects_col, feedback_col,
         unique_agg = list(db.transactions.aggregate([
             {"$match": {"createdAt": {"$gte": from_dt}}},
             {"$group": {"_id": "$user"}},
-            {"$limit": 500},  # 安全上限 · 承富 10 人絕不會到
+            {"$limit": 500},  # 安全上限 · 本公司 10 人絕不會到
         ]))
         active_user_ids = [u["_id"] for u in unique_agg]
         result["active_users"] = len(active_user_ids)

@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================
-# 承富 AI · 社群排程 cron(Feature #5)
+# 企業 AI · 社群排程 cron(Feature #5)
 # ============================================================
 # 每 5 分鐘呼叫 /admin/social/run-queue · 掃 schedule_at <= now 的 queued/failed 發布
-# launchd plist 在 config-templates/launchd/com.chengfu.social-scheduler.plist
+# launchd plist 在 config-templates/launchd/com.company_ai.social-scheduler.plist
 #
 # 安裝:./scripts/install-launchd.sh(會把所有 cron plist 安裝)
 # ============================================================
@@ -15,7 +15,7 @@ TOKEN="${ECC_INTERNAL_TOKEN:-}"
 
 if [[ -z "$TOKEN" ]]; then
     # 從 Keychain 讀
-    TOKEN=$(security find-generic-password -s "chengfu-ai-internal-token" -w 2>/dev/null || echo "")
+    TOKEN=$(security find-generic-password -s "company-ai-internal-token" -w 2>/dev/null || echo "")
 fi
 
 if [[ -z "$TOKEN" ]]; then

@@ -11,8 +11,8 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-ADMIN = {"X-User-Email": "sterio068@gmail.com"}
-USER = {"X-User-Email": "pm@chengfu.local"}
+ADMIN = {"X-User-Email": "sterio068@gmail.example"}
+USER = {"X-User-Email": "pm@company-ai.local"}
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def test_create_contact_admin_only(client):
     """非 admin 不能建記者 · 403"""
     r = client.post(
         "/media/contacts",
-        json={"name": "張記者", "outlet": "聯合報", "beats": ["環保"], "email": "zhang@udn.com"},
+        json={"name": "張記者", "outlet": "聯合報", "beats": ["環保"], "email": "zhang@udn.example"},
         headers=USER,
     )
     assert r.status_code == 403
@@ -40,7 +40,7 @@ def test_create_and_list_contact(client):
     r = client.post(
         "/media/contacts",
         json={"name": "李記者", "outlet": "商周", "beats": ["產業", "科技"],
-              "email": "li@businessweekly.com.tw"},
+              "email": "li@businessweekly.example.tw"},
         headers=ADMIN,
     )
     assert r.status_code == 200
@@ -50,7 +50,7 @@ def test_create_and_list_contact(client):
     r = client.get("/media/contacts", headers=ADMIN)
     assert r.status_code == 200
     admin_items = r.json()["items"]
-    assert any(c["email"] == "li@businessweekly.com.tw" for c in admin_items)
+    assert any(c["email"] == "li@businessweekly.example.tw" for c in admin_items)
 
     # 一般同仁只看到名單與類別,聯絡資訊需管理員授權
     r = client.get("/media/contacts", headers=USER)
@@ -66,10 +66,10 @@ def test_create_and_list_contact(client):
 
 def test_duplicate_email_conflict(client):
     client.post("/media/contacts",
-        json={"name": "A", "outlet": "X", "email": "dup@media.com"},
+        json={"name": "A", "outlet": "X", "email": "dup@media.example"},
         headers=ADMIN)
     r = client.post("/media/contacts",
-        json={"name": "B", "outlet": "Y", "email": "dup@media.com"},
+        json={"name": "B", "outlet": "Y", "email": "dup@media.example"},
         headers=ADMIN)
     assert r.status_code == 409
 
@@ -77,7 +77,7 @@ def test_duplicate_email_conflict(client):
 def test_phone_hidden_from_non_admin(client):
     """R14#2 PDPA · 非 admin 看不到 phone"""
     client.post("/media/contacts",
-        json={"name": "C", "outlet": "Z", "email": "c@m.com", "phone": "0912-345-678"},
+        json={"name": "C", "outlet": "Z", "email": "c@m.example", "phone": "0912-345-678"},
         headers=ADMIN)
 
     # admin 看得到
@@ -97,13 +97,13 @@ def test_recommend_jaccard_match(client):
     import main
     main.db.media_contacts.insert_many([
         {"name": "環保記者", "outlet": "綠報", "beats": ["環保", "減塑"],
-         "email": "env@green.com", "is_active": True,
+         "email": "env@green.example", "is_active": True,
          "accepted_count": 5, "pitched_count": 8, "accepted_topics": ["環保"]},
         {"name": "科技記者", "outlet": "3C", "beats": ["科技", "AI"],
-         "email": "tech@3c.com", "is_active": True,
+         "email": "tech@3c.example", "is_active": True,
          "accepted_count": 2, "pitched_count": 5, "accepted_topics": []},
         {"name": "inactive", "outlet": "X", "beats": ["環保"],
-         "email": "ina@x.com", "is_active": False,
+         "email": "ina@x.example", "is_active": False,
          "accepted_count": 0, "pitched_count": 0, "accepted_topics": []},
     ])
 
@@ -127,7 +127,7 @@ def test_record_pitch_increments(client):
     """發稿紀錄 · pitched_count 遞增 · accepted 記 accepted_count"""
     import main
     cid = main.db.media_contacts.insert_one({
-        "name": "test", "outlet": "X", "email": "p@x.com",
+        "name": "test", "outlet": "X", "email": "p@x.example",
         "is_active": True, "pitched_count": 0, "accepted_count": 0,
         "accepted_topics": [],
     }).inserted_id
@@ -146,8 +146,8 @@ def test_record_pitch_increments(client):
 def test_csv_import(client):
     """CSV 匯入 · upsert by email"""
     csv = """name,outlet,beats,email,phone,notes
-張三,蘋果日報,政府|環保,zhang@apple.com,0911111,核心記者
-李四,商業周刊,產業,li@biz.com,,重點
+張三,蘋果日報,政府|環保,zhang@apple.example,0911111,核心記者
+李四,商業周刊,產業,li@biz.example,,重點
 """
     r = client.post("/media/contacts/import-csv",
         files={"file": ("media.csv", csv.encode("utf-8"), "text/csv")},
@@ -159,7 +159,7 @@ def test_csv_import(client):
 
     # 驗 DB
     import main
-    doc = main.db.media_contacts.find_one({"email": "zhang@apple.com"})
+    doc = main.db.media_contacts.find_one({"email": "zhang@apple.example"})
     assert doc is not None
     assert doc["beats"] == ["政府", "環保"]
 
@@ -175,7 +175,7 @@ def test_csv_import(client):
 def test_csv_reject_bad_email(client):
     csv = """name,outlet,email
 bad_row,X,not-an-email
-good_row,X,good@m.com
+good_row,X,good@m.example
 """
     r = client.post("/media/contacts/import-csv",
         files={"file": ("bad.csv", csv.encode("utf-8"), "text/csv")},
@@ -190,7 +190,7 @@ def test_deactivate_contact(client):
     """軟刪 · is_active=False · 不真 delete"""
     import main
     cid = main.db.media_contacts.insert_one({
-        "name": "del", "outlet": "X", "email": "del@x.com",
+        "name": "del", "outlet": "X", "email": "del@x.example",
         "is_active": True,
     }).inserted_id
 
@@ -236,7 +236,7 @@ def test_export_csv_injection_defense(client):
     """B3 · =1+1 / @evil / +cmd 開頭加 ' 前綴 · 防 Excel 公式注入"""
     import main
     main.db.media_contacts.insert_one({
-        "name": "=cmd|bad", "outlet": "+attack", "email": "@evil@x.com",
+        "name": "=cmd|bad", "outlet": "+attack", "email": "@evil@x.example",
         "beats": ["-formula"], "is_active": True,
     })
     r = client.get("/media/contacts/export.csv", headers=ADMIN)
@@ -246,7 +246,7 @@ def test_export_csv_injection_defense(client):
     # 必有 ' prefix · csv.writer 會 quote 含逗號或引號的欄位
     assert "'=cmd|bad" in line, "= 開頭必加 ' 前綴防注入"
     assert "'+attack" in line
-    assert "'@evil@x.com" in line
+    assert "'@evil@x.example" in line
     assert "'-formula" in line
 
 
@@ -254,11 +254,11 @@ def test_export_csv_excludes_inactive_by_default(client):
     """B3 · is_active=False 軟刪預設排除 · ?include_inactive=true 才含"""
     import main
     main.db.media_contacts.insert_one({
-        "name": "active1", "outlet": "X", "email": "a1@x.com",
+        "name": "active1", "outlet": "X", "email": "a1@x.example",
         "is_active": True,
     })
     main.db.media_contacts.insert_one({
-        "name": "deleted1", "outlet": "X", "email": "d1@x.com",
+        "name": "deleted1", "outlet": "X", "email": "d1@x.example",
         "is_active": False,
     })
     r = client.get("/media/contacts/export.csv", headers=ADMIN)

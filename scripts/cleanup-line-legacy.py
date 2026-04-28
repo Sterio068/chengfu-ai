@@ -25,7 +25,7 @@ except ImportError:
 
 def main(execute: bool = False):
     mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-    db_name = os.getenv("MONGO_DB_NAME", "chengfu_ai")
+    db_name = os.getenv("MONGO_DB_NAME", "company_ai")
     db = MongoClient(mongo_url)[db_name]
 
     q = {"key": "line_token"}

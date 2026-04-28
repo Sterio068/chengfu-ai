@@ -1,12 +1,12 @@
-# DEPLOY.md — 承富 AI 系統 · 部署運行手冊
+# DEPLOY.md — 企業 AI 系統 · 部署運行手冊
 
 > **本檔取代原 `tasks/week-0` ~ `week-4-*.md`(已封存到 `tasks/archive/`)**
-> 目標:Mac mini 到貨後,照本手冊一步步跑,**1-2 個工作天**內讓承富 10 位同仁全員可用。
+> 目標:Mac mini 到貨後,照本手冊一步步跑,**1-2 個工作天**內讓本公司 10 位同仁全員可用。
 >
-> 讀者:Sterio(執行者) + 承富 IT/老闆(配合者)
+> 讀者:Sterio(執行者) + 本公司 IT/老闆(配合者)
 >
 > 執行總時程估算:
->   - 承富前置(可在 Mac mini 到貨前平行做):3-5 天
+>   - 本公司前置(可在 Mac mini 到貨前平行做):3-5 天
 >   - 平台部署(需 Mac mini):**1 天**
 >   - Agent 建立 + 知識庫灌入:**半天**
 >   - 教育訓練:**2 場(各 2 小時)**
@@ -14,7 +14,7 @@
 
 ---
 
-## Phase 0 · 承富前置(Mac mini 到貨前可做)
+## Phase 0 · 本公司前置(Mac mini 到貨前可做)
 
 ### 0.1 採購
 - [ ] Mac mini M4 **24GB / 512GB**(D-003)
@@ -26,33 +26,33 @@
   - 驗收方式:Launcher 預設 OpenAI 可正常串流回覆
 - [ ] Anthropic API Key(選配備援):https://console.anthropic.com
   - 驗收方式:前端切換 Claude 後可正常建立新對話
-- [ ] 域名:承富擁有的一級網域,計畫用 `ai.<公司網域>.com`
+- [ ] 域名:本公司擁有的一級網域,計畫用 `ai.<公司網域>.com`
 - [ ] Cloudflare 帳號:https://dash.cloudflare.com(免費即可)
 - [ ] (選配)Resend 帳號:https://resend.com 用於密碼重設寄信
 
 ### 0.3 IT 配合
 - [ ] 公司網管同意 Mac mini 使用固定 IP
 - [ ] 防火牆不封鎖對 `api.anthropic.com`、`cloudflare.com`、`hub.docker.com` 的出站連線
-- [ ] 公司網域 DNS 可由 Sterio 或承富 IT 新增 CNAME
+- [ ] 公司網域 DNS 可由 Sterio 或本公司 IT 新增 CNAME
 
 ### 0.4 10 位同仁資料
 建立 `config-templates/users.json`:
 ```json
 [
-  {"email": "sterio@chengfu.com",      "name": "Sterio",   "role": "ADMIN"},
-  {"email": "pm1@chengfu.com",         "name": "王 PM",    "role": "USER"},
-  {"email": "pm2@chengfu.com",         "name": "李 PM",    "role": "USER"},
-  {"email": "design1@chengfu.com",     "name": "陳設計",   "role": "USER"},
-  {"email": "design2@chengfu.com",     "name": "林設計",   "role": "USER"},
-  {"email": "biz@chengfu.com",         "name": "黃業務",   "role": "USER"},
-  {"email": "pr@chengfu.com",          "name": "吳公關",   "role": "USER"},
-  {"email": "finance@chengfu.com",     "name": "張財務",   "role": "USER"},
-  {"email": "hr@chengfu.com",          "name": "蔡人資",   "role": "USER"},
-  {"email": "boss@chengfu.com",        "name": "老闆",     "role": "ADMIN"}
+  {"email": "sterio@company.example",      "name": "Sterio",   "role": "ADMIN"},
+  {"email": "pm1@company.example",         "name": "王 PM",    "role": "USER"},
+  {"email": "pm2@company.example",         "name": "李 PM",    "role": "USER"},
+  {"email": "design1@company.example",     "name": "陳設計",   "role": "USER"},
+  {"email": "design2@company.example",     "name": "林設計",   "role": "USER"},
+  {"email": "biz@company.example",         "name": "黃業務",   "role": "USER"},
+  {"email": "pr@company.example",          "name": "吳公關",   "role": "USER"},
+  {"email": "finance@company.example",     "name": "張財務",   "role": "USER"},
+  {"email": "hr@company.example",          "name": "蔡人資",   "role": "USER"},
+  {"email": "boss@company.example",        "name": "老闆",     "role": "ADMIN"}
 ]
 ```
 - [ ] 10 個同仁 email 已確認可收信
-- [ ] 2 位 ADMIN:Sterio + 承富老闆(或指定的 AI Champion)
+- [ ] 2 位 ADMIN:Sterio + 本公司老闆(或指定的 AI Champion)
 
 ### 0.5 Baseline 量測(F-1)
 發放工時表給 10 位同仁,請他們記錄**本週**每日花在:
@@ -65,7 +65,7 @@
 
 **目的**:3 個月後對比 ROI。沒有 baseline = 無法證明 AI 省了多少工時。
 
-### 0.6 承富知識庫資料盤點
+### 0.6 本公司知識庫資料盤點
 建立 `knowledge-base/` 目錄,依主題收集檔案(**去識別化後**):
 ```
 knowledge-base/
@@ -81,7 +81,7 @@ knowledge-base/
 **去識別化**:真實客戶姓名 → `[客戶 A]`、電話/身份證 → `[已遮蔽]`、敏感金額 → `[NT$ 數萬等級]`。
 
 ### 0.7 合規確認(GP-1)
-- [ ] 承富法務查:政府採購法對 AI 產出的規範(能不能用 AI 寫建議書、投標資料)
+- [ ] 本公司法務查:政府採購法對 AI 產出的規範(能不能用 AI 寫建議書、投標資料)
 - [ ] 準備員工 PDPA 告知書(使用 AI 工具處理資料的同意書)
 - [ ] 若處理 Level 03 機敏,列入階段二待辦(v1.0 不做)
 
@@ -97,7 +97,7 @@ knowledge-base/
 ### 1.1 Mac mini 開箱(0.5 hr)
 - [ ] 連接電源、螢幕、鍵盤滑鼠、有線網路
 - [ ] **電源線接到 UPS 的「Battery Backup」孔**(不是「Surge Only」)
-- [ ] 開機 → 跟隨 macOS 初始化精靈,建立管理員帳號 `chengfu-admin`
+- [ ] 開機 → 跟隨 macOS 初始化精靈,建立管理員帳號 `company-ai-admin`
 
 ### 1.2 macOS 初始化(0.5 hr)
 ```bash
@@ -108,10 +108,10 @@ sudo fdesetup enable
 ipconfig getifaddr en0   # 應顯示固定 IP
 
 # 主機名
-sudo scutil --set HostName 承富-ai
-sudo scutil --set LocalHostName 承富-ai
+sudo scutil --set HostName 本公司-ai
+sudo scutil --set LocalHostName 本公司-ai
 # 確認可以 ping 到
-ping 承富-ai.local
+ping 本公司-ai.local
 ```
 
 - [ ] FileVault 啟用,還原金鑰**印出放保險箱**
@@ -141,14 +141,14 @@ brew install git openssl
 ### 1.4 下載專案
 ```bash
 cd ~
-git clone <承富 repo URL> ChengFu
-cd ChengFu
+git clone <本公司 repo URL> CompanyAIWorkspace
+cd CompanyAIWorkspace
 ```
 
 或若是直接拿檔案(非 git):
 ```bash
-rsync -avz sterio@<開發機>:Workspace/ChengFu/ ~/ChengFu/
-cd ~/ChengFu
+rsync -avz sterio@<開發機>:Workspace/CompanyAIWorkspace/ ~/CompanyAIWorkspace/
+cd ~/CompanyAIWorkspace
 ```
 
 ---
@@ -165,7 +165,7 @@ cd ~/ChengFu
 - JWT/CREDS/MEILI 金鑰(按 Enter 自動產生)
 - Email 密碼(選配)
 
-- [ ] 驗證:`security find-generic-password -s 'chengfu-ai-openai-key' -w` 能印出 key
+- [ ] 驗證:`security find-generic-password -s 'company-ai-openai-key' -w` 能印出 key
 
 ### 2.2 非機密設定
 ```bash
@@ -189,7 +189,7 @@ cd ..
 >
 > # 本機開發:ECC_ENV=development + ALLOW_LEGACY_AUTH_HEADERS=1
 > # 自動 merge docker-compose.override.yml(LibreChat port 3080 對外、debug log)
-> CHENGFU_ENV=dev ./scripts/start.sh
+> COMPANY_AI_ENV=dev ./scripts/start.sh
 > ```
 >
 > 啟動時 console 會印 `🔒 PROD 模式` 或 `⚙ DEV 模式` · 請確認後才繼續
@@ -198,22 +198,22 @@ cd ..
 ./scripts/start.sh
 ```
 會啟動 **5 個容器**:
-- `chengfu-nginx`(port 80 · 對外唯一入口)
-- `chengfu-librechat`(v0.8.5 · 內部 3080)
-- `chengfu-mongo`(對話 + 會計 + 專案 + 回饋)
-- `chengfu-meili`(全文檢索)
-- `chengfu-accounting`(FastAPI · 會計 / 專案 / 回饋 / 管理 / L3 classifier)
+- `company-ai-nginx`(port 80 · 對外唯一入口)
+- `company-ai-librechat`(v0.8.5 · 內部 3080)
+- `company-ai-mongo`(對話 + 會計 + 專案 + 回饋)
+- `company-ai-meili`(全文檢索)
+- `company-ai-accounting`(FastAPI · 會計 / 專案 / 回饋 / 管理 / L3 classifier)
 
 預期輸出:
 ```
 ✅ Keychain 讀取完成
 ✅ LibreChat 已就緒
-✅ 承富 AI 系統已啟動 → http://localhost
+✅ 企業 AI 系統已啟動 → http://localhost
 ```
 
-- [ ] 瀏覽器開 `http://localhost/` 看到**承富 Launcher 首頁**(不是 LibreChat 登入頁!)
+- [ ] 瀏覽器開 `http://localhost/` 看到**本公司 Launcher 首頁**(不是 LibreChat 登入頁!)
 - [ ] 如果是首次訪問會自動轉到 `/login` → LibreChat 註冊/登入頁
-- [ ] 註冊第一個帳號(這會是 ADMIN · 用 `sterio@chengfu.com`)
+- [ ] 註冊第一個帳號(這會是 ADMIN · 用 `sterio@company.example`)
 - [ ] 登入後自動回到 `/` 看到 Launcher 5 Workspace 卡片 + Onboarding Tour
 
 ### 2.4 Smoke Test
@@ -221,7 +221,7 @@ cd ..
 # 基本健康檢查
 curl http://localhost/healthz   # 應回 "ok"
 curl http://localhost/api/config  # LibreChat API 應回 JSON
-curl http://localhost/            # Launcher HTML 應有 "承富 AI" 字樣
+curl http://localhost/            # Launcher HTML 應有 "企業 AI" 字樣
 
 # 完整驗收
 LIBRECHAT_ADMIN_EMAIL=sterio@... \
@@ -231,9 +231,9 @@ LIBRECHAT_ADMIN_PASSWORD=<你剛設的> \
 預期:**至少 5/7 通過**。備份檢查在首次部署會 fail(還沒跑過 backup.sh),可忽略。
 
 ### 2.5 前端檢查
-- [ ] `/` 顯示承富 Launcher(Hero 輸入框 + 10 Agent 卡 + Projects + Skills)
-- [ ] `/chat` 進 LibreChat,右上角有「← 承富首頁」按鈕
-- [ ] LibreChat 介面字體比原版大、顏色用承富藍
+- [ ] `/` 顯示本公司 Launcher(Hero 輸入框 + 10 Agent 卡 + Projects + Skills)
+- [ ] `/chat` 進 LibreChat,右上角有「← 本公司首頁」按鈕
+- [ ] LibreChat 介面字體比原版大、顏色用品牌主色
 - [ ] 進階設定(Temperature / Top P)**看不到**(ADMIN 登入後在 Settings 才出現)
 - [ ] ⌘A 進會計頁,顯示「✅ 會計 API 已連接」(而非 ❌ 離線)
 - [ ] ADMIN 登入能看到側邊「📊 管理面板」(非 ADMIN 隱藏)
@@ -292,8 +292,8 @@ python3 scripts/create-agents.py --tier core
 
 ```bash
 # 從 docker container 抓現成的 token / key(都已注入)
-export ECC_INTERNAL_TOKEN=$(docker exec chengfu-accounting printenv ECC_INTERNAL_TOKEN)
-export OPENAI_API_KEY=$(docker exec chengfu-librechat printenv OPENAI_API_KEY)
+export ECC_INTERNAL_TOKEN=$(docker exec company-ai-accounting printenv ECC_INTERNAL_TOKEN)
+export OPENAI_API_KEY=$(docker exec company-ai-librechat printenv OPENAI_API_KEY)
 
 # 一鍵接(idempotent · 重跑不疊)
 LIBRECHAT_ADMIN_EMAIL=sterio@... LIBRECHAT_ADMIN_PASSWORD=<密碼> \
@@ -341,7 +341,7 @@ python3 scripts/upload-knowledge-base.py --files 'knowledge-base/openclaw-refere
 ```
 
 - [ ] 測試:登入 LibreChat,開「📚 知識庫查詢」Agent
-- [ ] 問:「承富做過環保類的案嗎?預算結構?」應引用過往檔案
+- [ ] 問:「本公司做過環保類的案嗎?預算結構?」應引用過往檔案
 - [ ] 開「✨ 主管家」,問「幫我寫建議書」→ 應主動查 SKILL-AGENT-MATRIX 並分派
 
 ### 3.4 批次建立 10 同仁帳號
@@ -365,15 +365,15 @@ python3 scripts/create-users.py
 cloudflared tunnel login
 
 # 建立 tunnel
-cloudflared tunnel create chengfu-ai
+cloudflared tunnel create company-ai
 
 # 設 DNS(ai.<公司域名>.com → tunnel)
-cloudflared tunnel route dns chengfu-ai ai.<公司域名>.com
+cloudflared tunnel route dns company-ai ai.<公司域名>.com
 
 # 建立 config(注意:port 改為 80 · nginx,不是 3080)
 cat > ~/.cloudflared/config.yml <<EOF
-tunnel: chengfu-ai
-credentials-file: /Users/chengfu-admin/.cloudflared/<tunnel-UUID>.json
+tunnel: company-ai
+credentials-file: /Users/company-ai-admin/.cloudflared/<tunnel-UUID>.json
 ingress:
   - hostname: ai.<公司域名>.com
     service: http://localhost:80
@@ -410,20 +410,20 @@ EDITOR=nano crontab -e
 ```
 加入:
 ```
-# 承富 AI · 每日 02:00 備份(MongoDB + knowledge-base + config)
-0 2 * * * /Users/chengfu-admin/ChengFu/scripts/backup.sh >> /Users/chengfu-admin/Library/Logs/chengfu-backup.log 2>&1
+# 企業 AI · 每日 02:00 備份(MongoDB + knowledge-base + config)
+0 2 * * * /Users/company-ai-admin/CompanyAIWorkspace/scripts/backup.sh >> /Users/company-ai-admin/Library/Logs/company-ai-backup.log 2>&1
 
-# 承富 AI · 每日 09:00 查政府採購網新標案
-0 9 * * * cd /Users/chengfu-admin/ChengFu && TENDER_SLACK_WEBHOOK="https://hooks.slack.com/..." /usr/bin/python3 scripts/tender-monitor.py >> /Users/chengfu-admin/Library/Logs/chengfu-tender.log 2>&1
+# 企業 AI · 每日 09:00 查政府採購網新標案
+0 9 * * * cd /Users/company-ai-admin/CompanyAIWorkspace && TENDER_SLACK_WEBHOOK="https://hooks.slack.com/..." /usr/bin/python3 scripts/tender-monitor.py >> /Users/company-ai-admin/Library/Logs/company-ai-tender.log 2>&1
 
-# 承富 AI · 每月 1 日 08:00 產月度報告並寄 email(需 SMTP 設定)
+# 企業 AI · 每月 1 日 08:00 產月度報告並寄 email(需 SMTP 設定)
 0 8 1 * * curl -s -X POST http://localhost/api-accounting/admin/send-monthly-report
 
-# 承富 AI · 週一至週五早上 8:30 寄 Daily Digest(需 ANTHROPIC_API_KEY + SMTP)
-30 8 * * 1-5 cd /Users/chengfu-admin/ChengFu && /usr/bin/python3 scripts/daily-digest.py >> /Users/chengfu-admin/Library/Logs/chengfu-digest.log 2>&1
+# 企業 AI · 週一至週五早上 8:30 寄 Daily Digest(需 ANTHROPIC_API_KEY + SMTP)
+30 8 * * 1-5 cd /Users/company-ai-admin/CompanyAIWorkspace && /usr/bin/python3 scripts/daily-digest.py >> /Users/company-ai-admin/Library/Logs/company-ai-digest.log 2>&1
 
-# 承富 AI · 每月 1 日 02:30 分析 Skill 演化建議(累積夠資料時啟用)
-30 2 1 * * cd /Users/chengfu-admin/ChengFu && /usr/bin/python3 scripts/propose-skill.py --days 30 >> /Users/chengfu-admin/Library/Logs/chengfu-skill-evolve.log 2>&1
+# 企業 AI · 每月 1 日 02:30 分析 Skill 演化建議(累積夠資料時啟用)
+30 2 1 * * cd /Users/company-ai-admin/CompanyAIWorkspace && /usr/bin/python3 scripts/propose-skill.py --days 30 >> /Users/company-ai-admin/Library/Logs/company-ai-skill-evolve.log 2>&1
 ```
 
 ### 4.5 設定 Uptime Kuma
@@ -441,7 +441,7 @@ EDITOR=nano crontab -e
 ```
 產出報告到 `reports/dr-drill-YYYY-MM-DD.md`,目標 RTO < 4 小時。
 
-- [ ] 手動測一次:`./scripts/backup.sh`,確認 `~/chengfu-backups/daily/` 有 `.gz` 檔
+- [ ] 手動測一次:`./scripts/backup.sh`,確認 `~/company-ai-backups/daily/` 有 `.gz` 檔
 - [ ] (選配)設 GPG 加密備份 → 見 `docs/05-SECURITY.md` 第 6 節
 
 ---
@@ -477,15 +477,15 @@ EDITOR=nano crontab -e
 ### 6.1 驗收清單對照
 對照 `CLAUDE.md` 第 3 節 DoD,逐項確認 ✅。
 
-### 6.2 交付物清單(給承富)
+### 6.2 交付物清單(給本公司)
 - [ ] 本專案 `docs/` 目錄完整 PDF(交給老闆)
 - [ ] Keychain 備份(Sterio 保存 1 份、放公司保險箱 1 份)
 - [ ] FileVault 還原金鑰紙本
-- [ ] Cloudflare 帳號擁有權(Sterio 協助交接給承富指定管理員)
+- [ ] Cloudflare 帳號擁有權(Sterio 協助交接給本公司指定管理員)
 - [ ] 備份恢復演練:`./scripts/backup.sh` 產出備份 → 模擬還原測試
 
 ### 6.3 簽收單
-`docs/ACCEPTANCE.md` 承富老闆簽名 + 日期。
+`docs/ACCEPTANCE.md` 本公司老闆簽名 + 日期。
 
 ---
 

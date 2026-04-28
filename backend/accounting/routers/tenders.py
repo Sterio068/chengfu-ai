@@ -209,7 +209,7 @@ def list_tender_alerts(
     limit: int = Query(default=50, ge=1, le=200),
     _user: str = require_user_dep(),  # R6#4 · 至少要登入 · v1.2 用 _deps.py
 ):
-    """R6#4 · 標案 list 不再匿名可讀(防外部偵察承富業務興趣)"""
+    """R6#4 · 標案 list 不再匿名可讀(防外部偵察本公司業務興趣)"""
     from main import db
     q = {}
     if status:

@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  承富 AI · 每日 02:00 備份(Mongo + Meili + KB · 全部 GPG 加密 · 異機同步)
+  企業 AI · 每日 02:00 備份(Mongo + Meili + KB · 全部 GPG 加密 · 異機同步)
 
   安裝:
     ./scripts/install-launchd.sh
   或手動:
-    cp config-templates/launchd/tw.chengfu.backup.plist ~/Library/LaunchAgents/
-    launchctl load ~/Library/LaunchAgents/tw.chengfu.backup.plist
+    cp config-templates/launchd/tw.company-ai.backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/tw.company-ai.backup.plist
 
   卸載:
-    launchctl unload ~/Library/LaunchAgents/tw.chengfu.backup.plist
-    rm ~/Library/LaunchAgents/tw.chengfu.backup.plist
+    launchctl unload ~/Library/LaunchAgents/tw.company-ai.backup.plist
+    rm ~/Library/LaunchAgents/tw.company-ai.backup.plist
 
   驗證:
-    launchctl list | grep tw.chengfu
-    tail -f ~/Library/Logs/chengfu-backup.log
+    launchctl list | grep tw.company-ai
+    tail -f ~/Library/Logs/company-ai-backup.log
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>tw.chengfu.backup</string>
+    <string>tw.company-ai.backup</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -41,9 +41,9 @@
 
     <!-- stderr / stdout · 給 Sterio debug · 也給 Champion 看有沒有跑 -->
     <key>StandardOutPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-backup.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-backup.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-backup.err.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-backup.err.log</string>
 
     <!-- 跑完就退 · 不要常駐 -->
     <key>RunAtLoad</key>

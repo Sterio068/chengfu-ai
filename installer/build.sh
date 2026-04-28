@@ -1,16 +1,16 @@
 #!/bin/bash
 # ============================================================
-# 承富 AI 系統 · 打包 Mac 安裝精靈為 .app + .dmg
+# 企業 AI 工作台 · 打包 Mac 安裝精靈為 .app + .dmg
 # ============================================================
-# 用 osacompile 把 ChengFu-AI-Installer.applescript 轉成 .app
-# 然後 hdiutil 包成 ChengFu-AI-Installer.dmg(可分發給承富 IT)
+# 用 osacompile 把 Company-AI-Installer.applescript 轉成 .app
+# 然後 hdiutil 包成 Company-AI-Installer.dmg(可分發給公司 IT)
 #
 # 用法:
 #   ./installer/build.sh
 #
 # 產出:
-#   installer/dist/ChengFu-AI-Installer.app  · macOS .app bundle
-#   installer/dist/ChengFu-AI-Installer.dmg  · disk image(可 mail / USB 給 IT)
+#   installer/dist/Company-AI-Installer.app  · macOS .app bundle
+#   installer/dist/Company-AI-Installer.dmg  · disk image(可 mail / USB 給 IT)
 # ============================================================
 
 set -euo pipefail
@@ -18,17 +18,17 @@ set -euo pipefail
 INSTALLER_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${INSTALLER_DIR}/.." && pwd)"
 DIST_DIR="${INSTALLER_DIR}/dist"
-APP_NAME="ChengFu-AI-Installer"
+APP_NAME="Company-AI-Installer"
 SRC="${INSTALLER_DIR}/${APP_NAME}.applescript"
 APP="${DIST_DIR}/${APP_NAME}.app"
 DMG="${DIST_DIR}/${APP_NAME}.dmg"
-DMG_VOL_NAME="承富 AI 安裝精靈"
+DMG_VOL_NAME="企業 AI 安裝精靈"
 
 RED="\033[0;31m"; GREEN="\033[0;32m"; YELLOW="\033[1;33m"; BLUE="\033[0;34m"; NC="\033[0m"
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}  承富 AI · 打包 Mac 安裝精靈${NC}"
+echo -e "${BLUE}  企業 AI · 打包 Mac 安裝精靈${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -70,20 +70,20 @@ echo -e "  ${GREEN}✓${NC} 產 $APP"
 # ---------- Step 2 · 內塞 README + LICENSE ----------
 echo -e "${BLUE}[2/3]${NC} 設 .app metadata"
 
-# 改 .app icon(用承富 logo · 若有)
+# 改 .app icon(用公司 logo · 若有)
 LOGO_ICNS="${INSTALLER_DIR}/icon.icns"
 if [[ -f "$LOGO_ICNS" ]]; then
     cp "$LOGO_ICNS" "${APP}/Contents/Resources/applet.icns"
-    echo -e "  ${GREEN}✓${NC} 套承富 icon"
+    echo -e "  ${GREEN}✓${NC} 套公司 icon"
 else
     echo -e "  ${YELLOW}⚠${NC} 無 icon.icns · 用 osacompile 預設(可後續放 installer/icon.icns)"
 fi
 
 # 改 .app Info.plist · 顯示中文名 + 版本
 PLIST="${APP}/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleName 承富 AI 安裝精靈" "$PLIST" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 承富 AI 安裝精靈" "$PLIST" 2>/dev/null || \
-    /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string '承富 AI 安裝精靈'" "$PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName 企業 AI 安裝精靈" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 企業 AI 安裝精靈" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string '企業 AI 安裝精靈'" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.4.0" "$PLIST" 2>/dev/null || \
     /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string '1.4.0'" "$PLIST"
 echo -e "  ${GREEN}✓${NC} 中文名 + 版本 1.4.0"
@@ -100,15 +100,17 @@ cp -R "$APP" "$DMG_STAGING/"
 
 # 內建目前 repo 快照 · 避免最新本機開發尚未 push 時,安裝精靈 clone 到舊版。
 # 排除本機資料庫、機密、快取與舊 installer 產物,保留可部署程式碼與 docs。
-SNAPSHOT="${DMG_STAGING}/ChengFu-source.tar.gz"
+SNAPSHOT="${DMG_STAGING}/CompanyAI-source.tar.gz"
 echo -e "  ${BLUE}·${NC} 產內建 source 快照(排除 data/.env/.git/cache/local artifacts)"
 tar \
     --exclude=".git" \
     --exclude=".claude" \
+    --exclude=".venv*" \
     --exclude=".DS_Store" \
     --exclude=".pytest_cache" \
     --exclude="tmp" \
     --exclude="**/__pycache__" \
+    --exclude="**/__pycache__/*" \
     --exclude="**/*.pyc" \
     --exclude="**/node_modules" \
     --exclude="config-templates/.env" \
@@ -123,6 +125,7 @@ tar \
     --exclude="config-templates/users.json" \
     --exclude="reports" \
     --exclude="reports/qa-artifacts" \
+    --exclude="tests/rag-fixtures" \
     --exclude="test-results" \
     --exclude="playwright-report" \
     --exclude="tests/e2e/test-results" \
@@ -137,7 +140,7 @@ echo -e "  ${GREEN}✓${NC} source 快照 $(du -h "$SNAPSHOT" | awk '{print $1}'
 # 包 README.txt(雙擊 .dmg 後看到的指引)
 cat > "$DMG_STAGING/讀我.txt" << 'EOF'
 ═══════════════════════════════════════════════════
-  承富 AI 系統 v1.3/vNext · Mac 安裝精靈
+  企業 AI 工作台 v1.3/vNext · Mac 安裝精靈
 ═══════════════════════════════════════════════════
 
 ⚠ 重要 · 第一次打開請看這裡 ⚠
@@ -146,7 +149,7 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
   解法:雙擊「打開我.command」自動清 quarantine + 跑安裝
 
   若不要用 .command(老派方式):
-   • 對「ChengFu-AI-Installer.app」按右鍵 →「打開」→ 跳警告再按「打開」
+   • 對「Company-AI-Installer.app」按右鍵 →「打開」→ 跳警告再按「打開」
    • 或:系統設定 → 隱私權與安全性 → 找到被擋的 app →「仍要打開」
 
 ═══════════════════════════════════════════════════
@@ -154,7 +157,7 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
 【使用方法】
 
   1. 雙擊「打開我.command」(推薦)
-     或對「ChengFu-AI-Installer.app」按右鍵 →「打開」
+     或對「Company-AI-Installer.app」按右鍵 →「打開」
   2. 若已安裝過,會先偵測既有 .env + Keychain:
      • 選「沿用既有」:不重填 API Key / 網域 / admin / NAS
      • 選「重新設定」:走完整 7 步驟,可更換設定
@@ -166,10 +169,10 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
      • Fal.ai API Key(設計生圖選配 · 裝完可在中控設定)
        取得網址:https://fal.ai/dashboard/keys
      • 公司域名(可選 · 留空用本機 localhost)
-     • 管理員 email(必填 · 請用承富公司管理信箱)
+     • 管理員 email(必填 · 請用公司管理信箱)
      • NAS 路徑(可選)
   4. 確認後自動完成:
-     • 若本機沒有 ChengFu repo,會先從此 .dmg 內建快照展開新版程式碼
+     • 若本機沒有 project repo,會先從此 .dmg 內建快照展開新版程式碼
      • 機密寫入或沿用 macOS Keychain
      • 建 .env 或沿用既有 .env(保留 Mongo 帳號、對話、Agent)
      • 抓 5 個 Docker image
@@ -197,7 +200,7 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
 
   1. python3 scripts/create-users.py     · 建 10 同仁帳號
   2. python3 scripts/create-agents.py    · 建 10 個 AI Agent
-  3. python3 scripts/upload-knowledge-base.py · 上傳承富知識庫
+  3. python3 scripts/upload-knowledge-base.py · 上傳公司知識庫
   4. ./scripts/install-launchd.sh        · 排定 cron(每日備份/標案/digest)
   5. 設 Cloudflare Tunnel               · 對外網域
   6. 安排 2 場教育訓練                   · 全員 Onboarding + 進階
@@ -205,43 +208,43 @@ cat > "$DMG_STAGING/讀我.txt" << 'EOF'
 【常見問題】
 
   Q: 安裝失敗了?
-  A: 重跑「ChengFu-AI-Installer.app」即可 · 選「沿用既有」跳過已完成步驟
+  A: 重跑「Company-AI-Installer.app」即可 · 選「沿用既有」跳過已完成步驟
 
   Q: Docker 沒啟動?
   A: 開啟「Docker Desktop」· 等右上角 Docker 圖示變綠 · 重跑安裝
 
-  Q: 找不到 ChengFu repo?
-  A: 安裝精靈會自動 clone 到 ~/ChengFu · 或讓你選現有路徑
+  Q: 找不到 project repo?
+  A: 安裝精靈會自動 clone 到 ~/CompanyAIWorkspace · 或讓你選現有路徑
 
   Q: 想看更詳細指引?
-  A: 完整文件在 ~/ChengFu/INSTALL.md 與 ~/ChengFu/DEPLOY.md
+  A: 完整文件在 ~/CompanyAIWorkspace/INSTALL.md 與 ~/CompanyAIWorkspace/DEPLOY.md
 
 【聯絡】
 
   作者:Sterio
-  Email:請填承富內部 IT / 專案負責窗口
+  Email:請填公司內部 IT / 專案負責窗口
   GitHub:https://github.com/Sterio068/company-ai-workspace
 EOF
 echo -e "  ${GREEN}✓${NC} 寫進「讀我.txt」"
 
 # 「打開我.command」· 自動清 quarantine + 跑安裝精靈
-# 雙擊 .command 比較穩 · 避免承富 IT 卡在 Gatekeeper
+# 雙擊 .command 比較穩 · 避免公司 IT 卡在 Gatekeeper
 cat > "$DMG_STAGING/打開我.command" << 'CMDEOF'
 #!/bin/bash
 # ============================================================
-# 一鍵清 macOS Gatekeeper quarantine + 跑承富 AI 安裝精靈
+# 一鍵清 macOS Gatekeeper quarantine + 跑企業 AI 安裝精靈
 # ============================================================
 clear
 echo "═══════════════════════════════════════════════════"
-echo "  承富 AI · 一鍵打開"
+echo "  企業 AI · 一鍵打開"
 echo "═══════════════════════════════════════════════════"
 echo ""
 
 DMG_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_PATH="${DMG_DIR}/ChengFu-AI-Installer.app"
+APP_PATH="${DMG_DIR}/Company-AI-Installer.app"
 
 if [ ! -d "$APP_PATH" ]; then
-    echo "❌ 找不到 ChengFu-AI-Installer.app"
+    echo "❌ 找不到 Company-AI-Installer.app"
     echo "   請確認此 .command 跟 .app 在同一資料夾"
     read -p "按 Enter 結束..."
     exit 1
@@ -249,7 +252,7 @@ fi
 
 echo "▌ 1. 清 macOS quarantine attribute..."
 # DMG 內無法寫 · 拷到 /Applications 後再清
-TARGET="/Applications/ChengFu-AI-Installer.app"
+TARGET="/Applications/Company-AI-Installer.app"
 if [ -d "$TARGET" ]; then
     echo "  · 目標已存在 · 覆蓋"
     rm -rf "$TARGET"
@@ -292,6 +295,6 @@ echo "  .app:$APP"
 echo "  .dmg:$DMG"
 echo ""
 echo "  打開測試:open '$APP'"
-echo "  分發:USB / mail / Slack 把 $DMG 給承富 IT"
+echo "  分發:USB / mail / Slack 把 $DMG 給公司 IT"
 echo ""
 ls -lh "$DIST_DIR" | tail -3

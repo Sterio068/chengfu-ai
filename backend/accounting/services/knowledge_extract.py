@@ -13,7 +13,7 @@ import pathlib
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger("chengfu.extract")
+logger = logging.getLogger("company_ai.extract")
 
 # lazy import · 讓測試環境不一定要裝滿所有 library
 _fitz = None

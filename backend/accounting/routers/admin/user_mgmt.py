@@ -27,6 +27,19 @@ import bcrypt
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
+from field_names import (
+    LEGACY_USER_ACTIVE_FIELD,
+    LEGACY_USER_CREATED_BY_FIELD,
+    LEGACY_USER_PERMISSIONS_FIELD,
+    LEGACY_USER_TITLE_FIELD,
+    USER_ACTIVE_FIELD,
+    USER_CREATED_BY_FIELD,
+    USER_PERMISSIONS_FIELD,
+    USER_TITLE_FIELD,
+    inactive_user_delete_query,
+    user_active_query,
+    user_is_inactive,
+)
 from .._deps import require_admin_dep, get_db
 
 logger = logging.getLogger(__name__)
@@ -156,7 +169,7 @@ TITLE_PRESETS = {
 # 其他 permission 目前仍是營運配置 / UI 分流資料,不可誤導 admin 以為已完整 RBAC。
 ENFORCEMENT_STATUS = {
     "mode": "progressive",
-    "summary": "ADMIN 與高風險資料入口已由後端強制；細部 chengfu_permissions 逐步展開。",
+    "summary": "ADMIN 與高風險資料入口已由後端強制；細部權限逐步展開。",
     "enforced_permissions": [
         "admin.dashboard",
         "admin.audit",
@@ -294,12 +307,12 @@ class PasswordReset(BaseModel):
 # ============================================================
 @router.post("/users")
 def create_user(payload: UserCreate, _admin: str = require_admin_dep()):
-    """建新同仁 · 寫 LibreChat users + 承富 meta 欄位
+    """建新同仁 · 寫 LibreChat users + 本公司 meta 欄位
 
     流程:
     1. check email 沒重複
     2. bcrypt hash 密碼
-    3. insert users · 含 title / permissions / 承富自訂 meta
+    3. insert users · 含 title / permissions / 本公司自訂 meta
     4. 回 user(不含密碼)
 
     Note:密碼 admin 看一次後消失 · 同仁要改密碼走 LibreChat 自己的 reset 流程
@@ -324,7 +337,7 @@ def create_user(payload: UserCreate, _admin: str = require_admin_dep()):
     if invalid:
         raise HTTPException(400, f"不合法 permission keys: {invalid}")
 
-    # LibreChat 基本 fields + 承富自訂 meta(chengfu_* prefix 不碰 LibreChat 原生)
+    # LibreChat 基本 fields + app 自訂 meta(避開 LibreChat 原生欄位)
     doc = {
         "email": email_norm,
         "name": payload.name,
@@ -335,11 +348,11 @@ def create_user(payload: UserCreate, _admin: str = require_admin_dep()):
         "provider": "local",
         "createdAt": datetime.now(timezone.utc),
         "updatedAt": datetime.now(timezone.utc),
-        # 承富自訂 meta
-        "chengfu_title": payload.title or "",
-        "chengfu_permissions": payload.permissions,
-        "chengfu_active": True,
-        "chengfu_created_by": "admin_ui",
+        # 本公司自訂 meta
+        USER_TITLE_FIELD: payload.title or "",
+        USER_PERMISSIONS_FIELD: payload.permissions,
+        USER_ACTIVE_FIELD: True,
+        USER_CREATED_BY_FIELD: "admin_ui",
     }
     r = db.users.insert_one(doc)
 
@@ -381,7 +394,7 @@ def list_users(
 ):
     """列所有 user · 不含密碼 hash · 預設只回 active"""
     db = get_db()
-    q = {} if include_inactive else {"chengfu_active": {"$ne": False}}
+    q = {} if include_inactive else user_active_query()
 
     users = []
     for u in db.users.find(q).sort("createdAt", -1):
@@ -389,10 +402,10 @@ def list_users(
             "id": str(u["_id"]),
             "email": u.get("email", ""),
             "name": u.get("name", ""),
-            "title": u.get("chengfu_title", ""),
+            "title": u.get(USER_TITLE_FIELD, u.get(LEGACY_USER_TITLE_FIELD, "")),
             "role": u.get("role", "USER"),
-            "permissions": u.get("chengfu_permissions", []),
-            "active": u.get("chengfu_active", True),
+            "permissions": u.get(USER_PERMISSIONS_FIELD, u.get(LEGACY_USER_PERMISSIONS_FIELD, [])),
+            "active": not user_is_inactive(u),
             "created_at": (u.get("createdAt") or datetime.now(timezone.utc)).isoformat(),
             "last_login": u.get("lastLogin", "").isoformat() if u.get("lastLogin") else None,
         })
@@ -422,22 +435,30 @@ def update_user(email: str, payload: UserUpdate, _admin: str = require_admin_dep
 
     # permissions 驗
     update_fields = {"updatedAt": datetime.now(timezone.utc)}
+    unset_fields = {}
     if payload.name is not None:
         update_fields["name"] = payload.name
     if payload.title is not None:
-        update_fields["chengfu_title"] = payload.title
+        update_fields[USER_TITLE_FIELD] = payload.title
+        unset_fields[LEGACY_USER_TITLE_FIELD] = ""
     if payload.permissions is not None:
         valid_keys = {p["key"] for g in PERMISSION_CATALOG for p in g["items"]}
         invalid = [k for k in payload.permissions if k not in valid_keys]
         if invalid:
             raise HTTPException(400, f"不合法 permission keys: {invalid}")
-        update_fields["chengfu_permissions"] = payload.permissions
+        update_fields[USER_PERMISSIONS_FIELD] = payload.permissions
+        unset_fields[LEGACY_USER_PERMISSIONS_FIELD] = ""
     if payload.role is not None:
         update_fields["role"] = payload.role
     if payload.active is not None:
-        update_fields["chengfu_active"] = payload.active
+        update_fields[USER_ACTIVE_FIELD] = payload.active
+        unset_fields[LEGACY_USER_ACTIVE_FIELD] = ""
+        unset_fields[LEGACY_USER_CREATED_BY_FIELD] = ""
 
-    db.users.update_one({"email": email_norm}, {"$set": update_fields})
+    patch = {"$set": update_fields}
+    if unset_fields:
+        patch["$unset"] = unset_fields
+    db.users.update_one({"email": email_norm}, patch)
 
     # audit
     try:
@@ -475,9 +496,9 @@ def deactivate_user(email: str, _admin: str = require_admin_dep()):
     r = db.users.update_one(
         {"email": email_norm},
         {"$set": {
-            "chengfu_active": False,
+            USER_ACTIVE_FIELD: False,
             "updatedAt": datetime.now(timezone.utc),
-        }},
+        }, "$unset": {LEGACY_USER_ACTIVE_FIELD: ""}},
     )
     if r.matched_count == 0:
         raise HTTPException(404, f"user {email_norm} 不存在")
@@ -615,7 +636,7 @@ def delete_user_permanent(email: str, _admin: str = require_admin_dep()) -> dict
     if not u:
         raise HTTPException(404, f"user {email_norm} 不存在")
 
-    if u.get("chengfu_active") is not False:
+    if not user_is_inactive(u):
         raise HTTPException(
             400,
             "請先 deactivate(停用)後再硬刪 · 二段式防誤操作",
@@ -664,8 +685,8 @@ def delete_user_permanent(email: str, _admin: str = require_admin_dep()) -> dict
             f"無法清除登入 token({', '.join(failed)})· 為防止帳號殘留可登入,已中止刪除 · 請聯絡 IT",
         )
 
-    # C7 · CAS guard:filter 強制 chengfu_active=False · 防 admin race(B 在你刪前 reactivate)
-    r = db.users.delete_one({"_id": user_id, "chengfu_active": False})
+    # C7 · CAS guard:filter 強制帳號停用 · 防 admin race(B 在你刪前 reactivate)
+    r = db.users.delete_one(inactive_user_delete_query(user_id))
     if r.deleted_count == 0:
         # 兩種狀況:1) 並發被刪  2) 並發被 reactivate
         latest = db.users.find_one({"_id": user_id})

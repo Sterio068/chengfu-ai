@@ -1,6 +1,6 @@
 # docs/09-RAG-LAYERED-INDEX.md — RAG 分層索引策略
 
-> **問題**:承富上傳 500 份建議書 + 12 Skills + 17 Claude Skills + 4 Company Memory,
+> **問題**:本公司上傳 500 份建議書 + 12 Skills + 17 Claude Skills + 4 Company Memory,
 > 若全塞單一 vector DB,file_search 精準度下降(語意相近的很多)
 >
 > **解法**:依內容類型分 Agent 附加不同檔案 · LibreChat 原生支援 Agent-level file attachment
@@ -14,12 +14,12 @@ LibreChat 的 file_search 是 **per-Agent scope**:每個 Agent 有自己的 atta
 
 ---
 
-## 承富 5 層 RAG 設計
+## 本公司 5 層 RAG 設計
 
 | 層 | 內容 | 附加到哪些 Agent | 大小預估 |
 |---|---|---|---|
 | **L1 · 品牌層**(必) | `company/*.md`(品牌/禁用詞/稱謂/格式) | 全部 10 Agent | ~30 KB |
-| **L2 · 技能層** | `skills/*.md`(承富 12)+ `claude-skills/**/SKILL.md` | 相關 Agent(見矩陣) | ~150 KB |
+| **L2 · 技能層** | `skills/*.md`(本公司 12)+ `claude-skills/**/SKILL.md` | 相關 Agent(見矩陣) | ~150 KB |
 | **L3 · 矩陣層** | `SKILL-AGENT-MATRIX.md` | 主管家 + 所有 Agent(必讀) | 10 KB |
 | **L4 · 歷史層**(最大) | `historical/建議書/*.pdf` 等 | 投標顧問 · 結案營運 · 知識庫 | 5-50 MB |
 | **L5 · 參考層** | `openclaw-reference/*.md` | 主管家(視需要) | ~80 KB |

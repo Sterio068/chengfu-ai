@@ -32,7 +32,7 @@ from services.social_providers import PublishError, publish
 
 
 router = APIRouter(tags=["social"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 MAX_RETRIES = 3
 PLATFORMS = ("facebook", "instagram", "linkedin")

@@ -60,7 +60,7 @@ SOCIAL_FEATURE_ENABLED=false  # 隱藏 entry · 接 v1.4 才開
 ### Step 4 · 設定 OAuth Redirect URI
 - App Dashboard → Facebook Login → Settings
 - Valid OAuth Redirect URIs:
-  - `https://ai.<chengfu>.com/api-accounting/social/oauth/callback`(prod)
+  - `https://ai.<company_ai>.com/api-accounting/social/oauth/callback`(prod)
   - `http://localhost/api-accounting/social/oauth/callback`(dev)
 
 ### Step 5 · 申請 Permissions(App Review)
@@ -90,10 +90,10 @@ App Review 提交時要附:
 
 ```bash
 # 1. 把 App 過了的 keys 寫進 keychain
-security add-generic-password -s 'chengfu-ai-meta-app-id' -w '<APP_ID>'
-security add-generic-password -s 'chengfu-ai-meta-app-secret' -w '<APP_SECRET>'
-security add-generic-password -s 'chengfu-ai-linkedin-app-id' -w '<APP_ID>'
-security add-generic-password -s 'chengfu-ai-linkedin-app-secret' -w '<APP_SECRET>'
+security add-generic-password -s 'company-ai-meta-app-id' -w '<APP_ID>'
+security add-generic-password -s 'company-ai-meta-app-secret' -w '<APP_SECRET>'
+security add-generic-password -s 'company-ai-linkedin-app-id' -w '<APP_ID>'
+security add-generic-password -s 'company-ai-linkedin-app-secret' -w '<APP_SECRET>'
 
 # 2. start.sh 自動 export 進 accounting container env
 ./scripts/start.sh

@@ -18,7 +18,7 @@ import hashlib  # v1.23 perf · 從 detect_all hot loop 內 import 提到 module
 import re
 import logging
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 # 日期 regex(覆蓋台灣常用格式 · 寬鬆抓)
 # 1) MM/DD or M/D · 5/15 · 12/31

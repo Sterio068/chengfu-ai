@@ -22,7 +22,7 @@ from ._deps import get_db, require_user_dep
 
 
 router = APIRouter(prefix="/design", tags=["design"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 FAL_QUEUE_URL = "https://queue.fal.run/fal-ai/recraft-v3"
@@ -143,9 +143,9 @@ async def _openai_generate(req: "RecraftRequest", email: str) -> dict:
     payload = {
         "model": OPENAI_IMAGE_MODEL,
         "prompt": full_prompt,
-        "n": 3,  # Q7 承富一次 3 張
+        "n": 3,  # Q7 本公司一次 3 張
         "size": _OPENAI_SIZE_MAP.get(req.image_size, "1024x1024"),
-        "quality": "high",  # standard / high / auto · 承富選高品質
+        "quality": "high",  # standard / high / auto · 本公司選高品質
         # response_format 在 gpt-image-2 預設 b64_json · 不用顯設
     }
     headers = {

@@ -1,5 +1,5 @@
 """
-承富會計 + 統一後端 · 基礎測試
+本公司會計 + 統一後端 · 基礎測試
 ==================================
 執行:
   cd backend/accounting
@@ -7,7 +7,7 @@
   pytest test_main.py -v
 
 或在 docker 環境:
-  docker exec chengfu-accounting pytest /app/test_main.py -v
+  docker exec company-ai-accounting pytest /app/test_main.py -v
 """
 import os
 import pytest
@@ -22,24 +22,24 @@ def client():
     import os
     os.environ["ALLOW_LEGACY_AUTH_HEADERS"] = "1"
     os.environ["ECC_ENV"] = "development"  # 防 prod startup 強制 JWT_REFRESH_SECRET
-    # v1.3 batch6 · 移除 sterio068@gmail.com hardcode fallback 後 · test 必須明確設
-    # 只給 sterio068@gmail.com · test@chengfu.local 用來測 non-admin → 403 場景
-    os.environ["ADMIN_EMAILS"] = "sterio068@gmail.com"
+    # v1.3 batch6 · 移除 sterio068@gmail.example hardcode fallback 後 · test 必須明確設
+    # 只給 sterio068@gmail.example · test@company-ai.local 用來測 non-admin → 403 場景
+    os.environ["ADMIN_EMAILS"] = "sterio068@gmail.example"
     with patch("pymongo.MongoClient", mongomock.MongoClient):
         import importlib
         import main
         importlib.reload(main)
-        c = TestClient(main.app, headers={"X-User-Email": "test@chengfu.local"})
+        c = TestClient(main.app, headers={"X-User-Email": "test@company-ai.local"})
         # 觸發 startup
         c.get("/healthz")
         main.db.users.update_one(
-            {"email": "test@chengfu.local"},
+            {"email": "test@company-ai.local"},
             {"$set": {
-                "email": "test@chengfu.local",
+                "email": "test@company-ai.local",
                 "name": "Test User",
                 "role": "USER",
-                "chengfu_active": True,
-                "chengfu_permissions": [
+                "company_ai_active": True,
+                "company_ai_permissions": [
                     "accounting.view", "accounting.edit",
                     "project.create", "project.edit_own",
                     "social.post_own", "site.survey",
@@ -201,21 +201,21 @@ def test_notebooklm_project_source_pack_create(client):
 
 def test_notebooklm_project_source_pack_acl(client):
     import main as main_mod
-    for email in ["alice@company.local", "bob@company.local"]:
+    for email in ["alice@company-ai.local", "bob@company-ai.local"]:
         main_mod.db.users.update_one(
             {"email": email},
             {"$set": {
                 "email": email,
                 "name": email.split("@")[0],
                 "role": "USER",
-                "chengfu_active": True,
-                "chengfu_permissions": ["knowledge.search", "project.create", "project.edit_own"],
+                "company_ai_active": True,
+                "company_ai_permissions": ["knowledge.search", "project.create", "project.edit_own"],
             }},
             upsert=True,
         )
 
-    alice_headers = {"X-User-Email": "alice@company.local"}
-    bob_headers = {"X-User-Email": "bob@company.local"}
+    alice_headers = {"X-User-Email": "alice@company-ai.local"}
+    bob_headers = {"X-User-Email": "bob@company-ai.local"}
     r = client.post("/projects", json={
         "name": "Alice NotebookLM 私有工作包",
         "client": "文化局",
@@ -243,20 +243,20 @@ def test_notebooklm_project_source_pack_acl(client):
 def test_notebooklm_agent_source_pack_uses_acting_user_acl(client):
     """Agent action 不能用 admin 身分繞過工作包 owner/collaborator 邊界."""
     import main as main_mod
-    for email in ["agent-alice@company.local", "agent-bob@company.local"]:
+    for email in ["agent-alice@company-ai.local", "agent-bob@company-ai.local"]:
         main_mod.db.users.update_one(
             {"email": email},
             {"$set": {
                 "email": email,
                 "name": email.split("@")[0],
                 "role": "USER",
-                "chengfu_active": True,
-                "chengfu_permissions": ["knowledge.search", "project.create", "project.edit_own"],
+                "company_ai_active": True,
+                "company_ai_permissions": ["knowledge.search", "project.create", "project.edit_own"],
             }},
             upsert=True,
         )
 
-    alice_headers = {"X-User-Email": "agent-alice@company.local"}
+    alice_headers = {"X-User-Email": "agent-alice@company-ai.local"}
     r = client.post("/projects", json={
         "name": "Agent ACL 私有工作包",
         "client": "文化局",
@@ -266,8 +266,8 @@ def test_notebooklm_agent_source_pack_uses_acting_user_acl(client):
     project_id = r.json()["id"]
 
     admin_as_bob = {
-        "X-User-Email": "sterio068@gmail.com",
-        "X-Acting-User": "agent-bob@company.local",
+        "X-User-Email": "sterio068@gmail.example",
+        "X-Acting-User": "agent-bob@company-ai.local",
     }
     r = client.post("/notebooklm/agent/source-packs", json={
         "scope": "project",
@@ -277,8 +277,8 @@ def test_notebooklm_agent_source_pack_uses_acting_user_acl(client):
     assert r.status_code == 403
 
     admin_as_alice = {
-        "X-User-Email": "sterio068@gmail.com",
-        "X-Acting-User": "agent-alice@company.local",
+        "X-User-Email": "sterio068@gmail.example",
+        "X-Acting-User": "agent-alice@company-ai.local",
     }
     r = client.post("/notebooklm/agent/source-packs", json={
         "scope": "project",
@@ -287,7 +287,7 @@ def test_notebooklm_agent_source_pack_uses_acting_user_acl(client):
     }, headers=admin_as_alice)
     assert r.status_code == 200
     body = r.json()
-    assert body["created_by"] == "agent:agent-alice@company.local"
+    assert body["created_by"] == "agent:agent-alice@company-ai.local"
     assert body["sensitivity"] == "L3"
 
     r = client.get("/notebooklm/agent/source-packs", headers=admin_as_bob)
@@ -578,7 +578,7 @@ def test_internal_token_with_acting_user_satisfies_user_permission(client, monke
     monkeypatch.setenv("ECC_INTERNAL_TOKEN", "test-internal-token")
     headers = {
         "X-Internal-Token": "test-internal-token",
-        "X-Acting-User": "test@chengfu.local",
+        "X-Acting-User": "test@company-ai.local",
     }
     r = client.get("/transactions", headers=headers)
     assert r.status_code == 200
@@ -588,7 +588,7 @@ def test_action_bridge_token_with_acting_user_satisfies_action_permission(client
     monkeypatch.setenv("ACTION_BRIDGE_TOKEN", "test-action-bridge-token")
     headers = {
         "X-Internal-Token": "test-action-bridge-token",
-        "X-Acting-User": "test@chengfu.local",
+        "X-Acting-User": "test@company-ai.local",
     }
     r = client.get("/transactions", headers=headers)
     assert r.status_code == 200
@@ -598,7 +598,7 @@ def test_action_bridge_token_is_scoped_to_action_paths(client, monkeypatch):
     monkeypatch.setenv("ACTION_BRIDGE_TOKEN", "test-action-bridge-token")
     headers = {
         "X-Internal-Token": "test-action-bridge-token",
-        "X-Acting-User": "sterio068@gmail.com",
+        "X-Acting-User": "sterio068@gmail.example",
     }
     r = client.get("/admin/audit-log", headers=headers)
     assert r.status_code == 403
@@ -608,7 +608,7 @@ def test_notebooklm_agent_routes_accept_action_bridge_token(client, monkeypatch)
     monkeypatch.setenv("ACTION_BRIDGE_TOKEN", "test-action-bridge-token")
     headers = {
         "X-Internal-Token": "test-action-bridge-token",
-        "X-Acting-User": "test@chengfu.local",
+        "X-Acting-User": "test@company-ai.local",
     }
     r = client.get("/notebooklm/agent/source-packs", headers=headers)
     assert r.status_code == 200
@@ -631,7 +631,7 @@ def test_notebooklm_settings_bad_token_does_not_write(client):
                 "endpoint_location": "global",
                 "access_token": "bad-token",
             },
-            headers={"X-User-Email": "sterio068@gmail.com"},
+            headers={"X-User-Email": "sterio068@gmail.example"},
         )
     assert r.status_code == 412
     assert r.json()["detail"]["recovery_hint"] == "permission_denied"
@@ -651,7 +651,7 @@ def test_notebooklm_settings_validates_then_writes(client):
                 "endpoint_location": "global",
                 "access_token": "good-token",
             },
-            headers={"X-User-Email": "sterio068@gmail.com"},
+            headers={"X-User-Email": "sterio068@gmail.example"},
         )
     assert r.status_code == 200
     assert main_mod.db.system_settings.find_one({"name": "NOTEBOOKLM_ACCESS_TOKEN"})["value"] == "good-token"
@@ -698,7 +698,7 @@ def test_notebooklm_sync_unconfigured_returns_local_ready(client):
     r = client.post(
         f"/notebooklm/source-packs/{pack_id}/sync",
         json={"create_notebook": True},
-        headers={"X-User-Email": "sterio068@gmail.com"},
+        headers={"X-User-Email": "sterio068@gmail.example"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -720,7 +720,7 @@ def test_notebooklm_sync_failure_marks_run_failed(client):
                 r = client.post(
                     f"/notebooklm/source-packs/{pack_id}/sync",
                     json={"create_notebook": True},
-                    headers={"X-User-Email": "sterio068@gmail.com"},
+                    headers={"X-User-Email": "sterio068@gmail.example"},
                 )
     assert r.status_code == 502
     run = main_mod.db.notebooklm_sync_runs.find_one({"pack_id": pack_id}, sort=[("created_at", -1)])
@@ -753,7 +753,7 @@ def test_notebooklm_sync_client_error_returns_recovery_hint(client):
                 r = client.post(
                     f"/notebooklm/source-packs/{pack_id}/sync",
                     json={"create_notebook": True},
-                    headers={"X-User-Email": "sterio068@gmail.com"},
+                    headers={"X-User-Email": "sterio068@gmail.example"},
                 )
     assert r.status_code == 401
     assert r.json()["detail"]["recovery_hint"] == "token_expired"
@@ -778,7 +778,7 @@ def test_notebooklm_l3_sync_requires_second_confirm(client):
         r = client.post(
             f"/notebooklm/source-packs/{pack_id}/sync",
             json={"create_notebook": True},
-            headers={"X-User-Email": "sterio068@gmail.com"},
+            headers={"X-User-Email": "sterio068@gmail.example"},
         )
     assert r.status_code == 409
     assert r.json()["detail"]["code"] == "notebooklm_confirm_required"
@@ -791,7 +791,7 @@ def test_notebooklm_l3_sync_requires_second_confirm(client):
                 r = client.post(
                     f"/notebooklm/source-packs/{pack_id}/sync",
                     json={"create_notebook": True, "confirm_send_to_notebooklm": True},
-                    headers={"X-User-Email": "sterio068@gmail.com"},
+                    headers={"X-User-Email": "sterio068@gmail.example"},
                 )
     assert r.status_code == 200
     assert r.json()["state"] == "synced"
@@ -803,12 +803,12 @@ def test_handoff_card_roundtrip(client):
     r = client.post(
         "/projects",
         json={"name": "handoff test proj"},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     pid = r.json()["id"]
 
     # 初始 handoff 應該是空
-    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@company-ai.local"})
     assert r.status_code == 200
     body = r.json()
     assert body["project_name"] == "handoff test proj"
@@ -820,26 +820,26 @@ def test_handoff_card_roundtrip(client):
         "constraints": ["品牌色橘黃", "預算 5 萬", "3 天內"],
         "asset_refs": [
             {"type": "nas", "label": "客戶舊包裝", "ref": "/Volumes/NAS/x/"},
-            {"type": "url", "label": "競品參考", "ref": "https://example.com"},
+            {"type": "url", "label": "競品參考", "ref": "https://example.example"},
         ],
         "next_actions": ["設計師產 3 方向 · 週四前", "PM 排與客戶提案會議"],
     }
     r = client.put(
         f"/projects/{pid}/handoff",
         json=card,
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
     assert r.json()["ok"] is True
 
     # 取回來必一致
-    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@company-ai.local"})
     h = r.json()["handoff"]
     assert h["goal"] == "中秋節社群活動主視覺"
     assert len(h["constraints"]) == 3
     assert len(h["asset_refs"]) == 2
     assert h["asset_refs"][0]["type"] == "nas"
-    assert h["updated_by"] == "pm@chengfu.local"
+    assert h["updated_by"] == "pm@company-ai.local"
     assert "updated_at" in h
 
 
@@ -851,7 +851,7 @@ def test_handoff_card_update_preserves_system_handoff_fields(client):
     r = client.post(
         "/projects",
         json={"name": "handoff preserve test"},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     pid = r.json()["id"]
     main_mod.db.projects.update_one(
@@ -864,7 +864,7 @@ def test_handoff_card_update_preserves_system_handoff_fields(client):
                 {"type": "note", "label": "場勘彙整", "ref": "室內 · 50 坪"},
             ],
             "handoff.asset_refs": [
-                {"type": "url", "label": "舊素材", "ref": "https://old.example.com"},
+                {"type": "url", "label": "舊素材", "ref": "https://old.example.example"},
             ],
             "handoff.meeting_next_actions": ["寫提案 · Alice · 期限 4/25"],
             "handoff.next_actions": ["舊人工待辦"],
@@ -875,10 +875,10 @@ def test_handoff_card_update_preserves_system_handoff_fields(client):
         f"/projects/{pid}/handoff",
         json={
             "goal": "只更新人工交棒卡",
-            "asset_refs": [{"type": "url", "label": "新素材", "ref": "https://new.example.com"}],
+            "asset_refs": [{"type": "url", "label": "新素材", "ref": "https://new.example.example"}],
             "next_actions": ["PM 確認需求"],
         },
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
 
@@ -888,14 +888,14 @@ def test_handoff_card_update_preserves_system_handoff_fields(client):
     assert handoff["site_issues"] == ["入口有高差"]
     assert handoff["site_venue"] == "松菸 4 號倉庫"
     assert handoff["workflow_draft"]["preset_id"] == "tender-full"
-    assert {"type": "url", "label": "新素材", "ref": "https://new.example.com"} in handoff["asset_refs"]
-    assert {"type": "url", "label": "舊素材", "ref": "https://old.example.com"} not in handoff["asset_refs"]
+    assert {"type": "url", "label": "新素材", "ref": "https://new.example.example"} in handoff["asset_refs"]
+    assert {"type": "url", "label": "舊素材", "ref": "https://old.example.example"} not in handoff["asset_refs"]
     assert {"type": "note", "label": "場勘彙整", "ref": "室內 · 50 坪"} in handoff["site_asset_refs"]
     assert "舊人工待辦" not in handoff["next_actions"]
     assert "寫提案 · Alice · 期限 4/25" in handoff["meeting_next_actions"]
     assert "PM 確認需求" in handoff["next_actions"]
 
-    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@company-ai.local"})
     merged = r.json()["handoff"]
     assert {"type": "note", "label": "場勘彙整", "ref": "室內 · 50 坪"} in merged["asset_refs"]
     assert "寫提案 · Alice · 期限 4/25" in merged["next_actions"]
@@ -906,14 +906,14 @@ def test_handoff_card_forbids_non_owner(client):
     r = client.post(
         "/projects",
         json={"name": "owner only"},
-        headers={"X-User-Email": "alice@chengfu.local"},
+        headers={"X-User-Email": "alice@company-ai.local"},
     )
     pid = r.json()["id"]
 
     r = client.put(
         f"/projects/{pid}/handoff",
         json={"goal": "偷改"},
-        headers={"X-User-Email": "bob@chengfu.local"},
+        headers={"X-User-Email": "bob@company-ai.local"},
     )
     assert r.status_code == 403
 
@@ -940,30 +940,30 @@ def test_project_collaborator_can_access_and_update_handoff(client):
         "/projects",
         json={
             "name": "collab handoff project",
-            "collaborators": ["bob@chengfu.local"],
-            "next_owner": "bob@chengfu.local",
+            "collaborators": ["bob@company-ai.local"],
+            "next_owner": "bob@company-ai.local",
         },
-        headers={"X-User-Email": "alice@chengfu.local"},
+        headers={"X-User-Email": "alice@company-ai.local"},
     )
     assert r.status_code == 200
     pid = r.json()["id"]
 
-    r = client.get("/projects", headers={"X-User-Email": "bob@chengfu.local"})
+    r = client.get("/projects", headers={"X-User-Email": "bob@company-ai.local"})
     assert r.status_code == 200
     assert any(p["_id"] == pid for p in r.json())
 
     r = client.put(
         f"/projects/{pid}/handoff",
         json={"goal": "Bob 接手整理送件清單"},
-        headers={"X-User-Email": "bob@chengfu.local"},
+        headers={"X-User-Email": "bob@company-ai.local"},
     )
     assert r.status_code == 200
 
-    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "bob@chengfu.local"})
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "bob@company-ai.local"})
     assert r.status_code == 200
     assert r.json()["handoff"]["goal"] == "Bob 接手整理送件清單"
 
-    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "charlie@chengfu.local"})
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "charlie@company-ai.local"})
     assert r.status_code == 403
 
 
@@ -973,18 +973,18 @@ def test_project_collaborator_cannot_delete_project(client):
         "/projects",
         json={
             "name": "collab protected delete",
-            "collaborators": ["bob@chengfu.local"],
-            "next_owner": "bob@chengfu.local",
+            "collaborators": ["bob@company-ai.local"],
+            "next_owner": "bob@company-ai.local",
         },
-        headers={"X-User-Email": "alice@chengfu.local"},
+        headers={"X-User-Email": "alice@company-ai.local"},
     )
     assert r.status_code == 200
     pid = r.json()["id"]
 
-    r = client.delete(f"/projects/{pid}", headers={"X-User-Email": "bob@chengfu.local"})
+    r = client.delete(f"/projects/{pid}", headers={"X-User-Email": "bob@company-ai.local"})
     assert r.status_code == 403
 
-    r = client.delete(f"/projects/{pid}", headers={"X-User-Email": "alice@chengfu.local"})
+    r = client.delete(f"/projects/{pid}", headers={"X-User-Email": "alice@company-ai.local"})
     assert r.status_code == 200
     assert r.json()["deleted"] == 1
 
@@ -994,7 +994,7 @@ def test_handoff_append_from_chat_answer(client):
     r = client.post(
         "/projects",
         json={"name": "chat append project"},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     pid = r.json()["id"]
 
@@ -1005,7 +1005,7 @@ def test_handoff_append_from_chat_answer(client):
             "text": "PM 明天 10:00 前補齊預算表",
             "source_conversation_id": "conv-chat-1",
         },
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
     assert r.json()["ok"] is True
@@ -1018,11 +1018,11 @@ def test_handoff_append_from_chat_answer(client):
             "text": "建議書應先補受眾分層與 KPI",
             "source_conversation_id": "conv-chat-1",
         },
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
 
-    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@chengfu.local"})
+    r = client.get(f"/projects/{pid}/handoff", headers={"X-User-Email": "pm@company-ai.local"})
     h = r.json()["handoff"]
     assert "PM 明天 10:00 前補齊預算表" in h["next_actions"]
     assert {"type": "note", "label": "AI 回答摘要", "ref": "建議書應先補受眾分層與 KPI"} in h["asset_refs"]
@@ -1040,9 +1040,9 @@ def test_create_feedback(client):
             "agent_name": "🎯 投標顧問",
             "verdict": "up",
             "note": "建議書結構很清楚",
-            "user_email": "test@chengfu.local",
+            "user_email": "test@company-ai.local",
         },
-        headers={"X-User-Email": "test@chengfu.local"},
+        headers={"X-User-Email": "test@company-ai.local"},
     )
     assert r.status_code == 200
 
@@ -1051,7 +1051,7 @@ def test_feedback_stats(client):
     """R6#4 · /feedback/stats 改 admin-only"""
     client.post("/feedback", json={"message_id": "m2", "agent_name": "A", "verdict": "up"})
     client.post("/feedback", json={"message_id": "m3", "agent_name": "A", "verdict": "down"})
-    r = client.get("/feedback/stats", headers={"X-User-Email": "sterio068@gmail.com"})
+    r = client.get("/feedback/stats", headers={"X-User-Email": "sterio068@gmail.example"})
     assert r.status_code == 200
 
 
@@ -1074,7 +1074,7 @@ def test_admin_dashboard_with_admin(client):
     """白名單 admin email → 200。"""
     r = client.get(
         "/admin/dashboard",
-        headers={"X-User-Email": "sterio068@gmail.com"},
+        headers={"X-User-Email": "sterio068@gmail.example"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -1088,14 +1088,14 @@ def test_admin_dashboard_rejects_non_admin(client):
     """非白名單 email → 403。"""
     r = client.get(
         "/admin/dashboard",
-        headers={"X-User-Email": "random-staff@chengfu.local"},
+        headers={"X-User-Email": "random-staff@company-ai.local"},
     )
     assert r.status_code == 403
 
 
 def test_admin_storage_stats_shape(client):
     """P2 · admin 可看 Mongo collection/storage health,用於交付後維運。"""
-    r = client.get("/admin/storage-stats", headers={"X-User-Email": "sterio068@gmail.com"})
+    r = client.get("/admin/storage-stats", headers={"X-User-Email": "sterio068@gmail.example"})
     assert r.status_code == 200
     body = r.json()
     assert "items" in body
@@ -1189,7 +1189,7 @@ def test_l3_preflight_writes_audit_log(client):
     before = audit_col.count_documents({"action": "l3_send_attempt"})
     r = client.post("/safety/l3-preflight",
         json={"text": "客戶機敏帳戶資料"},
-        headers={"X-User-Email": "user@chengfu.local"},
+        headers={"X-User-Email": "user@company-ai.local"},
     )
     assert r.status_code == 200
     after = audit_col.count_documents({"action": "l3_send_attempt"})
@@ -1206,7 +1206,7 @@ def test_design_recraft_without_api_key(client, monkeypatch):
     monkeypatch.setenv("FAL_API_KEY", "")
     r = client.post("/design/recraft",
         json={"prompt": "中秋節品牌主視覺 · 橘黃色調 · 現代簡潔", "image_size": "square_hd"},
-        headers={"X-User-Email": "user@chengfu.local"},  # R6#3
+        headers={"X-User-Email": "user@company-ai.local"},  # R6#3
     )
     assert r.status_code == 503
     body = r.json()
@@ -1222,7 +1222,7 @@ def test_design_recraft_rejects_short_prompt(client):
     """prompt < 4 字 → 422 pydantic validation
     v1.2 §11.1 B-1.5 · design.py 改 require_user_dep · 必須帶 X-User-Email 才到 validation"""
     r = client.post("/design/recraft", json={"prompt": "abc"},
-                    headers={"X-User-Email": "test@chengfu.local"})
+                    headers={"X-User-Email": "test@company-ai.local"})
     assert r.status_code == 422
 
 
@@ -1231,7 +1231,7 @@ def test_design_recraft_rejects_bad_size(client):
     r = client.post("/design/recraft", json={
         "prompt": "a reasonable prompt here",
         "image_size": "ultra_wide_xyz",
-    }, headers={"X-User-Email": "test@chengfu.local"})
+    }, headers={"X-User-Email": "test@company-ai.local"})
     assert r.status_code == 422
 
 
@@ -1280,7 +1280,7 @@ def test_design_recraft_success_mocked(client, monkeypatch):
 
     r = client.post("/design/recraft",
         json={"prompt": "中秋節品牌主視覺 橘黃調", "image_size": "square_hd"},
-        headers={"X-User-Email": "user@chengfu.local"},  # R6#3
+        headers={"X-User-Email": "user@company-ai.local"},  # R6#3
     )
     assert r.status_code == 200
     body = r.json()
@@ -1332,7 +1332,7 @@ def test_design_openai_provider_success(client, monkeypatch):
 
     r = client.post("/design/recraft",
         json={"prompt": "中秋節品牌主視覺 橘黃調", "image_size": "square_hd"},
-        headers={"X-User-Email": "user@chengfu.local"},
+        headers={"X-User-Email": "user@company-ai.local"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -1356,7 +1356,7 @@ def test_design_openai_no_key_503(client, monkeypatch):
 
     r = client.post("/design/recraft",
         json={"prompt": "test openai no key", "image_size": "square_hd"},
-        headers={"X-User-Email": "user@chengfu.local"},
+        headers={"X-User-Email": "user@company-ai.local"},
     )
     assert r.status_code == 503
     detail = r.json().get("detail", {})
@@ -1369,18 +1369,18 @@ def test_design_openai_no_key_503(client, monkeypatch):
 # ============================================================
 import tempfile, os as _os
 
-ADMIN_HEADERS = {"X-User-Email": "sterio068@gmail.com"}
+ADMIN_HEADERS = {"X-User-Email": "sterio068@gmail.example"}
 
 
 @pytest.fixture
 def tmp_source_dir():
-    """在 /tmp/chengfu-test-sources 下建臨時目錄 · 路徑白名單內"""
-    _os.makedirs("/tmp/chengfu-test-sources", exist_ok=True)
-    d = tempfile.mkdtemp(dir="/tmp/chengfu-test-sources")
+    """在 /tmp/company-ai-test-sources 下建臨時目錄 · 路徑白名單內"""
+    _os.makedirs("/tmp/company-ai-test-sources", exist_ok=True)
+    d = tempfile.mkdtemp(dir="/tmp/company-ai-test-sources")
     # 建幾個測試檔
     _os.makedirs(_os.path.join(d, "projects", "海廢案"), exist_ok=True)
     with open(_os.path.join(d, "projects", "海廢案", "建議書.txt"), "w") as f:
-        f.write("承富創意 · 2024 環保署海洋廢棄物專案建議書")
+        f.write("本公司 · 2024 環保署海洋廢棄物專案建議書")
     with open(_os.path.join(d, ".DS_Store"), "w") as f:
         f.write("mac system file")
     with open(_os.path.join(d, "readme.md"), "w") as f:
@@ -1435,7 +1435,7 @@ def test_knowledge_source_reject_nonexistent(client):
     """路徑白名單內但不存在 · 400"""
     r = client.post(
         "/admin/sources",
-        json={"name": "nope", "path": "/tmp/chengfu-test-sources/definitely-not-exist-xyz"},
+        json={"name": "nope", "path": "/tmp/company-ai-test-sources/definitely-not-exist-xyz"},
         headers=ADMIN_HEADERS,
     )
     assert r.status_code == 400
@@ -1735,8 +1735,8 @@ def test_source_health_unreachable(client):
     """路徑被刪 / NAS 斷線 · 回 unreachable + 友善 issue"""
     # 建一個臨時 source · 然後刪掉路徑
     import tempfile, shutil, os as _os
-    _os.makedirs("/tmp/chengfu-test-sources", exist_ok=True)
-    d = tempfile.mkdtemp(dir="/tmp/chengfu-test-sources")
+    _os.makedirs("/tmp/company-ai-test-sources", exist_ok=True)
+    d = tempfile.mkdtemp(dir="/tmp/company-ai-test-sources")
     r = client.post("/admin/sources",
         json={"name": "unreach", "path": d},
         headers=ADMIN_HEADERS)
@@ -1764,7 +1764,7 @@ def test_all_sources_health_summary(client, tmp_source_dir):
 
 def test_design_history_empty(client):
     """無使用者歷史 · 回空 list 不 crash"""
-    r = client.get("/design/history", headers={"X-User-Email": "noone@x.com"})
+    r = client.get("/design/history", headers={"X-User-Email": "noone@x.example"})
     assert r.status_code == 200
     assert r.json()["history"] == []
     assert r.json()["count"] == 0
@@ -1774,7 +1774,7 @@ def test_design_history_after_failed_call(client):
     """先呼叫一次 design/recraft (無 key 503)· 不會留 log
     確認 history 仍為空 · 真實 API call 才會記
     R6#3 · history 必須登入"""
-    r = client.get("/design/history", headers={"X-User-Email": "user@chengfu.local"})
+    r = client.get("/design/history", headers={"X-User-Email": "user@company-ai.local"})
     assert r.status_code == 200
     assert isinstance(r.json()["history"], list)
 
@@ -1799,7 +1799,7 @@ def test_auth_design_recraft_blocks_anonymous(client):
 
 
 def test_auth_tenders_blocks_anonymous(client):
-    """R6#4 · /tender-alerts 改 require user · 防外部偵察承富業務"""
+    """R6#4 · /tender-alerts 改 require user · 防外部偵察本公司業務"""
     r = client.get("/tender-alerts", headers={"X-User-Email": ""})  # R27 · 清匿名
     assert r.status_code == 403
 
@@ -1830,15 +1830,15 @@ def test_auth_feedback_create_uses_trusted_email(client):
     """R6#4 · POST /feedback 即使 body 偽造 user_email · 仍以 X-User-Email 為準
     這個測試在 mongomock + JWT_SECRET 未設場景 · trusted=False · X-User-Email 仍會覆蓋"""
     r = client.post("/feedback",
-        json={"message_id": "spy_msg", "verdict": "down", "user_email": "victim@chengfu.local"},
-        headers={"X-User-Email": "real_attacker@chengfu.local"},
+        json={"message_id": "spy_msg", "verdict": "down", "user_email": "victim@company-ai.local"},
+        headers={"X-User-Email": "real_attacker@company-ai.local"},
     )
     assert r.status_code == 200
     # 驗:DB 內存的 user_email 是 header 帶來的 trusted · 不是 body 偽造的
     import main as main_mod
     fb = main_mod.feedback_col.find_one({"message_id": "spy_msg"})
     assert fb is not None
-    assert fb["user_email"] == "real_attacker@chengfu.local"
+    assert fb["user_email"] == "real_attacker@company-ai.local"
 
 
 def test_auth_feedback_blocks_anonymous(client):
@@ -1846,7 +1846,7 @@ def test_auth_feedback_blocks_anonymous(client):
     防匿名偽造 feedback 給競爭對手做負評刷"""
     r = client.post("/feedback",
         json={"message_id": "anon_attack", "verdict": "down",
-              "note": "這個 agent 很爛", "user_email": "victim@chengfu.local"},
+              "note": "這個 agent 很爛", "user_email": "victim@company-ai.local"},
         headers={"X-User-Email": ""},  # R27 · 清 fixture 預設 · 模擬真匿名
     )
     assert r.status_code == 403
@@ -1865,7 +1865,7 @@ def test_auth_quota_preflight_dev_mode_passes_anonymous(client):
 
 def test_auth_quota_preflight_returns_204_when_within_budget(client):
     """R7#9 · 有 user + 在預算內 → 204"""
-    r = client.get("/quota/preflight", headers={"X-User-Email": "test@chengfu.local"})
+    r = client.get("/quota/preflight", headers={"X-User-Email": "test@company-ai.local"})
     assert r.status_code in (204, 429)  # 預算 logic 視 admin_metrics 而定 · 不該 401/403
 
 
@@ -1894,7 +1894,7 @@ def test_source_realpath_resolves_symlink_before_whitelist_check(client, tmp_sou
     """建 symlink 從 allowed root 指到 allowed root · 應該 allow
     驗證 realpath 解析後仍在白名單內就放行"""
     import os as _os
-    # tmp_source_dir 在 /tmp/chengfu-test-sources · 是白名單內
+    # tmp_source_dir 在 /tmp/company-ai-test-sources · 是白名單內
     link = tmp_source_dir + "-link"
     try:
         _os.symlink(tmp_source_dir, link)
@@ -2016,7 +2016,7 @@ def test_design_recraft_moderation_rejected(client, monkeypatch):
 
     r = client.post("/design/recraft",
         json={"prompt": "真人總統肖像 寫實", "image_size": "square_hd"},
-        headers={"X-User-Email": "user@chengfu.local"},  # R6#3
+        headers={"X-User-Email": "user@company-ai.local"},  # R6#3
     )
     assert r.status_code == 200
     body = r.json()
@@ -2031,7 +2031,7 @@ def test_pdpa_dry_run_counts(client):
     """admin POST /admin/users/{email}/delete-all dry_run=true · 只算 count 不刪"""
     import main as main_mod
     from datetime import datetime, timezone
-    target = "leaving@chengfu.local"
+    target = "leaving@company-ai.local"
     # seed 跨 collection 假資料
     main_mod.db.user_preferences.insert_one(
         {"user_email": target, "key": "tone", "value": "formal",
@@ -2068,7 +2068,7 @@ def test_pdpa_real_delete(client):
     """
     import main as main_mod
     from datetime import datetime, timezone
-    target = "real-delete@chengfu.local"
+    target = "real-delete@company-ai.local"
     # 刪除類 sample
     main_mod.db.user_preferences.insert_one(
         {"user_email": target, "key": "lang", "value": "tw"})
@@ -2093,7 +2093,7 @@ def test_pdpa_real_delete(client):
     main_mod.db.crm_stage_history.insert_one(
         {"lead_id": "L1", "old_stage": "lead", "new_stage": "won", "changed_by": target})
     main_mod.db.agent_overrides.insert_one(
-        {"agent_num": "01", "user_email": "other@x.com", "editor": target, "prompt": "g"})
+        {"agent_num": "01", "user_email": "other@x.example", "editor": target, "prompt": "g"})
     main_mod.db.system_settings.insert_one(
         {"key": "x", "value": "y", "updated_by": target})
 
@@ -2119,7 +2119,7 @@ def test_pdpa_real_delete(client):
     assert proj["owner"] is None
     assert proj["handoff"]["updated_by"] is None
     assert main_mod.db.crm_stage_history.find_one({"lead_id": "L1"})["changed_by"] is None
-    other_override = main_mod.db.agent_overrides.find_one({"user_email": "other@x.com"})
+    other_override = main_mod.db.agent_overrides.find_one({"user_email": "other@x.example"})
     assert other_override["editor"] is None  # 別人的設定資料留 · editor 殘 email 清
     assert main_mod.db.system_settings.find_one({"key": "x"})["updated_by"] is None
     # crm_leads.notes[].by · array element
@@ -2133,7 +2133,7 @@ def test_pdpa_real_delete(client):
 def test_pdpa_includes_tender_alerts_reviewed_by(client):
     """R31#1 · tender_alerts.reviewed_by 漏 · 真刪後仍殘 target email"""
     import main as main_mod
-    target = "tender-reviewer@chengfu.local"
+    target = "tender-reviewer@company-ai.local"
     main_mod.db.tender_alerts.insert_one(
         {"tender_key": "T123", "title": "x", "status": "interested",
          "reviewed_by": target}
@@ -2155,12 +2155,12 @@ def test_pdpa_case_insensitive(client):
     必 case-insensitive 才不漏"""
     import main as main_mod
     # 故意存 mixed case · 模擬 legacy 資料
-    target = "case-test@chengfu.local"
+    target = "case-test@company-ai.local"
     main_mod.db.user_preferences.insert_one(
-        {"user_email": "Case-Test@ChengFu.Local", "key": "lang", "value": "en"}
+        {"user_email": "Case-Test@Company-AI.Local", "key": "lang", "value": "en"}
     )
     main_mod.db.crm_leads.insert_one(
-        {"title": "lead-mixed", "owner": "Case-Test@ChengFu.Local", "stage": "lead"}
+        {"title": "lead-mixed", "owner": "Case-Test@Company-AI.Local", "stage": "lead"}
     )
     r = client.post(
         f"/admin/users/{target}/delete-all",
@@ -2170,7 +2170,7 @@ def test_pdpa_case_insensitive(client):
     assert r.status_code == 200, r.text
     # mixed-case 必清
     assert main_mod.db.user_preferences.count_documents(
-        {"user_email": "Case-Test@ChengFu.Local"}
+        {"user_email": "Case-Test@Company-AI.Local"}
     ) == 0, "case-insensitive 必清 legacy mixed-case"
     assert main_mod.db.crm_leads.find_one({"title": "lead-mixed"})["owner"] is None
 
@@ -2182,8 +2182,8 @@ def test_pii_audit_writes_log(client):
     before = main_mod.audit_col.count_documents({"action": "pii_warning_dismissed"})
     r = client.post(
         "/safety/pii-audit",
-        json={"text": "我的 email test@example.com · 手機 0912345678"},
-        headers={"X-User-Email": "user@chengfu.local"},
+        json={"text": "我的 email test@example.example · 手機 0912345678"},
+        headers={"X-User-Email": "user@company-ai.local"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -2196,8 +2196,8 @@ def test_pii_audit_writes_log(client):
 def test_pdpa_confirm_email_mismatch(client):
     """confirm_email 不匹配 → 400(防 mis-click)"""
     r = client.post(
-        "/admin/users/oops@chengfu.local/delete-all",
-        json={"confirm_email": "wrong@chengfu.local", "dry_run": True},
+        "/admin/users/oops@company-ai.local/delete-all",
+        json={"confirm_email": "wrong@company-ai.local", "dry_run": True},
         headers=ADMIN_HEADERS,
     )
     assert r.status_code == 400
@@ -2207,8 +2207,8 @@ def test_pdpa_confirm_email_mismatch(client):
 def test_pdpa_admin_cannot_self_delete(client):
     """admin 不能刪自己 · 防 lockout"""
     r = client.post(
-        "/admin/users/sterio068@gmail.com/delete-all",
-        json={"confirm_email": "sterio068@gmail.com", "dry_run": True},
+        "/admin/users/sterio068@gmail.example/delete-all",
+        json={"confirm_email": "sterio068@gmail.example", "dry_run": True},
         headers=ADMIN_HEADERS,
     )
     assert r.status_code == 400
@@ -2252,7 +2252,7 @@ def test_crm_import_from_tenders_sets_owner(client):
     r = client.post("/crm/import-from-tenders")
     assert r.status_code == 200
     lead = main_mod.db.crm_leads.find_one({"tender_key": key})
-    assert lead["owner"] == "test@chengfu.local"
+    assert lead["owner"] == "test@company-ai.local"
 
 
 def test_crm_note_accepts_json_body(client):
@@ -2434,7 +2434,7 @@ def test_audit_log_default_days_window(client):
 # ============================================================
 def test_pdpa_librechat_user_not_found(client):
     """include_librechat=true 但 LibreChat users 沒此 email · status user_not_found"""
-    target = "never-logged-in@chengfu.local"
+    target = "never-logged-in@company-ai.local"
     r = client.post(
         f"/admin/users/{target}/delete-all",
         json={"confirm_email": target, "dry_run": True, "include_librechat": True},
@@ -2450,7 +2450,7 @@ def test_pdpa_librechat_dry_run_counts(client):
     """include_librechat=true dry_run · 列各 collection 的 doc 數 · 不真刪"""
     import main as main_mod
     from bson import ObjectId
-    target = "alice-lc@chengfu.local"
+    target = "alice-lc@company-ai.local"
     # seed LibreChat user + 對話 + 訊息
     uid = main_mod.db.users.insert_one({
         "email": target, "name": "Alice", "role": "USER",
@@ -2477,13 +2477,13 @@ def test_pdpa_librechat_real_delete_archives_first(client, tmp_path, monkeypatch
     """include_librechat=true real · archive 寫到 tmp · 然後刪光"""
     import main as main_mod
     from datetime import datetime, timezone
-    target = "bob-lc@chengfu.local"
+    target = "bob-lc@company-ai.local"
     uid = main_mod.db.users.insert_one({"email": target, "name": "Bob", "role": "USER"}).inserted_id
     main_mod.db.conversations.insert_one({"user": uid, "title": "t1"})
     main_mod.db.messages.insert_one({"user": uid, "text": "x"})
     main_mod.db.files.insert_one({"user": uid, "filename": "a.pdf"})
 
-    # patch archive_dir 到 tmp_path · 不污染 ~/chengfu-backups
+    # patch archive_dir 到 tmp_path · 不污染 ~/company-ai-backups
     from services import librechat_admin
     orig_archive = librechat_admin.archive_librechat_data
     def patched(db, user_id, email, archive_dir=None):
@@ -2516,7 +2516,7 @@ def test_pdpa_librechat_real_delete_archives_first(client, tmp_path, monkeypatch
 def test_pdpa_librechat_default_skipped_when_flag_off(client):
     """include_librechat=false(default)· LibreChat 不動 · 提示 librechat_warning"""
     import main as main_mod
-    target = "cathy-lc@chengfu.local"
+    target = "cathy-lc@company-ai.local"
     uid = main_mod.db.users.insert_one({"email": target, "name": "Cathy"}).inserted_id
     main_mod.db.conversations.insert_one({"user": uid, "title": "stay"})
 
@@ -2535,7 +2535,7 @@ def test_pdpa_librechat_default_skipped_when_flag_off(client):
 
 
 def test_librechat_user_id_case_insensitive(client):
-    """find_librechat_user_id · 'Bob@X.com' 應找到 'bob@x.com' user"""
+    """find_librechat_user_id · 'Bob@X.example' 應找到 'bob@x.example' user"""
     import main as main_mod
     from services import librechat_admin
     main_mod.db.users.insert_one({"email": "Mixed@Case.Com", "name": "Mix"})
@@ -2548,7 +2548,7 @@ def test_librechat_user_id_case_insensitive(client):
 # ============================================================
 # A5(v1.3)· Social OAuth infra(無真 Meta call · v1.4 補)
 # ============================================================
-USER_HEADERS = {"X-User-Email": "alice@chengfu.local"}
+USER_HEADERS = {"X-User-Email": "alice@company-ai.local"}
 
 
 def test_oauth_start_requires_app_credentials(client):
@@ -2577,7 +2577,7 @@ def test_oauth_start_redirects_when_creds_present(client, monkeypatch):
     assert "state=" in loc
     # state 寫進 db
     state_doc = main_mod.db.social_oauth_states.find_one(
-        {"user_email": "alice@chengfu.local", "platform": "facebook"}
+        {"user_email": "alice@company-ai.local", "platform": "facebook"}
     )
     assert state_doc is not None
 
@@ -2601,21 +2601,21 @@ def test_oauth_redirect_uri_uses_env_whitelist(client, monkeypatch):
     """A3 · OAUTH_REDIRECT_BASE_URL 設了就用 env · 不從 X-Forwarded-Host 取"""
     monkeypatch.setenv("FACEBOOK_APP_ID", "test-id")
     monkeypatch.setenv("FACEBOOK_APP_SECRET", "secret")
-    monkeypatch.setenv("OAUTH_REDIRECT_BASE_URL", "https://chengfu-ai.com")
+    monkeypatch.setenv("OAUTH_REDIRECT_BASE_URL", "https://company-ai.example")
     # 必須 reload module 因為 _OAUTH_BASE_URL 在 import 時讀
     import importlib
     from routers import social_oauth
     importlib.reload(social_oauth)
     r = client.get(
         "/social/oauth/start?platform=facebook",
-        headers={**USER_HEADERS, "X-Forwarded-Host": "evil.attacker.com"},
+        headers={**USER_HEADERS, "X-Forwarded-Host": "evil.attacker.example"},
         follow_redirects=False,
     )
     assert r.status_code == 302
     loc = r.headers["location"]
-    # redirect_uri 必須是 env 設的 chengfu-ai.com · 不是 evil.attacker.com
-    assert "chengfu-ai.com" in loc
-    assert "evil.attacker.com" not in loc
+    # redirect_uri 必須是 env 設的 company-ai.example · 不是 evil.attacker.example
+    assert "company-ai.example" in loc
+    assert "evil.attacker.example" not in loc
 
 
 def test_oauth_redirect_uri_rejects_bad_env_format(client, monkeypatch):
@@ -2646,7 +2646,7 @@ def test_oauth_redirect_uri_requires_env_in_prod(client, monkeypatch):
     importlib.reload(social_oauth)
     r = client.get(
         "/social/oauth/start?platform=facebook",
-        headers={**USER_HEADERS, "X-Forwarded-Host": "evil.attacker.com"},
+        headers={**USER_HEADERS, "X-Forwarded-Host": "evil.attacker.example"},
         follow_redirects=False,
     )
     assert r.status_code == 500
@@ -2662,7 +2662,7 @@ def test_oauth_callback_stores_token_mock(client, monkeypatch):
     # seed state
     main_mod.db.social_oauth_states.insert_one({
         "state": "test-state-xyz",
-        "user_email": "alice@chengfu.local",
+        "user_email": "alice@company-ai.local",
         "platform": "facebook",
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=5),
     })
@@ -2672,7 +2672,7 @@ def test_oauth_callback_stores_token_mock(client, monkeypatch):
     assert "/#social?connected=facebook" in r.headers["location"]
     # token 寫進 db
     token_doc = main_mod.db.social_oauth_tokens.find_one(
-        {"user_email": "alice@chengfu.local", "platform": "facebook"}
+        {"user_email": "alice@company-ai.local", "platform": "facebook"}
     )
     assert token_doc is not None
     assert token_doc["account_id"] == "mock-facebook-account-id"
@@ -2693,7 +2693,7 @@ def test_oauth_callback_rejects_expired_state(client):
     from datetime import datetime, timezone, timedelta
     main_mod.db.social_oauth_states.insert_one({
         "state": "expired-state",
-        "user_email": "alice@chengfu.local",
+        "user_email": "alice@company-ai.local",
         "platform": "facebook",
         "expires_at": datetime.now(timezone.utc) - timedelta(minutes=1),
     })
@@ -2707,7 +2707,7 @@ def test_oauth_disconnect(client):
     """A5 · POST disconnect 刪 token(用 instagram 避免跟 callback test 撞)"""
     import main as main_mod
     main_mod.db.social_oauth_tokens.insert_one({
-        "user_email": "alice@chengfu.local",
+        "user_email": "alice@company-ai.local",
         "platform": "instagram",
         "access_token_encrypted": "PLAIN:fake-ig-token",
     })
@@ -2715,7 +2715,7 @@ def test_oauth_disconnect(client):
     assert r.status_code == 200
     assert r.json()["deleted"] is True
     assert main_mod.db.social_oauth_tokens.count_documents(
-        {"user_email": "alice@chengfu.local", "platform": "instagram"}
+        {"user_email": "alice@company-ai.local", "platform": "instagram"}
     ) == 0
 
 
@@ -2730,7 +2730,7 @@ def test_oauth_status_lists_connections(client):
     import main as main_mod
     from datetime import datetime, timezone
     main_mod.db.social_oauth_tokens.insert_one({
-        "user_email": "alice@chengfu.local",
+        "user_email": "alice@company-ai.local",
         "platform": "facebook",
         "access_token_encrypted": "PLAIN:secret",
         "account_id": "fb-1",
@@ -2743,7 +2743,7 @@ def test_oauth_status_lists_connections(client):
     r = client.get("/social/oauth/status", headers=ADMIN_HEADERS)
     assert r.status_code == 200
     conns = r.json()["connections"]
-    assert any(c["user_email"] == "alice@chengfu.local"
+    assert any(c["user_email"] == "alice@company-ai.local"
                and c["platform"] == "facebook" for c in conns)
     # 不該回 token 本身
     for c in conns:
@@ -2794,7 +2794,7 @@ def test_um_get_permission_catalog(client):
 def test_um_get_permission_catalog_user_denied(client):
     """一般 USER 不能拿 catalog"""
     r = client.get("/admin/users/permission-catalog",
-                   headers={"X-User-Email": "alice@chengfu.local"})
+                   headers={"X-User-Email": "alice@company-ai.local"})
     assert r.status_code == 403
 
 
@@ -2802,7 +2802,7 @@ def test_um_create_user_success(client):
     """admin 建新同仁 · 回 user 物件 · 寫 users collection"""
     import main as main_mod
     r = client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "newguy@chengfu.com",
+        "email": "newguy@company.example",
         "name": "新同仁",
         "password": "super-secure-pwd-2026",
         "title": "設計師",
@@ -2811,15 +2811,15 @@ def test_um_create_user_success(client):
     })
     assert r.status_code == 200
     body = r.json()
-    assert body["email"] == "newguy@chengfu.com"
+    assert body["email"] == "newguy@company.example"
     assert body["title"] == "設計師"
     assert body["role"] == "USER"
     assert len(body["permissions"]) == 3
     # DB 真有寫入
-    doc = main_mod.db.users.find_one({"email": "newguy@chengfu.com"})
+    doc = main_mod.db.users.find_one({"email": "newguy@company.example"})
     assert doc is not None
-    assert doc["chengfu_title"] == "設計師"
-    assert doc["chengfu_active"] is True
+    assert doc["company_ai_title"] == "設計師"
+    assert doc["company_ai_active"] is True
     # 密碼不能明文
     assert doc["password"] != "super-secure-pwd-2026"
     assert doc["password"].decode("utf-8").startswith("$2")  # bcrypt
@@ -2828,10 +2828,10 @@ def test_um_create_user_success(client):
 def test_um_create_user_rejects_duplicate_email(client):
     """建重複 email · 回 409"""
     client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "dupe@chengfu.com", "name": "A", "password": "Strong!Pass2026",
+        "email": "dupe@company.example", "name": "A", "password": "Strong!Pass2026",
     })
     r = client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "dupe@chengfu.com", "name": "B", "password": "Strong!Pass2026",
+        "email": "dupe@company.example", "name": "B", "password": "Strong!Pass2026",
     })
     assert r.status_code == 409
 
@@ -2839,7 +2839,7 @@ def test_um_create_user_rejects_duplicate_email(client):
 def test_um_create_user_rejects_invalid_permission(client):
     """不合法 permission key · 400"""
     r = client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "invalid@chengfu.com", "name": "X", "password": "Strong!Pass2026",
+        "email": "invalid@company.example", "name": "X", "password": "Strong!Pass2026",
         "permissions": ["fake.permission.key"],
     })
     assert r.status_code == 400
@@ -2849,7 +2849,7 @@ def test_um_create_user_rejects_invalid_permission(client):
 def test_um_create_user_rejects_weak_password(client):
     """密碼太短或未達複雜度 · pydantic 422"""
     r = client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "weak@chengfu.com", "name": "X", "password": "123",
+        "email": "weak@company.example", "name": "X", "password": "123",
     })
     assert r.status_code == 422
 
@@ -2857,7 +2857,7 @@ def test_um_create_user_rejects_weak_password(client):
 def test_um_list_users(client):
     """GET /admin/users · 列全部 · 不含密碼 hash"""
     client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "list-test@chengfu.com", "name": "列表測", "password": "Strong!Pass2026",
+        "email": "list-test@company.example", "name": "列表測", "password": "Strong!Pass2026",
         "title": "企劃",
     })
     r = client.get("/admin/users", headers=ADMIN_HEADERS)
@@ -2865,7 +2865,7 @@ def test_um_list_users(client):
     body = r.json()
     assert body["total"] >= 1
     # 找剛建的
-    found = [u for u in body["items"] if u["email"] == "list-test@chengfu.com"]
+    found = [u for u in body["items"] if u["email"] == "list-test@company.example"]
     assert len(found) == 1
     assert found[0]["title"] == "企劃"
     # 密碼絕對不在 response 裡
@@ -2875,17 +2875,17 @@ def test_um_list_users(client):
 def test_um_update_user(client):
     """PATCH /admin/users/:email · 改 title + permissions"""
     client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "update-me@chengfu.com", "name": "測", "password": "Strong!Pass2026",
+        "email": "update-me@company.example", "name": "測", "password": "Strong!Pass2026",
         "title": "實習生",
     })
-    r = client.patch("/admin/users/update-me@chengfu.com",
+    r = client.patch("/admin/users/update-me@company.example",
                      headers=ADMIN_HEADERS,
                      json={"title": "資深企劃",
                            "permissions": ["project.create", "press.draft"]})
     assert r.status_code == 200
     # 驗
     r2 = client.get("/admin/users", headers=ADMIN_HEADERS)
-    user = [u for u in r2.json()["items"] if u["email"] == "update-me@chengfu.com"][0]
+    user = [u for u in r2.json()["items"] if u["email"] == "update-me@company.example"][0]
     assert user["title"] == "資深企劃"
     assert set(user["permissions"]) == {"project.create", "press.draft"}
 
@@ -2893,24 +2893,24 @@ def test_um_update_user(client):
 def test_um_deactivate_user(client):
     """DELETE /admin/users/:email · soft deactivate · active=false"""
     client.post("/admin/users", headers=ADMIN_HEADERS, json={
-        "email": "kill-me@chengfu.com", "name": "測", "password": "Strong!Pass2026",
+        "email": "kill-me@company.example", "name": "測", "password": "Strong!Pass2026",
     })
-    r = client.delete("/admin/users/kill-me@chengfu.com", headers=ADMIN_HEADERS)
+    r = client.delete("/admin/users/kill-me@company.example", headers=ADMIN_HEADERS)
     assert r.status_code == 200
     assert r.json()["active"] is False
     # 預設 list 不回 inactive
     r2 = client.get("/admin/users", headers=ADMIN_HEADERS)
     emails = [u["email"] for u in r2.json()["items"]]
-    assert "kill-me@chengfu.com" not in emails
+    assert "kill-me@company.example" not in emails
     # 加 include_inactive=true 才看到
     r3 = client.get("/admin/users?include_inactive=true", headers=ADMIN_HEADERS)
     emails3 = [u["email"] for u in r3.json()["items"]]
-    assert "kill-me@chengfu.com" in emails3
+    assert "kill-me@company.example" in emails3
 
 
 def test_um_admin_cannot_deactivate_self(client):
     """admin 不能停用自己 · 防 lockout"""
-    r = client.delete("/admin/users/sterio068@gmail.com", headers=ADMIN_HEADERS)
+    r = client.delete("/admin/users/sterio068@gmail.example", headers=ADMIN_HEADERS)
     assert r.status_code == 400
     assert "lockout" in r.json()["detail"].lower()
 
@@ -2969,7 +2969,7 @@ def test_orchestrator_prepare_preset_can_save_project_workflow_draft(client):
     draft = proj["handoff"]["workflow_draft"]
     assert draft["preset_id"] == "tender-full"
     assert "主管家" in draft["supervisor_prompt"]
-    assert draft["created_by"] == "test@chengfu.local"
+    assert draft["created_by"] == "test@company-ai.local"
     assert main_mod.db.audit_log.count_documents({
         "action": "workflow_prepare_preset",
         "resource": pid,
@@ -2986,7 +2986,7 @@ def test_orchestrator_can_save_workflow_result_to_project(client):
     pid = r.json()["id"]
     saved = _save_workflow_result_to_project(
         pid,
-        "test@chengfu.local",
+        "test@company-ai.local",
         "tender-full",
         PRESET_WORKFLOWS["tender-full"],
         {
@@ -3020,7 +3020,7 @@ def test_orchestrator_prepare_preset_forbids_other_project(client):
     r = client.post(
         "/projects",
         json={"name": "alice workflow project"},
-        headers={"X-User-Email": "alice@chengfu.local"},
+        headers={"X-User-Email": "alice@company-ai.local"},
     )
     pid = r.json()["id"]
 
@@ -3030,7 +3030,7 @@ def test_orchestrator_prepare_preset_forbids_other_project(client):
             "initial_input": "測試標案:跨專案偷寫",
             "project_id": pid,
         },
-        headers={"X-User-Email": "bob@chengfu.local"},
+        headers={"X-User-Email": "bob@company-ai.local"},
     )
     assert r.status_code == 403
 
@@ -3044,10 +3044,10 @@ def test_orchestrator_prepare_preset_allows_project_collaborator(client):
         "/projects",
         json={
             "name": "collab workflow project",
-            "collaborators": ["bob@chengfu.local"],
-            "next_owner": "bob@chengfu.local",
+            "collaborators": ["bob@company-ai.local"],
+            "next_owner": "bob@company-ai.local",
         },
-        headers={"X-User-Email": "alice@chengfu.local"},
+        headers={"X-User-Email": "alice@company-ai.local"},
     )
     pid = r.json()["id"]
 
@@ -3057,12 +3057,12 @@ def test_orchestrator_prepare_preset_allows_project_collaborator(client):
             "initial_input": "測試標案:協作者接續 workflow",
             "project_id": pid,
         },
-        headers={"X-User-Email": "bob@chengfu.local"},
+        headers={"X-User-Email": "bob@company-ai.local"},
     )
     assert r.status_code == 200
 
     proj = main_mod.db.projects.find_one({"_id": ObjectId(pid)})
-    assert proj["handoff"]["workflow_draft"]["created_by"] == "bob@chengfu.local"
+    assert proj["handoff"]["workflow_draft"]["created_by"] == "bob@company-ai.local"
 
 
 def test_orchestrator_records_workflow_adoption(client):
@@ -3072,7 +3072,7 @@ def test_orchestrator_records_workflow_adoption(client):
     r = client.post(
         "/projects",
         json={"name": "workflow adoption project"},
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     pid = r.json()["id"]
 
@@ -3085,7 +3085,7 @@ def test_orchestrator_records_workflow_adoption(client):
             "project_id": pid,
             "note": "主管家草稿可直接接續",
         },
-        headers={"X-User-Email": "pm@chengfu.local"},
+        headers={"X-User-Email": "pm@company-ai.local"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -3094,11 +3094,11 @@ def test_orchestrator_records_workflow_adoption(client):
     assert main_mod.db.workflow_adoptions.count_documents({
         "preset_id": "tender-full",
         "status": "adopted",
-        "user": "pm@chengfu.local",
+        "user": "pm@company-ai.local",
     }) == 1
     assert main_mod.db.audit_log.count_documents({
         "action": "workflow_adoption",
-        "user": "pm@chengfu.local",
+        "user": "pm@company-ai.local",
     }) == 1
 
 
@@ -3107,7 +3107,7 @@ def test_orchestrator_workflow_adoption_forbids_other_project(client):
     r = client.post(
         "/projects",
         json={"name": "alice adoption project"},
-        headers={"X-User-Email": "alice@chengfu.local"},
+        headers={"X-User-Email": "alice@company-ai.local"},
     )
     pid = r.json()["id"]
 
@@ -3118,7 +3118,7 @@ def test_orchestrator_workflow_adoption_forbids_other_project(client):
             "status": "adopted",
             "project_id": pid,
         },
-        headers={"X-User-Email": "bob@chengfu.local"},
+        headers={"X-User-Email": "bob@company-ai.local"},
     )
     assert r.status_code == 403
 
@@ -3163,16 +3163,16 @@ def test_permission_accounting_edit_denied_without_permission(client):
     """沒有 accounting.edit 的同仁不能新增交易"""
     import main as main_mod
     main_mod.db.users.update_one(
-        {"email": "noperm@chengfu.local"},
+        {"email": "noperm@company-ai.local"},
         {"$set": {
-            "email": "noperm@chengfu.local",
+            "email": "noperm@company-ai.local",
             "role": "USER",
-            "chengfu_active": True,
-            "chengfu_permissions": ["knowledge.search"],
+            "company_ai_active": True,
+            "company_ai_permissions": ["knowledge.search"],
         }},
         upsert=True,
     )
-    r = client.post("/transactions", headers={"X-User-Email": "noperm@chengfu.local"}, json={
+    r = client.post("/transactions", headers={"X-User-Email": "noperm@company-ai.local"}, json={
         "date": "2026-04-24",
         "memo": "no permission test",
         "debit_account": "1102",
@@ -3187,16 +3187,16 @@ def test_permission_inactive_user_blocked_globally(client):
     """停用帳號即使有 permission 也不能打一般受保護 endpoint"""
     import main as main_mod
     main_mod.db.users.update_one(
-        {"email": "inactive@chengfu.local"},
+        {"email": "inactive@company-ai.local"},
         {"$set": {
-            "email": "inactive@chengfu.local",
+            "email": "inactive@company-ai.local",
             "role": "USER",
-            "chengfu_active": False,
-            "chengfu_permissions": ["accounting.view", "accounting.edit"],
+            "company_ai_active": False,
+            "company_ai_permissions": ["accounting.view", "accounting.edit"],
         }},
         upsert=True,
     )
-    r = client.get("/accounts", headers={"X-User-Email": "inactive@chengfu.local"})
+    r = client.get("/accounts", headers={"X-User-Email": "inactive@company-ai.local"})
     assert r.status_code == 403
     assert "停用" in r.json()["detail"]
 
@@ -3205,11 +3205,11 @@ def test_permission_inactive_admin_allowlist_blocked(client):
     """停用管理員即使在 ADMIN_EMAILS allowlist 也不能進 admin endpoint"""
     import main as main_mod
     main_mod.db.users.update_one(
-        {"email": "sterio068@gmail.com"},
+        {"email": "sterio068@gmail.example"},
         {"$set": {
-            "email": "sterio068@gmail.com",
+            "email": "sterio068@gmail.example",
             "role": "ADMIN",
-            "chengfu_active": False,
+            "company_ai_active": False,
         }},
         upsert=True,
     )
@@ -3222,11 +3222,11 @@ def test_permission_inactive_admin_allowlist_blocked(client):
         assert "停用" in r2.json()["detail"]
     finally:
         main_mod.db.users.update_one(
-            {"email": "sterio068@gmail.com"},
+            {"email": "sterio068@gmail.example"},
             {"$set": {
-                "email": "sterio068@gmail.com",
+                "email": "sterio068@gmail.example",
                 "role": "ADMIN",
-                "chengfu_active": True,
+                "company_ai_active": True,
             }},
             upsert=True,
         )
@@ -3241,13 +3241,13 @@ def test_permission_user_lookup_failure_fails_closed(client, monkeypatch):
             raise RuntimeError("mongo unavailable")
 
     monkeypatch.setattr(deps, "get_users_col", lambda: BrokenUsers())
-    r = client.get("/accounts", headers={"X-User-Email": "legacy@chengfu.local"})
+    r = client.get("/accounts", headers={"X-User-Email": "legacy@company-ai.local"})
     assert r.status_code == 503
     assert "權限查詢失敗" in r.json()["detail"]
 
 
 def test_permission_admin_bypasses_accounting_permission(client):
-    """ADMIN 即使未設定 chengfu_permissions 仍可進高風險 endpoint"""
+    """ADMIN 即使未設定 company_ai_permissions 仍可進高風險 endpoint"""
     r = client.get("/accounts", headers=ADMIN_HEADERS)
     assert r.status_code == 200
 
@@ -3381,7 +3381,7 @@ class TestPasswordPolicy:
         r = client.post(
             "/admin/users",
             json={
-                "email": "policy@chengfu.local",
+                "email": "policy@company-ai.local",
                 "name": "Policy Test",
                 "password": "Strong!Pass2026",
                 "role": "USER",
@@ -3393,7 +3393,7 @@ class TestPasswordPolicy:
     def test_create_rejects_short(self, client):
         r = client.post(
             "/admin/users",
-            json={"email": "short@x.com", "name": "X", "password": "Aa1!aaaa"},
+            json={"email": "short@x.example", "name": "X", "password": "Aa1!aaaa"},
             headers=ADMIN_HEADERS,
         )
         assert r.status_code == 422  # < 10 字
@@ -3401,7 +3401,7 @@ class TestPasswordPolicy:
     def test_create_rejects_weak_class(self, client):
         r = client.post(
             "/admin/users",
-            json={"email": "weak@x.com", "name": "X", "password": "alllowercase1"},
+            json={"email": "weak@x.example", "name": "X", "password": "alllowercase1"},
             headers=ADMIN_HEADERS,
         )
         # 只 1 大寫類 + 數字 = 2 類 < 3
@@ -3410,13 +3410,13 @@ class TestPasswordPolicy:
     def test_create_rejects_common_weak(self, client):
         r = client.post(
             "/admin/users",
-            json={"email": "common@x.com", "name": "X", "password": "Password1234!"[:10]},
+            json={"email": "common@x.example", "name": "X", "password": "Password1234!"[:10]},
             headers=ADMIN_HEADERS,
         )
         # 不該被擋 · 改試一個常見弱
         r = client.post(
             "/admin/users",
-            json={"email": "common2@x.com", "name": "X", "password": "password"},
+            json={"email": "common2@x.example", "name": "X", "password": "password"},
             headers=ADMIN_HEADERS,
         )
         assert r.status_code == 422
@@ -3424,7 +3424,7 @@ class TestPasswordPolicy:
     def test_create_rejects_repeat_4(self, client):
         r = client.post(
             "/admin/users",
-            json={"email": "rep@x.com", "name": "X", "password": "Aaaaa1!@bC"},
+            json={"email": "rep@x.example", "name": "X", "password": "Aaaaa1!@bC"},
             headers=ADMIN_HEADERS,
         )
         # aaaa 重複 4 次 → reject
@@ -3434,7 +3434,7 @@ class TestPasswordPolicy:
         """C4 · reset 跟 create 用同一個 validator"""
         self._make_user(client)
         r = client.post(
-            "/admin/users/policy@chengfu.local/reset-password",
+            "/admin/users/policy@company-ai.local/reset-password",
             json={"new_password": "weak"},
             headers=ADMIN_HEADERS,
         )
@@ -3446,14 +3446,14 @@ class TestResetPassword:
 
     def test_requires_admin(self, client):
         r = client.post(
-            "/admin/users/anyone@x.com/reset-password",
+            "/admin/users/anyone@x.example/reset-password",
             json={"new_password": "Strong!Pass2026"},
         )
         assert r.status_code == 403
 
     def test_cant_reset_self(self, client):
         r = client.post(
-            "/admin/users/sterio068@gmail.com/reset-password",
+            "/admin/users/sterio068@gmail.example/reset-password",
             json={"new_password": "Strong!Pass2026"},
             headers=ADMIN_HEADERS,
         )
@@ -3461,7 +3461,7 @@ class TestResetPassword:
 
     def test_404_on_unknown_user(self, client):
         r = client.post(
-            "/admin/users/notexist@x.com/reset-password",
+            "/admin/users/notexist@x.example/reset-password",
             json={"new_password": "Strong!Pass2026"},
             headers=ADMIN_HEADERS,
         )
@@ -3472,12 +3472,12 @@ class TestPermanentDelete:
     """permanent delete 端點 · CAS + cleanup-first guard"""
 
     def test_requires_admin(self, client):
-        r = client.delete("/admin/users/anyone@x.com/permanent")
+        r = client.delete("/admin/users/anyone@x.example/permanent")
         assert r.status_code == 403
 
     def test_cant_delete_self(self, client):
         r = client.delete(
-            "/admin/users/sterio068@gmail.com/permanent",
+            "/admin/users/sterio068@gmail.example/permanent",
             headers=ADMIN_HEADERS,
         )
         assert r.status_code == 400
@@ -3487,11 +3487,11 @@ class TestPermanentDelete:
         # 確保 test user 是 active
         import main
         main.db.users.update_one(
-            {"email": "test@chengfu.local"},
-            {"$set": {"chengfu_active": True}},
+            {"email": "test@company-ai.local"},
+            {"$set": {"company_ai_active": True}},
         )
         r = client.delete(
-            "/admin/users/test@chengfu.local/permanent",
+            "/admin/users/test@company-ai.local/permanent",
             headers=ADMIN_HEADERS,
         )
         assert r.status_code == 400

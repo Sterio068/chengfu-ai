@@ -6,19 +6,19 @@
        · 寫到 knowledge-base/skills/_proposed/ 等管理員審核
 
   安裝:./scripts/install-launchd.sh
-  驗證:tail -f ~/Library/Logs/chengfu-propose-skill.log
+  驗證:tail -f ~/Library/Logs/company-ai-propose-skill.log
        · 看 knowledge-base/skills/_proposed/ 有沒有新 markdown
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>tw.chengfu.propose-skill</string>
+    <string>tw.company-ai.propose-skill</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "__REPO_ROOT__" &amp;&amp; ANTHROPIC_API_KEY=$(security find-generic-password -s "chengfu-ANTHROPIC_API_KEY" -w 2&gt;/dev/null) python3 scripts/propose-skill.py --days 30</string>
+        <string>export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin &amp;&amp; cd "__REPO_ROOT__" &amp;&amp; ANTHROPIC_API_KEY=$(security find-generic-password -s "company-ai-ANTHROPIC_API_KEY" -w 2&gt;/dev/null) python3 scripts/propose-skill.py --days 30</string>
     </array>
 
     <key>StartCalendarInterval</key>
@@ -32,9 +32,9 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-propose-skill.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-propose-skill.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-propose-skill.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-propose-skill.log</string>
 
     <key>RunAtLoad</key>
     <false/>

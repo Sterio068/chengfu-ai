@@ -28,6 +28,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, Header, HTTPException,
 from pydantic import BaseModel, Field
 
 from auth_deps import _legacy_auth_headers_enabled, _secrets_equal
+from field_names import USER_ACTIVE_FIELDS, projection_for, user_is_inactive
 from routers._deps import get_users_col
 from services.knowledge_extract import extract
 
@@ -70,10 +71,10 @@ def _assert_active_user(email: str) -> str:
     if not email:
         raise HTTPException(401, "Missing or invalid Authorization header")
     try:
-        user = get_users_col().find_one({"email": email}, {"chengfu_active": 1})
+        user = get_users_col().find_one({"email": email}, projection_for(legacy_fields=USER_ACTIVE_FIELDS))
     except Exception as exc:
         raise HTTPException(503, "使用者權限查詢失敗 · 請稍後再試") from exc
-    if user and user.get("chengfu_active") is False:
+    if user_is_inactive(user):
         raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
     return email
 
@@ -117,7 +118,7 @@ def _safe_filename(name: str) -> str:
 
 async def _save_upload(file: UploadFile) -> str:
     suffix = Path(file.filename or "upload.txt").suffix or ".txt"
-    fd, path = tempfile.mkstemp(prefix="chengfu-rag-", suffix=suffix)
+    fd, path = tempfile.mkstemp(prefix="company-ai-rag-", suffix=suffix)
     try:
         with os.fdopen(fd, "wb") as fh:
             while True:
@@ -183,7 +184,7 @@ def _score(content: str, terms: list[str], query: str) -> float:
 
 @router.get("/health")
 def health():
-    return {"status": "ok", "adapter": "chengfu-mongo-keyword-rag"}
+    return {"status": "ok", "adapter": "company-ai-mongo-keyword-rag"}
 
 
 @router.post("/text")

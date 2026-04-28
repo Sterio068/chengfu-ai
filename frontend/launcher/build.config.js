@@ -17,7 +17,7 @@
  *   npm run build:watch
  */
 import esbuild from "esbuild";
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -46,6 +46,9 @@ const buildOptions = {
 };
 
 async function build() {
+  if (!isWatch && existsSync("dist")) {
+    rmSync("dist", { recursive: true, force: true });
+  }
   if (!existsSync("dist")) mkdirSync("dist", { recursive: true });
 
   if (isWatch) {

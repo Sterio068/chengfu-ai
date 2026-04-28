@@ -12,7 +12,7 @@ import hashlib
 import logging
 from typing import Optional
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 class PublishError(Exception):

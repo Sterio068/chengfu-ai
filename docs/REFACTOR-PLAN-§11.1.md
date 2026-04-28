@@ -148,7 +148,7 @@ from ._deps import current_user_email, require_admin
 from pymongo import MongoClient
 import os
 
-_client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017/chengfu"))
+_client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017/company_ai"))
 db = _client.get_default_database()
 
 accounts_col = db.accounting_accounts

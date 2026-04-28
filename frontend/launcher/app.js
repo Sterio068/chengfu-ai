@@ -240,8 +240,8 @@ export const app = {
     this._healthInterval = setInterval(() => this.refreshAIProviderHealth(), 60_000);
     // v1.4 macOS · Dock 啟動 · default seed 7 個 agent
     // v1.46 calm mode · 預設關 dock(底部 7 彩色 icon 視覺重)
-    // 設 localStorage chengfu-dock-show=1 才出
-    if (localStorage.getItem("chengfu-dock-show") === "1") {
+    // 設 localStorage company-ai-dock-show=1 才出
+    if (localStorage.getItem("company-ai-dock-show") === "1") {
       try {
         macosDock.init();
       } catch (e) {
@@ -271,9 +271,9 @@ export const app = {
     }
 
     // 首次訪問 onboarding
-    if (!localStorage.getItem("chengfu-tour-done") && window.tour) {
+    if (!localStorage.getItem("company-ai-tour-done") && window.tour) {
       setTimeout(() => {
-        if (!localStorage.getItem("chengfu-tour-done")) window.tour.start();
+        if (!localStorage.getItem("company-ai-tour-done")) window.tour.start();
       }, 500);
     }
 
@@ -927,7 +927,7 @@ export const app = {
     const tasks = document.getElementById("stat-this-week-tasks")?.textContent;
     if (tasks && tasks !== "—") setText("roi-tasks-value", tasks);
     else {
-      const counts = JSON.parse(localStorage.getItem("chengfu-agent-usage") || "{}");
+      const counts = JSON.parse(localStorage.getItem("company-ai-agent-usage") || "{}");
       const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
       setText("roi-tasks-value", String(total));
     }
@@ -937,7 +937,7 @@ export const app = {
   renderFrequent() {
     const root = document.getElementById("frequent-chips");
     if (!root) return;
-    const counts = JSON.parse(localStorage.getItem("chengfu-agent-usage") || "{}");
+    const counts = JSON.parse(localStorage.getItem("company-ai-agent-usage") || "{}");
     const sorted = CORE_AGENTS
       .filter(a => counts[a.num])
       .sort((a, b) => (counts[b.num] || 0) - (counts[a.num] || 0))
@@ -1508,9 +1508,9 @@ export const app = {
   },
 
   openAgent(num) {
-    const counts = JSON.parse(localStorage.getItem("chengfu-agent-usage") || "{}");
+    const counts = JSON.parse(localStorage.getItem("company-ai-agent-usage") || "{}");
     counts[num] = (counts[num] || 0) + 1;
-    localStorage.setItem("chengfu-agent-usage", JSON.stringify(counts));
+    localStorage.setItem("company-ai-agent-usage", JSON.stringify(counts));
     chat.open(num);
   },
 
@@ -1518,9 +1518,9 @@ export const app = {
     this.activeWorkspace = Number(n);
     const agentNum = WORKSPACE_TO_AGENT[n];
     if (!agentNum) return;
-    const ws = JSON.parse(localStorage.getItem("chengfu-ws-usage") || "{}");
+    const ws = JSON.parse(localStorage.getItem("company-ai-ws-usage") || "{}");
     ws[n] = (ws[n] || 0) + 1;
-    localStorage.setItem("chengfu-ws-usage", JSON.stringify(ws));
+    localStorage.setItem("company-ai-ws-usage", JSON.stringify(ws));
     this.showView("workspace");
     this.renderWorkspacePage();
     document.querySelectorAll(".sidebar-item.ws-nav").forEach(el => {
@@ -1910,7 +1910,7 @@ export const app = {
       // 廣播 · 其他分頁 re-render project 列表(刷 updated_at)
       try {
         if ("BroadcastChannel" in self) {
-          const bc = new BroadcastChannel("chengfu-projects");
+          const bc = new BroadcastChannel("company-ai-projects");
           bc.postMessage({ type: "handoff-saved", ts: Date.now() });
           bc.close();
         }
@@ -2178,13 +2178,13 @@ async function _handlePendingInput() {
 function _handleHandoffPending() {
   if (pendingInput || convoToOpen) return;
   try {
-    const pending = sessionStorage.getItem("chengfu.pendingPrompt");
-    const ts = parseInt(sessionStorage.getItem("chengfu.pendingPromptTs") || "0");
-    const source = sessionStorage.getItem("chengfu.pendingPromptSource");
+    const pending = sessionStorage.getItem("company-ai.pendingPrompt");
+    const ts = parseInt(sessionStorage.getItem("company-ai.pendingPromptTs") || "0");
+    const source = sessionStorage.getItem("company-ai.pendingPromptSource");
     if (pending && (Date.now() - ts < 5 * 60 * 1000)) {
-      sessionStorage.removeItem("chengfu.pendingPrompt");
-      sessionStorage.removeItem("chengfu.pendingPromptTs");
-      sessionStorage.removeItem("chengfu.pendingPromptSource");
+      sessionStorage.removeItem("company-ai.pendingPrompt");
+      sessionStorage.removeItem("company-ai.pendingPromptTs");
+      sessionStorage.removeItem("company-ai.pendingPromptSource");
       setTimeout(() => {
         chat.open("00", pending);
         if (source === "handoff") {

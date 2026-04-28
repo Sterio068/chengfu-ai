@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-USER = {"X-User-Email": "pm@chengfu.local"}
+USER = {"X-User-Email": "pm@company-ai.local"}
 
 
 @pytest.fixture
@@ -134,7 +134,7 @@ def test_run_queue_dispatches(client):
     import main
     past = datetime.now(timezone.utc) - timedelta(hours=1)
     main.db.scheduled_posts.insert_one({
-        "author": "pm@chengfu.local",
+        "author": "pm@company-ai.local",
         "platform": "linkedin",
         "content": "排程過去的",
         "schedule_at": past,

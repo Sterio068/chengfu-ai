@@ -29,7 +29,7 @@ from ._deps import _is_admin_user, require_user_dep
 
 # R27#2 · router-wide require login · CRM lead PII · 沒登入禁讀寫
 router = APIRouter(tags=["crm"], dependencies=[require_user_dep()])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 def _lead_oid(lead_id: str) -> ObjectId:

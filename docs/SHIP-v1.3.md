@@ -1,7 +1,7 @@
-# 承富智慧助理 v1.3 · Ship Checklist
+# 企業 AI 工作台 v1.3 · Ship Checklist
 
 > 出貨日期:2026-04-25
-> 交付對象:承富創意整合行銷有限公司(10 人)· Mac mini 部署
+> 交付對象:使用公司(10 人)· Mac mini 部署
 > 路徑:跳過 dogfood · 直接 ship · 信任 auto-update 救火
 
 ---
@@ -60,9 +60,9 @@ PR 數:5 (#27 #28 #29 #30 + 本檔即將是的 ship doc)
 
 ### Gate 2 · rag-verify.sh(部署當天 IT 跑)
 
-需要承富實際 PDF 檔(含 PDPA 限制)· 不能在 dev 機跑。
+需要公司實際 PDF 檔(含 PDPA 限制)· 不能在 dev 機跑。
 
-部署當天承富 IT:
+部署當天公司 IT:
 
 ```bash
 mkdir -p tests/rag-fixtures/{sample-1..5}
@@ -79,7 +79,7 @@ bash scripts/rag-verify.sh
 
 ### 主路徑 · curl 一行(2026-04-25 改主推)
 
-承富 IT 在 Mac mini 開 Terminal · 貼:
+公司 IT 在 Mac mini 開 Terminal · 貼:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main/installer/install.sh | bash
@@ -97,33 +97,33 @@ curl -fsSL https://raw.githubusercontent.com/Sterio068/company-ai-workspace/main
 ### 備援路徑 · DMG(若 IT 無法用 curl · 例如離線部署)
 
 ```
-installer/dist/ChengFu-AI-Installer.dmg  ·  59 MB
+installer/dist/Company-AI-Installer.dmg  ·  59 MB
 GitHub Release · https://github.com/Sterio068/company-ai-workspace/releases/tag/v1.3.0
 ```
 
 包含:
-- `ChengFu-AI-Installer.app` · 7 步 .applescript 安裝精靈
+- `Company-AI-Installer.app` · 7 步 .applescript 安裝精靈
 - `打開我.command` · 自動清 quarantine + 跑 .app
-- `ChengFu-source.tar.gz`(58M)· 完整 repo 快照
+- `CompanyAI-source.tar.gz`(58M)· 完整 repo 快照
 - `讀我.txt` · 中文 README
 
 ⚠ DMG 因沒 Apple Developer 簽章 · 第一次必須:
 ```bash
-xattr -cr "/Volumes/承富 AI 安裝精靈/ChengFu-AI-Installer.app"
-open "/Volumes/承富 AI 安裝精靈/ChengFu-AI-Installer.app"
+xattr -cr "/Volumes/企業 AI 安裝精靈/Company-AI-Installer.app"
+open "/Volumes/企業 AI 安裝精靈/Company-AI-Installer.app"
 ```
 或對 .app 右鍵 →「打開」→ 跳警告再「打開」。
 
 ---
 
-## 3 · 承富 IT 部署 SOP(印給 IT)
+## 3 · 公司 IT 部署 SOP(印給 IT)
 
 ### Day 0 · 前 2 天(Mac mini 到貨前)
 
 - [ ] **API tier 升級** · console.anthropic.com → Settings → Billing → 預存 USD $50 升 Tier 2
-- [ ] **Cloudflare DNS** · 開 ai.<chengfu-domain>.com 子網域(不指 IP · 留給 Tunnel)
+- [ ] **Cloudflare DNS** · 開 ai.<company-ai-domain>.com 子網域(不指 IP · 留給 Tunnel)
 - [ ] **10 同仁 email 列表** · 用來建 LibreChat user
-- [ ] **承富既有 PDF 知識庫** · 拷到隨身碟(投標 / 結案 / SOP)
+- [ ] **公司既有 PDF 知識庫** · 拷到隨身碟(投標 / 結案 / SOP)
 
 ### Day 1 · Mac mini 到 → 安裝(預估 30 分鐘 · 跌停 1 小時)
 
@@ -134,7 +134,7 @@ open "/Volumes/承富 AI 安裝精靈/ChengFu-AI-Installer.app"
    ```
 3. **6 步自動跑完**:
    - Step 1 · 環境預檢(git / Docker Desktop 安裝與啟動 / disk / RAM)
-   - Step 2 · git clone 到 ~/ChengFu
+   - Step 2 · git clone 到 ~/CompanyAIWorkspace
    - Step 3 · setup-keychain 互動輸 API key(OpenAI 必填)
    - Step 4 · cp .env + 啟容器(`docker compose up -d --build`)
    - Step 5 · 30 秒 warmup + health check 兩個 endpoint
@@ -142,10 +142,10 @@ open "/Volumes/承富 AI 安裝精靈/ChengFu-AI-Installer.app"
 4. **建 admin user**(進 launcher 第一次 setup wizard)
 5. **安裝 launchd cron**:
    ```bash
-   cd ~/chengfu-ai
+   cd ~/company-ai
    ./scripts/install-launchd.sh
    # 載入 6 plist:backup / digest / dr-drill / knowledge-cron / social-scheduler / tender-monitor / update-check
-   launchctl list | grep tw.chengfu  # 應該看 7 個
+   launchctl list | grep tw.company-ai  # 應該看 7 個
    ```
 6. **首次 update check**(不等 03:00):
    ```bash
@@ -157,10 +157,10 @@ open "/Volumes/承富 AI 安裝精靈/ChengFu-AI-Installer.app"
 ### Day 1 · 知識庫匯入(預估 1 小時)
 
 ```bash
-# 把 USB 上的 PDF 拷到 ~/Desktop/chengfu-kb/
+# 把 USB 上的 PDF 拷到 ~/Desktop/company-ai-kb/
 # Launcher → 中控 → 知識庫 → 「新增資料源」逐一加
 # 或批次:
-bash scripts/upload-knowledge-base.py ~/Desktop/chengfu-kb/
+bash scripts/upload-knowledge-base.py ~/Desktop/company-ai-kb/
 ```
 
 驗證 Meilisearch 索引:Launcher → 資料 → 全文搜「中秋」(or 任一已上傳關鍵字)→ 應該有結果。
@@ -184,8 +184,8 @@ bash scripts/upload-knowledge-base.py ~/Desktop/chengfu-kb/
 ### Day 3 · 遠端設定(選配)
 
 - Cloudflare Tunnel + Access policy
-- 2FA + Email 白名單(承富 10 同仁 email)
-- 給老闆 https://ai.<chengfu>.com
+- 2FA + Email 白名單(公司 10 同仁 email)
+- 給老闆 https://ai.<company-ai>.com
 
 ---
 
@@ -254,8 +254,8 @@ docker compose up -d --build
 
 | 檔案 | 給誰 | 怎麼給 |
 |---|---|---|
-| `installer/dist/ChengFu-AI-Installer.dmg`(59 MB)| 承富 IT | USB / Drive / 安全 mail |
-| 本檔 `docs/SHIP-v1.3.md` | 承富 IT + 老闆 | repo 內可看 |
+| `installer/dist/Company-AI-Installer.dmg`(59 MB)| 公司 IT | USB / Drive / 安全 mail |
+| 本檔 `docs/SHIP-v1.3.md` | 公司 IT + 老闆 | repo 內可看 |
 | `docs/UPDATE.md` | 老闆 + admin | 印 + repo 內可看 |
 | `docs/03-TRAINING.md` | 全 10 同仁 | 教育訓練教案 |
 | `docs/05-SECURITY.md` | 老闆 | PDPA + Keychain SOP |
@@ -268,7 +268,7 @@ docker compose up -d --build
 ## 8 · 簽收
 
 ```
-我承富創意整合行銷有限公司確認:
+我使用公司確認:
 
   [ ] DMG 安裝完成 · 6 容器 healthy
   [ ] 10 同仁 user 已建 · 都能登入

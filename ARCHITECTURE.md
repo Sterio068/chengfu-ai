@@ -21,10 +21,10 @@
 ┌───────────────────────────────────────────────────────────┐
 │                    連 線 層                                  │
 │                                                            │
-│   公司內網:http://承富-ai.local:3080                        │
+│   公司內網:http://本公司-ai.local:3080                        │
 │           ↓                                                 │
 │   Cloudflare Tunnel(加密通道 · 免費 · 免開 port)            │
-│   公開網址:https://ai.<承富domain>.com                     │
+│   公開網址:https://ai.<本公司domain>.com                     │
 │   內含 Access Policy:Email 白名單 + 2FA(必要)              │
 └───────────────────────┬───────────────────────────────────┘
                         │
@@ -54,11 +54,11 @@
 │   └──────────────────────────────────────────────────┘    │
 │                                                            │
 │   macOS Keychain(機密儲存 · 見 docs/05-SECURITY.md)        │
-│     ├─ chengfu-ai-openai-key                               │
-│     ├─ chengfu-ai-anthropic-key(選配備援)                  │
-│     ├─ chengfu-ai-jwt-secret                               │
-│     ├─ chengfu-ai-creds-key / creds-iv                     │
-│     └─ chengfu-ai-meili-master-key                         │
+│     ├─ company-ai-openai-key                               │
+│     ├─ company-ai-anthropic-key(選配備援)                  │
+│     ├─ company-ai-jwt-secret                               │
+│     ├─ company-ai-creds-key / creds-iv                     │
+│     └─ company-ai-meili-master-key                         │
 └───────────────────────┬───────────────────────────────────┘
                         │
                         ▼
@@ -125,7 +125,7 @@ Claude 回應結構化重點表
 ```
 使用者在「公司知識庫查詢 Agent」輸入:「去年環保局案的預算結構」
     ↓
-Agent 已預載承富知識庫檔案(Week 3 上傳,LibreChat 自動索引)
+Agent 已預載本公司知識庫檔案(Week 3 上傳,LibreChat 自動索引)
     ↓
 file_search 對已索引內容做語意檢索
     ↓
@@ -133,7 +133,7 @@ file_search 對已索引內容做語意檢索
     ↓
 片段 + 查詢 + Agent 指令送 Claude API
     ↓
-Claude 根據承富自家資料回答,附上**檔案引用**(LibreChat 原生支援)
+Claude 根據本公司自家資料回答,附上**檔案引用**(LibreChat 原生支援)
     ↓
 儲存查詢紀錄
 ```
@@ -186,10 +186,10 @@ LibreChat 原生 Speech-to-Text
 ### MongoDB
 - 版本:7.0
 - 資料卷:`./data/mongo`
-- 備份策略:每日 02:00 自動 `mongodump` 到 `~/chengfu-backups/mongo/YYYY-MM-DD.gz`(詳見 `docs/04-OPERATIONS.md`)
+- 備份策略:每日 02:00 自動 `mongodump` 到 `~/company-ai-backups/mongo/YYYY-MM-DD.gz`(詳見 `docs/04-OPERATIONS.md`)
 - 保留:30 天(每週日再滾動一份到週備份,保留 12 週)
 - 記憶體上限:2 GB
-- License:SSPL(承富內部 10 人使用,無商業轉售,視為低風險 · 見 `docs/05-SECURITY.md`)
+- License:SSPL(本公司內部 10 人使用,無商業轉售,視為低風險 · 見 `docs/05-SECURITY.md`)
 
 ### Meilisearch
 - 版本:v1.12.0
@@ -201,7 +201,7 @@ LibreChat 原生 Speech-to-Text
 - 安裝方式:`brew install cloudflared`
 - 設定:`~/.cloudflared/config.yml`
 - 啟動:`launchctl` 開機自啟
-- 公開域名:`ai.<承富domain>.com`
+- 公開域名:`ai.<本公司domain>.com`
 - Access Policy(必要):
   - Email 白名單(10 個同仁 email)
   - **2FA 必開**(One-time PIN 或 Google Authenticator · S-2)
@@ -210,12 +210,12 @@ LibreChat 原生 Speech-to-Text
 ### macOS Keychain(S-1 · 機密儲存)
 - 不是容器,是 macOS 原生服務
 - 儲存以下項目(見 `scripts/setup-keychain.sh`):
-  - `chengfu-ai-openai-key`(OPENAI_API_KEY,主力 AI / STT / embedding)
-  - `chengfu-ai-anthropic-key`(ANTHROPIC_API_KEY,Claude 備援)
-  - `chengfu-ai-jwt-secret` / `chengfu-ai-jwt-refresh-secret`
-  - `chengfu-ai-creds-key` / `chengfu-ai-creds-iv`
-  - `chengfu-ai-meili-master-key`
-  - `chengfu-ai-email-password`(Resend / SMTP)
+  - `company-ai-openai-key`(OPENAI_API_KEY,主力 AI / STT / embedding)
+  - `company-ai-anthropic-key`(ANTHROPIC_API_KEY,Claude 備援)
+  - `company-ai-jwt-secret` / `company-ai-jwt-refresh-secret`
+  - `company-ai-creds-key` / `company-ai-creds-iv`
+  - `company-ai-meili-master-key`
+  - `company-ai-email-password`(Resend / SMTP)
 - 容器啟動時由 `scripts/start.sh` 從 Keychain 讀取並注入環境變數,
   `.env` 僅存非機密設定
 
@@ -237,8 +237,8 @@ LibreChat 原生 Speech-to-Text
 - 建議:接 USB 連線讓 macOS 能監測電池狀態,自動關機前觸發 mongodump
 
 ### 網路
-- 建議固定 IP(從承富網路設備配置)
-- 主機名:`承富-ai.local`(Bonjour/mDNS)
+- 建議固定 IP(從本公司網路設備配置)
+- 主機名:`本公司-ai.local`(Bonjour/mDNS)
 
 ---
 
@@ -273,7 +273,7 @@ LibreChat 原生 Speech-to-Text
 - 在各 Agent 指定使用模型
 
 ### 階段二升級:加入本地 Ollama
-- 觸發條件:承富處理 Level 03 資料頻率增加、或客戶要求完全離線
+- 觸發條件:本公司處理 Level 03 資料頻率增加、或客戶要求完全離線
 - 需求:Mac mini RAM **建議升至 32 GB 或改 Mac Studio**
 - 新增模型:Qwen 2.5 7B(通用)、TAIDE(繁中特化)
 - 儲存空間:模型檔案約 20-40 GB
@@ -282,7 +282,7 @@ LibreChat 原生 Speech-to-Text
 ### 備援方案
 若 Mac mini 硬體損壞:
 - UPS 確保不掉電
-- 每日 MongoDB 備份可從 `~/chengfu-backups/` 還原
+- 每日 MongoDB 備份可從 `~/company-ai-backups/` 還原
 - 重建時間預估 2-4 小時(硬體送修期間可用替代機)
 - 詳細 RTO / RPO 見 `docs/04-OPERATIONS.md`
 
@@ -293,9 +293,9 @@ LibreChat 原生 Speech-to-Text
 1. **依賴雲端 AI API**:若 OpenAI 或 Anthropic 服務中斷,對應引擎不可用。
    → 緩解:前端可切換另一家 provider；階段二加入本地 Ollama 做 fallback
 2. **單點部署**:無負載均衡、無熱備援。10 人規模不需要,20+ 人才考慮叢集。
-3. **中文 embedding 表現**:LibreChat 原生 file_search 對繁中支援足夠,但若承富大量用行業術語(如特定政府專案代碼),Week 3 需抽樣驗證檢索準度。
+3. **中文 embedding 表現**:LibreChat 原生 file_search 對繁中支援足夠,但若本公司大量用行業術語(如特定政府專案代碼),Week 3 需抽樣驗證檢索準度。
 4. **繁中文語音辨識**:OpenAI Whisper API 對繁中辨識率約 92-95%,含口語專有名詞(人名、機關簡稱)時需人工校正。
-5. **MongoDB SSPL License**:承富 10 人內部使用、無商業轉售,視為低風險。
+5. **MongoDB SSPL License**:本公司 10 人內部使用、無商業轉售,視為低風險。
    若未來有轉售或服務外部客戶計畫,需評估替代(FerretDB 等) · 見 `docs/05-SECURITY.md`。
 
 ---

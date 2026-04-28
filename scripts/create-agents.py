@@ -85,16 +85,16 @@ PROVIDER_CONFIG = {
         "api_provider": "openAI",
         "label": "OpenAI",
         # v1.54 · GPT-5.5 為主力 · 增強推理 + 原生多模態 + 強化 function calling + 更大 context
-        "high_model": os.environ.get("CHENGFU_OPENAI_HIGH_MODEL", "gpt-5.5"),
-        "standard_model": os.environ.get("CHENGFU_OPENAI_STANDARD_MODEL", "gpt-5.5-mini"),
-        "fast_model": os.environ.get("CHENGFU_OPENAI_FAST_MODEL", "gpt-5.5-nano"),
+        "high_model": os.environ.get("COMPANY_AI_OPENAI_HIGH_MODEL", "gpt-5.5"),
+        "standard_model": os.environ.get("COMPANY_AI_OPENAI_STANDARD_MODEL", "gpt-5.5-mini"),
+        "fast_model": os.environ.get("COMPANY_AI_OPENAI_FAST_MODEL", "gpt-5.5-nano"),
     },
     "anthropic": {
         "api_provider": "anthropic",
         "label": "Claude",
-        "high_model": os.environ.get("CHENGFU_ANTHROPIC_HIGH_MODEL", "claude-opus-4-7"),
-        "standard_model": os.environ.get("CHENGFU_ANTHROPIC_STANDARD_MODEL", "claude-sonnet-4-6"),
-        "fast_model": os.environ.get("CHENGFU_ANTHROPIC_FAST_MODEL", "claude-haiku-4-5"),
+        "high_model": os.environ.get("COMPANY_AI_ANTHROPIC_HIGH_MODEL", "claude-opus-4-7"),
+        "standard_model": os.environ.get("COMPANY_AI_ANTHROPIC_STANDARD_MODEL", "claude-sonnet-4-6"),
+        "fast_model": os.environ.get("COMPANY_AI_ANTHROPIC_FAST_MODEL", "claude-haiku-4-5"),
     },
 }
 
@@ -298,7 +298,7 @@ def share_agent_globally(token: str, agent_id: str) -> bool:
     """
     建立後 PATCH projectIds 讓全公司可用。
     提示:若沒設 LIBRECHAT_INSTANCE_PROJECT_ID,跑完後用 mongo 手動批次 patch:
-      docker exec chengfu-mongo mongosh chengfu --eval '
+      docker exec company-ai-mongo mongosh company_ai --eval '
         const id = db.projects.findOne({name:"instance"})._id;
         db.agents.updateMany({}, {$set:{projectIds:[id]}})'
     """
@@ -359,7 +359,7 @@ def main() -> int:
         "--provider",
         type=str,
         choices=["openai", "anthropic", "both"],
-        default=os.environ.get("CHENGFU_AGENT_PROVIDER", "both"),
+        default=os.environ.get("COMPANY_AI_AGENT_PROVIDER", "both"),
         help="建立哪個 AI 引擎版本(預設 both = OpenAI + Claude,供前端切換)",
     )
     args = parser.parse_args()
@@ -435,8 +435,8 @@ def main() -> int:
                         print("   🌐 已共享給全公司")
                     else:
                         # 若要停掉 hard-fail(某些 LibreChat 升版 projectIds 改變),
-                        # 設環境變數 CHENGFU_SHARE_SOFT_FAIL=1
-                        if os.environ.get("CHENGFU_SHARE_SOFT_FAIL") != "1":
+                        # 設環境變數 COMPANY_AI_SHARE_SOFT_FAIL=1
+                        if os.environ.get("COMPANY_AI_SHARE_SOFT_FAIL") != "1":
                             print(f"❌ {agent['name']} 共享失敗 · agent 已建但未對全公司可見")
                             print("   原因通常是:instance project id 找不到 · 或 Mongo 手動加 projectIds")
                             print("   請見 docs/LIBRECHAT-UPGRADE-CHECKLIST.md 第 5a 步")

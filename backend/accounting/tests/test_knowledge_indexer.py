@@ -20,17 +20,17 @@ from services.knowledge_extract import extract, EXTRACTORS
 @pytest.fixture
 def sources_col():
     client = mongomock.MongoClient()
-    return client.chengfu_test.knowledge_sources
+    return client.company_ai_test.knowledge_sources
 
 
 @pytest.fixture
 def tmp_src(sources_col):
     """建一個有真實檔案結構的 tmp source"""
-    d = tempfile.mkdtemp(prefix="chengfu_idx_")
+    d = tempfile.mkdtemp(prefix="company_ai_idx_")
     # 建立檔案結構
     (pathlib.Path(d) / "projects" / "海廢案").mkdir(parents=True)
     (pathlib.Path(d) / "projects" / "海廢案" / "建議書.txt").write_text(
-        "承富創意 · 2024 環保署海洋廢棄物專案建議書 · 第一章主軸", encoding="utf-8"
+        "本公司 · 2024 環保署海洋廢棄物專案建議書 · 第一章主軸", encoding="utf-8"
     )
     (pathlib.Path(d) / "projects" / "海廢案" / "notes.md").write_text(
         "# 會議記錄\n- 3 月 1 日開案會議", encoding="utf-8"
@@ -120,12 +120,12 @@ def test_extract_docx():
         p = f.name
     try:
         doc = Document()
-        doc.add_paragraph("承富創意整合行銷 · 測試段落")
+        doc.add_paragraph("本公司 · 測試段落")
         doc.add_paragraph("第二段 · 2026 年")
         doc.save(p)
         r = extract(p)
         assert r["type"] == "docx"
-        assert "承富創意" in r["content_preview"]
+        assert "本公司" in r["content_preview"]
         assert r["paragraph_count"] >= 2
     finally:
         os.unlink(p)
@@ -522,7 +522,7 @@ def test_c3_hash_skip_when_mtime_changed_but_content_same(tmp_src):
     """跑兩次:第二次 touch 同檔(mtime 變內容沒變)· 第二次應 skip"""
     import os
     import time
-    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+    file_hashes_col = mongomock.MongoClient().company_ai_test.knowledge_file_hashes
 
     # 第一次 · 全新跑 · file_hashes 表為空 · 全 extract
     stats1 = knowledge_indexer.reindex_source(
@@ -550,7 +550,7 @@ def test_c3_hash_skip_when_mtime_changed_but_content_same(tmp_src):
 def test_c3_hash_reextract_when_content_changed(tmp_src):
     """跑兩次:第二次真改內容 · 應重 extract 該檔"""
     import time
-    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+    file_hashes_col = mongomock.MongoClient().company_ai_test.knowledge_file_hashes
 
     # 第一次
     stats1 = knowledge_indexer.reindex_source(
@@ -575,7 +575,7 @@ def test_c3_hash_reextract_when_content_changed(tmp_src):
 
 def test_c3_force_skip_hash_check(tmp_src):
     """force=True 跳過 hash 比對 · 全部重 extract"""
-    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+    file_hashes_col = mongomock.MongoClient().company_ai_test.knowledge_file_hashes
 
     # 第一次正常跑(填 hash)
     stats1 = knowledge_indexer.reindex_source(
@@ -621,7 +621,7 @@ def test_c3_compute_content_hash_streaming():
 
 def test_c3_r33_meili_unavailable_no_hash_commit(tmp_src):
     """R33#1 紅 · Meili down 時 hash 不能 commit · 否則下次 retry 永遠 skip"""
-    file_hashes_col = mongomock.MongoClient().chengfu_test.knowledge_file_hashes
+    file_hashes_col = mongomock.MongoClient().company_ai_test.knowledge_file_hashes
 
     class BrokenMeili:
         def index(self, *a, **kw):

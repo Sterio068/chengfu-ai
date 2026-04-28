@@ -11,7 +11,7 @@
  *   brand.subscribe(cb)      // 訂閱變動(設定改 → re-render UI)
  */
 
-const STORAGE_KEY = "chengfu_branding_v1";
+const STORAGE_KEY = "company_ai_branding_v1";
 
 const DEFAULT = {
   company_name: "公司名稱",

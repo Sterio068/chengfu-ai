@@ -35,21 +35,21 @@ class TestMakeUserOrIp:
     def test_internal_token_wrong_falls_to_cookie(self, monkeypatch):
         from auth_deps import make_user_or_ip
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "secret123")
-        verify_fn = MagicMock(return_value="user@example.com")
+        verify_fn = MagicMock(return_value="user@example.example")
         get_addr = MagicMock(return_value="1.2.3.4")
         f = make_user_or_ip(verify_fn, get_addr)
         req = self._make_request(internal_token="WRONG")
-        assert f(req) == "u:user@example.com"
+        assert f(req) == "u:user@example.example"
         get_addr.assert_not_called()
 
     def test_no_internal_token_uses_cookie(self, monkeypatch):
         from auth_deps import make_user_or_ip
         monkeypatch.setenv("ECC_INTERNAL_TOKEN", "")
-        verify_fn = MagicMock(return_value="alice@example.com")
+        verify_fn = MagicMock(return_value="alice@example.example")
         get_addr = MagicMock(return_value="1.2.3.4")
         f = make_user_or_ip(verify_fn, get_addr)
         req = self._make_request()
-        assert f(req) == "u:alice@example.com"
+        assert f(req) == "u:alice@example.example"
 
     def test_cookie_fail_falls_to_ip(self):
         from auth_deps import make_user_or_ip

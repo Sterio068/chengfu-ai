@@ -25,6 +25,8 @@ import os
 
 from bson import ObjectId
 
+from field_names import USER_ACTIVE_FIELDS, projection_for, user_is_inactive
+
 
 def _is_prod() -> bool:
     """環境判斷 · ECC_ENV / NODE_ENV 任一為 production"""
@@ -281,11 +283,11 @@ def make_require_admin(users_col, admin_allowlist, logger=None):
                 "X-User-Email header 單獨不足以授權 · 或設 X-Internal-Token"
             )
 
-        # 3) 白名單 · 同步檢查 chengfu_active
+        # 3) 白名單 · 同步檢查帳號啟用狀態
         if email in admin_allowlist:
             try:
-                u = users_col.find_one({"email": email}, {"chengfu_active": 1})
-                if u and u.get("chengfu_active") is False:
+                u = users_col.find_one({"email": email}, projection_for(legacy_fields=USER_ACTIVE_FIELDS))
+                if user_is_inactive(u):
                     raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
             except HTTPException:
                 raise
@@ -297,7 +299,7 @@ def make_require_admin(users_col, admin_allowlist, logger=None):
         # 4) users.role == ADMIN · DB 內標記
         try:
             u = users_col.find_one({"email": email})
-            if u and u.get("chengfu_active") is False:
+            if user_is_inactive(u):
                 raise HTTPException(403, "帳號已停用 · 請聯絡管理員")
             if u and (u.get("role") or "").upper() == "ADMIN":
                 return email

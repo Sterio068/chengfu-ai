@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  承富 AI · 每日 03:00 知識庫增量索引(V1.1 §E-2)
+  企業 AI · 每日 03:00 知識庫增量索引(V1.1 §E-2)
 
   安裝:./scripts/install-launchd.sh
-  卸載:launchctl unload ~/Library/LaunchAgents/tw.chengfu.knowledge-cron.plist
-       rm ~/Library/LaunchAgents/tw.chengfu.knowledge-cron.plist
+  卸載:launchctl unload ~/Library/LaunchAgents/tw.company-ai.knowledge-cron.plist
+       rm ~/Library/LaunchAgents/tw.company-ai.knowledge-cron.plist
   驗證:tail -f scripts/knowledge-cron.log
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>tw.chengfu.knowledge-cron</string>
+    <string>tw.company-ai.knowledge-cron</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -30,9 +30,9 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-knowledge-cron.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-knowledge-cron.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-knowledge-cron.err.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-knowledge-cron.err.log</string>
 
     <key>RunAtLoad</key>
     <false/>

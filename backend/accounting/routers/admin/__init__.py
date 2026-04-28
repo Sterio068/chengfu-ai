@@ -30,6 +30,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from field_names import LEGACY_QUOTA_OVERRIDES_COLLECTION, QUOTA_OVERRIDES_COLLECTION
+
 
 def _parse_date_boundary(raw: str, *, end: bool = False) -> datetime:
     """R18 · audit-log 日期 parser · 容忍 YYYY-MM-DD 或完整 ISO datetime
@@ -55,7 +57,7 @@ from .._deps import require_admin_dep  # admin/ → routers/_deps
 
 
 router = APIRouter(tags=["admin"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # ============================================================
@@ -170,7 +172,7 @@ def export_all_data(_admin: str = require_admin_dep()):
     return StreamingResponse(
         _stream(),
         media_type="application/json",
-        headers={"Content-Disposition": f"attachment; filename=chengfu-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"},
+        headers={"Content-Disposition": f"attachment; filename=company-ai-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"},
     )
 
 
@@ -336,7 +338,7 @@ def _send_email_internal(msg: EmailNotification) -> dict:
     smtp_port = int(os.getenv("EMAIL_SMTP_PORT", "587"))
     smtp_user = os.getenv("EMAIL_USERNAME")
     smtp_pass = os.getenv("EMAIL_PASSWORD")
-    from_addr = os.getenv("EMAIL_FROM", "ai@chengfu.com")
+    from_addr = os.getenv("EMAIL_FROM", "ai@company.example")
     from_name = os.getenv("EMAIL_FROM_NAME", "AI 系統")
 
     if not smtp_user or not smtp_pass:
@@ -393,7 +395,7 @@ def register_rate_limited_routes(limit_decorator):
 def send_monthly_report_to_admin(_admin: str = require_admin_dep()):
     """產生月報 + 寄給 ADMIN_EMAIL · 可由 cron 每月 1 日觸發"""
     report = monthly_report()
-    admin_email = os.getenv("ADMIN_EMAIL", "sterio@chengfu.local")
+    admin_email = os.getenv("ADMIN_EMAIL", "sterio@company_ai-ai.local")
 
     body = f"""<html><body style="font-family: -apple-system, sans-serif;">
 <h1>AI 月報 · {report['month']}</h1>
@@ -690,7 +692,7 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
                      _admin: str = require_admin_dep()):
     """PDPA 17 條 · 同仁離職 / 自願刪除請求 · 把該 user 跨 collection 全刪
 
-    跨 collection 範圍(承富 v1.2 + R29 補):
+    跨 collection 範圍(本公司 v1.2 + R29 補):
     刪除類(該 user 私有資料):
     - user_preferences(line_token / webhook_url / agent prefs)
     - feedback(該 user 的 thumbs up/down)
@@ -698,7 +700,7 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
     - site_surveys(該 user 拍的場勘照片 metadata)
     - scheduled_posts(author = user_email)
     - knowledge_audit(user 搜的 audit log)
-    - chengfu_quota_overrides(若有)
+    - quota overrides(若有)
     - design_jobs(R29 補 · user 欄 · prompt + 圖檔 reference)
     - agent_overrides(R29 補 · admin 為該 user 客製 prompt)
 
@@ -731,7 +733,7 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
     from main import audit_col
     import re
 
-    # R31 修 · case-insensitive · legacy 資料可能存大小寫混合(Leaving@ChengFu.Local)
+    # R31 修 · case-insensitive · legacy 資料可能存大小寫混合(Leaving@CompanyAI.Local)
     # 用 regex 完整匹配 + 不含 . 的 escape · 防 admin 名含特殊字元誤判
     def ci(field_value: str):
         """Case-insensitive 完整 match · 防 legacy mixed-case 漏"""
@@ -747,7 +749,8 @@ def pdpa_delete_user(user_email: str, payload: PdpaDeleteRequest,
         ("site_surveys", {"owner": target_ci}),
         ("scheduled_posts", {"author": target_ci}),
         ("knowledge_audit", {"user": target_ci}),
-        ("chengfu_quota_overrides", {"email": target_ci}),
+        (QUOTA_OVERRIDES_COLLECTION, {"email": target_ci}),
+        (LEGACY_QUOTA_OVERRIDES_COLLECTION, {"email": target_ci}),
         ("design_jobs", {"user": target_ci}),       # R29 補
         ("agent_overrides", {"user_email": target_ci}),  # R29 補(若 admin 有為該 user 客製)
     ]

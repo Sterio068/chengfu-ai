@@ -1,4 +1,4 @@
-name: CI · 承富 AI 系統
+name: CI · 企業 AI 系統
 
 on:
   push:
@@ -135,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build accounting image
-        run: docker build -t chengfu-accounting backend/accounting/
+        run: docker build -t company-ai-accounting backend/accounting/
       - name: Prepare CI .env(複製 example · 真實 key 由 Keychain 注入)
         run: |
           # CI 只驗 compose syntax · 不真跑 · 用 .env.example 當 placeholder

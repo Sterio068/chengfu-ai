@@ -31,7 +31,7 @@ from typing import Iterator, Optional
 import re
 import logging
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 # Workspace 關鍵字推導(MVP · v1.8 改用真標籤)
 WS_KEYWORDS = {

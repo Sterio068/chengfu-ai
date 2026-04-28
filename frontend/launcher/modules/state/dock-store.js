@@ -9,7 +9,7 @@
  *   - 既有 localStorage pattern(theme / projects)已建立
  *
  * Schema:
- *   chengfu_dock_v1 = {
+ *   company_ai_dock_v1 = {
  *     items: [
  *       { type: "agent", id: "00", pinned: true },
  *       { type: "agent", id: "09", pinned: true },
@@ -22,7 +22,7 @@
  *   開機就有 7 個常用 icon · 老闆登入立即看到滿 dock · 不空
  */
 
-const STORAGE_KEY = "chengfu_dock_v1";
+const STORAGE_KEY = "company_ai_dock_v1";
 
 // Default seed · 7 個核心 agent(對應 sidebar 工作區捷徑)
 // USER 可右鍵移除 · 動作會 persist · 不會 reset

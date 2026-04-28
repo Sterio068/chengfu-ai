@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 技術債#13(2026-04-23)· Uptime Kuma 預設 monitor 一鍵設
 #
-# 承富 v1.2 已 launch chengfu-uptime container · 但 monitor rule 要手動加
+# 本公司 v1.2 已 launch company-ai-uptime container · 但 monitor rule 要手動加
 # 此 script 用 Uptime Kuma API 一鍵建好 6 個 monitor:
 #   1. nginx /healthz · 30s · LibreChat 入口
 #   2. accounting /healthz · 60s · FastAPI 業務後端
@@ -51,7 +51,7 @@ add_monitor() {
 }
 
 echo "============================================"
-echo "  承富 AI · Uptime Kuma 預設 monitor 一鍵設"
+echo "  企業 AI · Uptime Kuma 預設 monitor 一鍵設"
 echo "============================================"
 echo "目標 KUMA: $KUMA_URL"
 echo ""
@@ -60,7 +60,7 @@ echo ""
 
 add_monitor "nginx /healthz"             "http"     "http://nginx/healthz"           30
 add_monitor "accounting /healthz"        "http"     "http://accounting:8000/healthz" 60
-add_monitor "mongodb (chengfu_ai)"       "port"     "mongodb:27017"                  60
+add_monitor "mongodb (company_ai)"       "port"     "mongodb:27017"                  60
 add_monitor "meili /health"              "http"     "http://meilisearch:7700/health" 120
 add_monitor "uptime-kuma 自身"           "http"     "$KUMA_URL"                       300
 add_monitor "accounting quota gate"      "http"     "http://accounting:8000/quota/preflight" 300

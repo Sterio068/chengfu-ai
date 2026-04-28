@@ -1,4 +1,4 @@
-# 承富智慧助理 v1.4.0 · macOS 大重構
+# 企業 AI 工作台 v1.4.0 · macOS 大重構
 
 > 出貨日期:2026-04-26
 > 對應 PR:#37 ~ #45(9 個 PR)
@@ -17,10 +17,10 @@
 ### 1. 頂部 Menu Bar(藍底白字)
 
 ```
-承富智慧助理 │ 檔案 │ 編輯 │ 顯示 │ 視窗 │ 說明      🤖 OpenAI · $0.45 · 🔔 · S · 22:30
+企業 AI 工作台 │ 檔案 │ 編輯 │ 顯示 │ 視窗 │ 說明      🤖 OpenAI · $0.45 · 🔔 · S · 22:30
 ```
 
-- 左:6 個 menu(承富 / 檔案 / 編輯 / 顯示 / 視窗 / 說明)
+- 左:6 個 menu(本公司 / 檔案 / 編輯 / 顯示 / 視窗 / 說明)
 - 右:5 個 status(模型切 / API 用量 / 通知 / 用戶 / 時間)
 - 點 menu → macOS NSMenu 風 dropdown(含 ⌘ shortcut hint)
 - Hover 切相鄰 menu(macOS 經典)
@@ -67,7 +67,7 @@
 
 ## 浮動 Window 系統(MVP)
 
-點頂部 menu「承富智慧助理 → 關於 承富智慧助理」:
+點頂部 menu「企業 AI 工作台 → 關於 企業 AI 工作台」:
 - 浮動視窗 spring 進場
 - macOS traffic lights(🔴 close / 🟡 minimize / 🟢 maximize)
 - 拖 titlebar 移動
@@ -164,7 +164,7 @@ v1.5 規劃對話多開 + Mission Control。
 
 ```bash
 # Mac mini 上
-cd ~/ChengFu && git pull origin main
+cd ~/CompanyAIWorkspace && git pull origin main
 docker compose -f config-templates/docker-compose.yml restart nginx
 # 開瀏覽器 Cmd+Shift+R 強制重整
 ```

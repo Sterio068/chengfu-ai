@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-承富 AI · 每日晨間 Digest
+企業 AI · 每日晨間 Digest
 ==========================================================
 
 每天早上 8:30 自動產:
-  - 昨日承富對話活動摘要(誰用了什麼 Agent)
-  - 今日待辦(從承富專案 · 截止日近的)
+  - 昨日本公司對話活動摘要(誰用了什麼 Agent)
+  - 今日待辦(從本公司專案 · 截止日近的)
   - 今日新標案 alerts
   - 今日關鍵日期(合約到期 / 繳稅 / 驗收)
-  - Claude 產出「給承富團隊的今日 3 個建議」
+  - Claude 產出「給本公司團隊的今日 3 個建議」
 
 寄送 email 給 ADMIN_EMAIL + 所有 ACTIVE 使用者(可選)。
 
 cron:
-  30 8 * * 1-5 cd /path/to/ChengFu && python3 scripts/daily-digest.py
+  30 8 * * 1-5 cd /path/to/CompanyAIWorkspace && python3 scripts/daily-digest.py
 """
 import json
 import os
@@ -28,8 +28,8 @@ except ImportError:
     sys.exit("pip install pymongo anthropic")
 
 
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/chengfu")
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "sterio@chengfu.local")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/company_ai")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "sterio@company-ai.local")
 ACCOUNTING_BASE = os.environ.get("ACCOUNTING_BASE", "http://localhost/api-accounting")
 
 
@@ -95,7 +95,7 @@ def generate_ai_advice(activity: dict, priorities: dict) -> str:
         return "(未設 ANTHROPIC_API_KEY · 跳過 AI 建議)"
 
     client = anthropic.Anthropic()
-    prompt = f"""承富創意整合行銷的 10 人團隊 · 今日晨會資料:
+    prompt = f"""本公司的 10 人團隊 · 今日晨會資料:
 
 昨日活動:
 - 總對話數:{activity['total_convos']}
@@ -106,8 +106,8 @@ def generate_ai_advice(activity: dict, priorities: dict) -> str:
 - 近期截止專案:{[p['name'] + f" ({p['days_left']}天)" for p in priorities['upcoming_projects'][:3]]}
 - 新標案 alerts:{[t['title'] for t in priorities['new_tenders'][:3]]}
 
-請給承富團隊「今日 3 個具體建議」(每個 1-2 句,繁中,不超過 100 字)。
-風格:精簡 · 可行動 · 承富老闆風。"""
+請給本公司團隊「今日 3 個具體建議」(每個 1-2 句,繁中,不超過 100 字)。
+風格:精簡 · 可行動 · 本公司老闆風。"""
 
     resp = client.messages.create(
         model="claude-haiku-4-5",
@@ -122,7 +122,7 @@ def send_digest_email(activity, priorities, advice):
     body = f"""<html><body style="font-family: -apple-system, 'PingFang TC', sans-serif; max-width: 600px; margin: 0 auto; color: #1D1D1F;">
 
 <div style="background: linear-gradient(135deg, #0F2340, #2D4268); color: white; padding: 24px; border-radius: 12px;">
-  <h1 style="margin: 0;">早安,承富 👋</h1>
+  <h1 style="margin: 0;">早安,本公司 👋</h1>
   <p style="margin: 8px 0 0 0; opacity: 0.9;">{datetime.now().strftime("%Y 年 %m 月 %d 日 · %A")}</p>
 </div>
 
@@ -148,7 +148,7 @@ def send_digest_email(activity, priorities, advice):
 
 <hr style="margin: 32px 0; border: none; border-top: 1px solid #E5E5EA;">
 <p style="color: #8E8E93; font-size: 12px; text-align: center;">
-  承富 AI 系統自動產出 · <a href="http://localhost/">打開平台</a>
+  企業 AI 系統自動產出 · <a href="http://localhost/">打開平台</a>
 </p>
 </body></html>"""
 
@@ -168,7 +168,7 @@ def send_digest_email(activity, priorities, advice):
         f"{ACCOUNTING_BASE}/admin/email/send",
         data=json.dumps({
             "to": ADMIN_EMAIL,
-            "subject": f"承富 AI · 今日 digest · {datetime.now():%m/%d}",
+            "subject": f"企業 AI · 今日 digest · {datetime.now():%m/%d}",
             "body": body,
             "body_type": "html",
         }).encode(),
@@ -212,7 +212,7 @@ def _record_cron_success():
 
 
 def main():
-    print(f"[{datetime.now():%Y-%m-%d %H:%M}] 承富 AI 今日 digest 產生中...")
+    print(f"[{datetime.now():%Y-%m-%d %H:%M}] 企業 AI 今日 digest 產生中...")
     client = MongoClient(MONGO_URI)
     db = client.get_default_database()
 

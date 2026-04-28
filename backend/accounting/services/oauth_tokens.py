@@ -1,7 +1,7 @@
 """
 v1.3 A5 · Social OAuth token storage + 加密 + refresh helper
 
-不含真 Meta/IG/LinkedIn API call(B1 留 v1.4 等承富送 App)
+不含真 Meta/IG/LinkedIn API call(B1 留 v1.4 等本公司送 App)
 此 service 只做:
 - token 加密存 db.social_oauth_tokens
 - token 解密取
@@ -33,7 +33,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from auth_deps import _is_prod
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # ============================================================

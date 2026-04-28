@@ -11,8 +11,8 @@ Admin · 系統自動更新 endpoints(v1.3 vNext · 對應 scripts/update.sh)
 
 設計決策:
 - 用 BackgroundTasks 跑 update.sh · 避免 HTTP timeout
-- task 進度寫到 /tmp/chengfu-update-task-{id}.log · GET 讀
-- single-instance lock 由 update.sh 自己管(/tmp/chengfu-update.lock)
+- task 進度寫到 /tmp/company_ai-update-task-{id}.log · GET 讀
+- single-instance lock 由 update.sh 自己管(/tmp/company_ai-update.lock)
 - rollback 必須帶 confirm_target sha · 防 mis-click
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ from .._deps import require_admin_dep
 
 
 router = APIRouter(tags=["admin"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # ============================================================
@@ -44,7 +44,7 @@ logger = logging.getLogger("chengfu")
 def _project_root() -> pathlib.Path:
     """容器內 = /app/.. · 本機 = repo root"""
     candidates = [
-        pathlib.Path("/host/chengfu"),  # docker volume mount(若有)
+        pathlib.Path("/host/company_ai"),  # docker volume mount(若有)
         pathlib.Path(__file__).parent.parent.parent.parent.parent,  # backend/accounting/routers/admin/update.py → repo
     ]
     for p in candidates:
@@ -64,7 +64,7 @@ def _reports_dir() -> pathlib.Path:
 
 
 def _tasks_dir() -> pathlib.Path:
-    p = pathlib.Path("/tmp/chengfu-update-tasks")
+    p = pathlib.Path("/tmp/company_ai-update-tasks")
     p.mkdir(parents=True, exist_ok=True)
     return p
 

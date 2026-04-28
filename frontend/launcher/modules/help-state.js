@@ -10,9 +10,9 @@
  * 進度 = 完成 task 數 / 角色 task 總數
  */
 
-const ROLE_KEY = "chengfu-help-role";
-const PROGRESS_KEY = "chengfu-help-progress";  // { task_id: timestamp }
-const TIPS_SEEN_KEY = "chengfu-help-tips-seen";  // { view_id: timestamp }
+const ROLE_KEY = "company-ai-help-role";
+const PROGRESS_KEY = "company-ai-help-progress";  // { task_id: timestamp }
+const TIPS_SEEN_KEY = "company-ai-help-tips-seen";  // { view_id: timestamp }
 
 export const ROLES = {
   boss: {

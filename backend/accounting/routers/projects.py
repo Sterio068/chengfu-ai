@@ -25,7 +25,7 @@ from ._deps import _is_admin_user, require_permission_dep, require_user_dep
 
 # R27#2 · router-wide require login · nginx /api-accounting 公開 · 沒登入禁讀寫 project
 router = APIRouter(tags=["projects"], dependencies=[require_user_dep()])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 def _project_oid(project_id: str) -> ObjectId:

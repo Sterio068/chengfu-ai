@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-承富 AI 系統 · 10 同仁帳號批次建立
+企業 AI 系統 · 10 同仁帳號批次建立
 
 讀取 config-templates/users.json,透過 LibreChat API 建立對應使用者。
 自動產生強隨機密碼,寫入 scripts/passwords.txt(分發完畢請刪除)。
@@ -12,9 +12,9 @@
 
 users.json 範例:
 [
-  {"email": "alice@chengfu.com",   "name": "王小明", "role": "USER"},
-  {"email": "bob@chengfu.com",     "name": "李小華", "role": "USER"},
-  {"email": "sterio@chengfu.com",  "name": "Sterio", "role": "ADMIN"}
+  {"email": "alice@company.example",   "name": "王小明", "role": "USER"},
+  {"email": "bob@company.example",     "name": "李小華", "role": "USER"},
+  {"email": "sterio@company.example",  "name": "Sterio", "role": "ADMIN"}
 ]
 
 使用:
@@ -123,7 +123,7 @@ def main():
 
     # 寫密碼檔
     with open(PASSWORD_FILE, "w", encoding="utf-8") as f:
-        f.write(f"# 承富 AI 系統 · 初始密碼表\n")
+        f.write(f"# 企業 AI 系統 · 初始密碼表\n")
         f.write(f"# 建立時間:{datetime.now().isoformat()}\n")
         f.write(f"# ⚠ 分發完畢請 shred -u scripts/passwords.txt 安全刪除\n\n")
         for r in results:

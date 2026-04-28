@@ -96,7 +96,7 @@ const tour = {
   async skip() {
     const { helpTutorial } = await _loadModules();
     helpTutorial.skip();
-    localStorage.setItem("chengfu-tour-done", new Date().toISOString());
+    localStorage.setItem("company-ai-tour-done", new Date().toISOString());
   },
 };
 

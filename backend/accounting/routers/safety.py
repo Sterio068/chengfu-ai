@@ -16,7 +16,7 @@ import logging
 import os
 import re
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 router = APIRouter(prefix="/safety", tags=["safety"])

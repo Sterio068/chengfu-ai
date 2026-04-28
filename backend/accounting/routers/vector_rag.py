@@ -38,8 +38,8 @@ from routers._deps import _is_admin_user, require_user_dep
 router = APIRouter(prefix="/vector-rag", tags=["vector-rag"])
 
 OPENAI_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-EMBEDDING_MODEL = os.getenv("CHENGFU_EMBEDDING_MODEL", "text-embedding-3-large")
-EMBEDDING_DIM = int(os.getenv("CHENGFU_EMBEDDING_DIM", "3072"))
+EMBEDDING_MODEL = os.getenv("COMPANY_AI_EMBEDDING_MODEL", "text-embedding-3-large")
+EMBEDDING_DIM = int(os.getenv("COMPANY_AI_EMBEDDING_DIM", "3072"))
 
 
 class IndexRequest(BaseModel):

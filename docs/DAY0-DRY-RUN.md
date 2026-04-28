@@ -1,4 +1,4 @@
-# Day 0 演練腳本 · 承富 AI 系統現場上線
+# Day 0 演練腳本 · 企業 AI 系統現場上線
 
 > **使用對象:** Sterio(主持) + Champion(副手) + 老闆(觀禮)
 > **目的:** 上線當天 9:00-17:00 完整時間表 · 7/10 同仁 first-win 為硬驗收條件
@@ -13,14 +13,14 @@
 |---|---|---|
 | -7 | Mac mini 到貨 + 開機 + FileVault | `diskutil apfs list \| grep FileVault: Yes` |
 | -7 | Docker Desktop 安裝 + 設記憶體 16GB | `docker info \| grep -i mem` |
-| -6 | Cloudflare Tunnel 註冊 + Access policy | `https://ai.<承富 domain>.com` 連得到 |
-| -5 | `./scripts/setup-keychain.sh` 寫機密 | `security find-generic-password -s chengfu-ai-anthropic-key` 有值 |
+| -6 | Cloudflare Tunnel 註冊 + Access policy | `https://ai.<本公司 domain>.com` 連得到 |
+| -5 | `./scripts/setup-keychain.sh` 寫機密 | `security find-generic-password -s company-ai-anthropic-key` 有值 |
 | -5 | `./scripts/start.sh` 6 容器全綠 | `docker ps \| wc -l` = 7(含 1 行 header) |
 | -4 | `python3 scripts/create-agents.py` | LibreChat 看到 10 個助手 |
 | -4 | knowledge-base/samples/ 灌 5-10 份真實檔 | `ls knowledge-base/samples/ \| wc -l` ≥ 5 |
 | -3 | `python3 scripts/create-users.py` 10 帳號 | LibreChat /api/users 看到 10 |
 | -3 | 密碼紙條印好 + 信封封 + 列「Day 0 領取簽名單」 | 10 張封好的信封 |
-| -2 | 跑 `./scripts/backup.sh` 第一次成功 | `~/chengfu-backups/daily/` 有檔 |
+| -2 | 跑 `./scripts/backup.sh` 第一次成功 | `~/company-ai-backups/daily/` 有檔 |
 | -2 | 月度 restore drill 演練 1 次 | `dr-drill.sh` 通過 |
 | -1 | Champion **私下** 跑完 3 個完整案例 + 截圖 | `docs/CASES/01,02,03` 每篇 1 張截圖證明 |
 | -1 | Day 0 dry-run · Sterio + Champion 跑 9:00-12:00 流程 | 抓出至少 3 個小毛病修掉 |
@@ -34,8 +34,8 @@
 ### 09:00-09:15 · 全員到場 + 開場
 
 **Sterio 講(5 分鐘):**
-> 「今天我們要把承富 AI 系統交給大家。
-> 這套系統是承富自己的 · 對話資料不出公司 · 老闆已付一年使用費。
+> 「今天我們要把企業 AI 系統交給大家。
+> 這套系統是本公司自己的 · 對話資料不出公司 · 老闆已付一年使用費。
 > 接下來 8 小時 · 目標是『下班前每個人都用它做出 1 件真實工作』。
 > 我會在現場全天 · 卡住舉手 · Champion 也會幫忙。
 > 重要:**不要怕問笨問題** · 第一週的笨問題是大家最寶貴的回饋。」
@@ -58,12 +58,12 @@
 
 ```
 1. 開瀏覽器(建議 Chrome / Safari · 不要 IE / Edge 舊版)
-2. 網址列輸入:https://ai.<承富 domain>.com
+2. 網址列輸入:https://ai.<本公司 domain>.com
 3. 看到 Cloudflare Access 黃藍色畫面 · 輸入公司 email
 4. 收到 6 位數驗證碼信件(可能在垃圾郵件)· 輸入
-5. 進入承富登入頁(深色背景)· 用 Champion 給的帳密登入
+5. 進入本公司登入頁(深色背景)· 用 Champion 給的帳密登入
 6. 第一次登入會強制改密碼 · 改完照片登入
-7. 看到「承富 AI 首頁」· 中央 5 個彩色卡片 · 完成 ✓
+7. 看到「企業 AI 首頁」· 中央 5 個彩色卡片 · 完成 ✓
 ```
 
 **Champion 拿登記簿(紙本)· 每個人簽到 + 打勾:**
@@ -99,7 +99,7 @@
 **驗收:** AI 在 90 秒內回出
 - 評選重點 3 項
 - 預算範圍 + 截止日
-- 我方優勢(根據承富過往)
+- 我方優勢(根據本公司過往)
 
 **Champion 巡視:** 抓「沒按送出就以為壞了」「複製貼上不全」的同仁 · 手把手帶
 

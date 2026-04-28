@@ -80,7 +80,7 @@ const MOCK_AI_SUGGESTIONS = [
 ];
 
 // v1.6 · 「不再提示」記憶 · localStorage
-const SUPPRESS_KEY = "chengfu_ai_suppress_types_v1";
+const SUPPRESS_KEY = "company_ai_suppress_types_v1";
 function _getSuppressed() {
   try { return new Set(JSON.parse(localStorage.getItem(SUPPRESS_KEY) || "[]")); }
   catch { return new Set(); }
@@ -107,7 +107,7 @@ let _state = {
   builderOpen: false,
   inboxOpen: false,
   bannerDismissedIds: new Set(),
-  customFolders: JSON.parse(localStorage.getItem("chengfu_custom_folders_v1") || "[]"),
+  customFolders: JSON.parse(localStorage.getItem("company_ai_custom_folders_v1") || "[]"),
   builderConditions: [
     { f: "工作區",     op: "=", v: "投標", removable: false },
     { f: "回應狀態",   op: "=", v: "待我回", removable: true },
@@ -1021,7 +1021,7 @@ function _openBuilder(editingKey = null) {
     } else {
       _state.customFolders.push(folder);
     }
-    localStorage.setItem("chengfu_custom_folders_v1", JSON.stringify(_state.customFolders));
+    localStorage.setItem("company_ai_custom_folders_v1", JSON.stringify(_state.customFolders));
     window.toast?.success?.(`Smart Folder「${name}」已${editingKey ? "更新" : "建立"}`);
     _closeBuilder();
     // v1.19 perf · 只 segment 列加新 chip · 不需重 render 整頁

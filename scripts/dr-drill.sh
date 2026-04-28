@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 承富 AI · 災難復原演練腳本
+# 企業 AI · 災難復原演練腳本
 # ============================================================
 # 模擬 MongoDB 資料全損 → 從備份還原 → 驗證系統恢復
 # 每季至少跑一次(文件見 docs/04-OPERATIONS.md 第 3.3 節)
@@ -13,12 +13,14 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
+MONGO_DB_NAME="${MONGO_DB_NAME:-company_ai}"
+GPG_RECIPIENT="${COMPANY_AI_GPG_RECIPIENT:-company-ai}"
 
 RED="\033[0;31m"; GREEN="\033[0;32m"; YELLOW="\033[1;33m"; BLUE="\033[0;34m"; NC="\033[0m"
 
 echo ""
 echo -e "${BLUE}╔══════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║  承富 AI · 災難復原演練                     ║${NC}"
+echo -e "${BLUE}║  企業 AI · 災難復原演練                     ║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${YELLOW}⚠  本演練會:${NC}"
@@ -27,9 +29,9 @@ echo "   2. 刪除 MongoDB 資料卷"
 echo "   3. 從最新備份還原"
 echo "   4. 驗證所有服務可用"
 echo ""
-# 技術債#12(2026-04-23)· 月跑 cron 走 CHENGFU_DR_DRILL_AUTO=1 跳 prompt
-if [[ "${CHENGFU_DR_DRILL_AUTO:-}" == "1" ]]; then
-    echo "🤖 [auto mode] CHENGFU_DR_DRILL_AUTO=1 · 跳 confirm prompt(月跑 launchd 用)"
+# 技術債#12(2026-04-23)· 月跑 cron 走 COMPANY_AI_DR_DRILL_AUTO=1 跳 prompt
+if [[ "${COMPANY_AI_DR_DRILL_AUTO:-}" == "1" ]]; then
+    echo "🤖 [auto mode] COMPANY_AI_DR_DRILL_AUTO=1 · 跳 confirm prompt(月跑 launchd 用)"
 else
     read -p "確定執行?(輸入 'YES I UNDERSTAND' 確認): " confirm
     if [[ "$confirm" != "YES I UNDERSTAND" ]]; then
@@ -42,7 +44,7 @@ echo ""
 START=$(date +%s)
 
 # Codex R2.4 · 定義 BACKUP_DIR(原本後面 $BACKUP_DIR 未定義 · set -u 會炸)
-BACKUP_DIR="${HOME}/chengfu-backups/daily"
+BACKUP_DIR="${HOME}/company-ai-backups/daily"
 
 # A4(v1.3)· --from-offsite · 從 B2 抓最新備份再還原
 # 用情境:本機 Mac mini 燒毀 / 被偷 · 本地 BACKUP_DIR 全沒
@@ -54,21 +56,21 @@ for arg in "$@"; do
 done
 
 if [[ "$FROM_OFFSITE" == "1" ]]; then
-    OFFSITE_REMOTE="${CHENGFU_OFFSITE_REMOTE:-chengfu-offsite:chengfu-backup}"
+    OFFSITE_REMOTE="${COMPANY_AI_OFFSITE_REMOTE:-company-ai-offsite:company-ai-backup}"
     echo -e "${BLUE}[0/6]${NC} --from-offsite · 從 ${OFFSITE_REMOTE} 抓最新備份"
     if ! command -v rclone > /dev/null; then
         echo -e "${RED}❌ rclone 未安裝 · 跑 scripts/setup-rclone-b2.sh${NC}"
         exit 1
     fi
-    if ! gpg --list-keys chengfu > /dev/null 2>&1; then
-        echo -e "${RED}❌ 缺 'chengfu' GPG key · 無法解密 offsite 檔${NC}"
+    if ! gpg --list-keys "$GPG_RECIPIENT" > /dev/null 2>&1; then
+        echo -e "${RED}❌ 缺 '${GPG_RECIPIENT}' GPG key · 無法解密 offsite 檔${NC}"
         exit 1
     fi
     mkdir -p "$BACKUP_DIR"
     # 找 B2 最新檔案(by name · YYYY-MM-DD 排序)
     LATEST_OFFSITE=$(rclone ls "${OFFSITE_REMOTE}/daily/" 2>/dev/null \
         | awk '{print $2}' \
-        | grep -E "chengfu-[0-9]{4}-[0-9]{2}-[0-9]{2}.*\.gpg$" \
+        | grep -E "company-ai-[0-9]{4}-[0-9]{2}-[0-9]{2}.*\.gpg$" \
         | sort -r | head -1)
     if [[ -z "$LATEST_OFFSITE" ]]; then
         echo -e "${RED}❌ B2 ${OFFSITE_REMOTE}/daily/ 找不到加密備份${NC}"
@@ -81,7 +83,7 @@ fi
 
 # ---------- Step 1: 找最新備份 ----------
 echo -e "${BLUE}[1/6]${NC} 找最新備份..."
-LATEST=$(ls -t "$BACKUP_DIR"/chengfu-*.archive.gz* 2>/dev/null | head -1)
+LATEST=$(ls -t "$BACKUP_DIR"/company-ai-*.archive.gz* 2>/dev/null | head -1)
 if [[ -z "$LATEST" ]]; then
     echo -e "${RED}❌ 找不到備份!請先跑 scripts/backup.sh 或 ./scripts/dr-drill.sh --from-offsite${NC}"
     exit 1
@@ -114,20 +116,20 @@ sleep 10
 # ---------- Step 5: 還原 Mongo(Codex R4.6 · 先還原 tmp · 驗過再 swap)----------
 echo ""
 echo -e "${BLUE}[5/6]${NC} 從備份還原 Mongo(tmp DB swap 模式)..."
-# Codex R4.6 · 不直接 --drop 目標 DB · 先 restore 到 chengfu_restore_tmp
+# Codex R4.6 · 不直接 --drop 目標 DB · 先 restore 到 company_ai_restore_tmp
 # 完整驗證(count / index)後才 renameCollection · 中途 kill 不會留半壞狀態
-TMP_DB="chengfu_restore_tmp"
+TMP_DB="company_ai_restore_tmp"
 if [[ "$LATEST" == *.gpg ]]; then
     echo "   (GPG 加密 · 需輸入 passphrase)"
-    gpg --decrypt "$LATEST" | gunzip -c | docker exec -i chengfu-mongo \
-        mongorestore --drop --nsFrom 'chengfu.*' --nsTo "${TMP_DB}.*" --archive
+    gpg --decrypt "$LATEST" | gunzip -c | docker exec -i company-ai-mongo \
+        mongorestore --drop --nsFrom "${MONGO_DB_NAME}.*" --nsTo "${TMP_DB}.*" --archive
 else
-    gunzip -c "$LATEST" | docker exec -i chengfu-mongo \
-        mongorestore --drop --nsFrom 'chengfu.*' --nsTo "${TMP_DB}.*" --archive
+    gunzip -c "$LATEST" | docker exec -i company-ai-mongo \
+        mongorestore --drop --nsFrom "${MONGO_DB_NAME}.*" --nsTo "${TMP_DB}.*" --archive
 fi
 
 # 驗 tmp DB 有合理資料(Codex R4.6)
-TMP_USERS=$(docker exec chengfu-mongo mongosh --quiet "$TMP_DB" \
+TMP_USERS=$(docker exec company-ai-mongo mongosh --quiet "$TMP_DB" \
     --eval "db.users.countDocuments()" 2>/dev/null || echo "0")
 if [[ "$TMP_USERS" -lt 1 ]]; then
     echo -e "   ${RED}❌${NC} TMP DB users.count=$TMP_USERS · 異常 · 不 swap"
@@ -135,22 +137,22 @@ if [[ "$TMP_USERS" -lt 1 ]]; then
 fi
 echo -e "   ${GREEN}✅${NC} TMP DB 驗證通過 · users=$TMP_USERS"
 
-# Atomic swap · drop 舊 chengfu · rename tmp → chengfu
-docker exec chengfu-mongo mongosh --quiet --eval "
-    db.getSiblingDB('chengfu').dropDatabase();
-    db.adminCommand({copydb: 1, fromdb: '$TMP_DB', todb: 'chengfu'});
+# Atomic swap · drop 舊 DB · rename tmp → target DB
+docker exec company-ai-mongo mongosh --quiet --eval "
+    db.getSiblingDB('$MONGO_DB_NAME').dropDatabase();
+    db.adminCommand({copydb: 1, fromdb: '$TMP_DB', todb: '$MONGO_DB_NAME'});
     db.getSiblingDB('$TMP_DB').dropDatabase();
 " 2>/dev/null || {
     # copydb deprecated in 4.2+ · use mongorestore trick
     echo "   copydb 不可用 · 用 mongorestore export+import swap..."
-    docker exec chengfu-mongo mongodump --db "$TMP_DB" --archive | \
-        docker exec -i chengfu-mongo mongorestore --drop --nsFrom "${TMP_DB}.*" --nsTo "chengfu.*" --archive
-    docker exec chengfu-mongo mongosh --quiet --eval "db.getSiblingDB('$TMP_DB').dropDatabase()"
+    docker exec company-ai-mongo mongodump --db "$TMP_DB" --archive | \
+        docker exec -i company-ai-mongo mongorestore --drop --nsFrom "${TMP_DB}.*" --nsTo "${MONGO_DB_NAME}.*" --archive
+    docker exec company-ai-mongo mongosh --quiet --eval "db.getSiblingDB('$TMP_DB').dropDatabase()"
 }
 echo -e "   ${GREEN}✅${NC} Mongo swap 完成 · 原始 DB 已替換"
 
 # Codex fix · 同日 Meili dump 也要還原 · 否則「備份」只救對話不救搜尋索引
-MEILI_LATEST=$(ls -t "$BACKUP_DIR"/chengfu-meili-*.tar.gz* 2>/dev/null | head -1 || echo "")
+MEILI_LATEST=$(ls -t "$BACKUP_DIR"/company-ai-meili-*.tar.gz* 2>/dev/null | head -1 || echo "")
 if [[ -n "$MEILI_LATEST" ]]; then
     echo "   同步還原 Meili:$(basename "$MEILI_LATEST")..."
     "$PROJECT_DIR/scripts/restore-meili.sh" "$MEILI_LATEST" || {
@@ -181,9 +183,9 @@ check() {
 check "nginx healthz"          "curl -sf http://localhost/healthz"
 check "LibreChat API"           "curl -sf http://localhost/api/config"
 check "Accounting API"          "curl -sf http://localhost/api-accounting/healthz"
-check "MongoDB 有對話資料"      "docker exec chengfu-mongo mongosh chengfu --quiet --eval 'db.conversations.countDocuments()' | grep -qE '[1-9]'"
-check "MongoDB 有專案資料"      "docker exec chengfu-mongo mongosh chengfu --quiet --eval 'db.projects.countDocuments()' | grep -qE '[0-9]'"
-check "MongoDB 有會計科目"      "docker exec chengfu-mongo mongosh chengfu --quiet --eval 'db.accounting_accounts.countDocuments()' | grep -qE '[1-9]'"
+check "MongoDB 有對話資料"      "docker exec company-ai-mongo mongosh '$MONGO_DB_NAME' --quiet --eval 'db.conversations.countDocuments()' | grep -qE '[1-9]'"
+check "MongoDB 有專案資料"      "docker exec company-ai-mongo mongosh '$MONGO_DB_NAME' --quiet --eval 'db.projects.countDocuments()' | grep -qE '[0-9]'"
+check "MongoDB 有會計科目"      "docker exec company-ai-mongo mongosh '$MONGO_DB_NAME' --quiet --eval 'db.accounting_accounts.countDocuments()' | grep -qE '[1-9]'"
 
 END=$(date +%s)
 DURATION=$((END - START))
@@ -201,7 +203,7 @@ echo ""
 REPORT="$PROJECT_DIR/reports/dr-drill-$(date +%Y-%m-%d).md"
 mkdir -p "$PROJECT_DIR/reports"
 cat > "$REPORT" <<EOF
-# 承富 DR 演練報告
+# 本公司 DR 演練報告
 
 - 日期:$(date +'%Y-%m-%d %H:%M:%S')
 - 備份檔:$(basename "$LATEST") ($SIZE)

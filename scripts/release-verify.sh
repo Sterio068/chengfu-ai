@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 承富 AI · 正式交付版總驗收
+# 企業 AI · 正式交付版總驗收
 # ============================================================
 # 用法:
 #   ./scripts/release-verify.sh [base_url]
@@ -20,7 +20,7 @@ RUN_E2E="${RUN_E2E:-1}"
 STAMP="$(date +%Y-%m-%d-%H%M%S)"
 REPORT_DIR="${ROOT_DIR}/reports/release"
 MANIFEST="${REPORT_DIR}/release-manifest-${STAMP}.md"
-DMG="${ROOT_DIR}/installer/dist/ChengFu-AI-Installer.dmg"
+DMG="${ROOT_DIR}/installer/dist/Company-AI-Installer.dmg"
 
 mkdir -p "$REPORT_DIR"
 
@@ -64,8 +64,8 @@ reset_limiter_if_possible() {
   if [[ "$RESET_LIBRECHAT" != "1" ]]; then
     return 0
   fi
-  if docker ps --filter name=chengfu-librechat --filter status=running -q | grep -q .; then
-    docker restart chengfu-librechat >/dev/null
+  if docker ps --filter name=company-ai-librechat --filter status=running -q | grep -q .; then
+    docker restart company-ai-librechat >/dev/null
     wait_lc_ready
   fi
 }
@@ -85,18 +85,18 @@ check_sensitive_files_absent() {
 }
 
 scan_known_secret_literal() {
-  local secret="${E2E_ADMIN_PASSWORD:-${LIBRECHAT_ADMIN_PASSWORD:-}}"
-  if [[ -z "$secret" && "$(uname -s)" == "Darwin" ]]; then
-    secret="$(security find-generic-password -s chengfu-ai-admin-install-password -w 2>/dev/null || true)"
+  local stored_password="${E2E_ADMIN_PASSWORD:-${LIBRECHAT_ADMIN_PASSWORD:-}}"
+  if [[ -z "$stored_password" && "$(uname -s)" == "Darwin" ]]; then
+    stored_password="$(security find-generic-password -s company-ai-admin-install-password -w 2>/dev/null || true)"
   fi
 
-  if [[ -z "$secret" ]]; then
+  if [[ -z "$stored_password" ]]; then
     echo "無可比對的 Keychain/E2E 密碼,跳過實值掃描"
     return 0
   fi
 
   local matches
-  matches="$(rg -l --fixed-strings "$secret" "$ROOT_DIR" \
+  matches="$(rg -l --fixed-strings "$stored_password" "$ROOT_DIR" \
     --glob '!**/node_modules/**' \
     --glob '!config-templates/.env' \
     --glob '!reports/release/**' \
@@ -184,18 +184,18 @@ inspect_dmg() {
   [[ -f "$DMG" ]] || return 1
   local mount_dir
   local result=0
-  mount_dir="$(mktemp -d /tmp/chengfu-release-dmg.XXXXXX)"
+  mount_dir="$(mktemp -d /tmp/company-ai-release-dmg.XXXXXX)"
   if ! hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" "$DMG"; then
     rmdir "$mount_dir" >/dev/null 2>&1 || true
     return 1
   fi
 
-  if [[ ! -f "$mount_dir/ChengFu-source.tar.gz" ]] || [[ ! -f "$mount_dir/讀我.txt" ]]; then
+  if [[ ! -f "$mount_dir/CompanyAI-source.tar.gz" ]] || [[ ! -f "$mount_dir/讀我.txt" ]]; then
     result=1
   elif ! grep -Eq '右鍵|Control' "$mount_dir/讀我.txt"; then
     echo "讀我.txt 缺 Gatekeeper 右鍵開啟說明"
     result=1
-  elif tar -tzf "$mount_dir/ChengFu-source.tar.gz" | grep -E \
+  elif tar -tzf "$mount_dir/CompanyAI-source.tar.gz" | grep -E \
     '(^\./config-templates/\.env$|(^|/)passwords\.txt$|(^|/)users\.json$|^\./config-templates/uploads/|^\./config-templates/images/|^\./reports/|test-results)' \
     | head -20; then
     result=1
@@ -213,7 +213,7 @@ diff_check() {
 
 write_header() {
   cat > "$MANIFEST" <<EOF
-# 承富 AI · 正式交付版驗收 Manifest
+# 企業 AI · 正式交付版驗收 Manifest
 
 時間:$(date '+%Y-%m-%d %H:%M:%S %Z')
 Base URL:${BASE_URL}
@@ -233,7 +233,7 @@ write_footer() {
     echo "- Passed:${PASS}"
     echo "- Failed:${FAIL}"
     if [[ -f "$DMG" ]]; then
-      echo "- DMG:installer/dist/ChengFu-AI-Installer.dmg"
+      echo "- DMG:installer/dist/Company-AI-Installer.dmg"
       echo "- DMG Size:$(du -h "$DMG" | awk '{print $1}')"
       echo "- DMG SHA-256:$(shasum -a 256 "$DMG" | awk '{print $1}')"
     fi

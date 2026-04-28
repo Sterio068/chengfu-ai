@@ -1,5 +1,5 @@
 """
-承富 Orchestrator · 主管家跨 Agent 呼叫
+本公司 Orchestrator · 主管家跨 Agent 呼叫
 ==============================================
 v2.0 關鍵:主管家不再只「建議」,而是**真的呼叫**其他 Agent 並整合結果。
 
@@ -614,7 +614,7 @@ async def run_workflow(
 
 
 # ============================================================
-# 預設 Workflows(承富業務閉環)
+# 預設 Workflows(本公司業務閉環)
 # ============================================================
 PRESET_WORKFLOWS = {
     "tender-full": {
@@ -749,7 +749,7 @@ PRESET_WORKFLOWS = {
 
 @router.get("/workflow/presets")
 def list_preset_workflows(_user: str = require_user_dep()):
-    """列出承富預設的 workflow。"""
+    """列出本公司預設的 workflow。"""
     return [
         {"id": k, "name": v["name"], "description": v["description"], "step_count": len(v["steps"])}
         for k, v in PRESET_WORKFLOWS.items()

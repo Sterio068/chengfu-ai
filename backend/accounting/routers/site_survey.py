@@ -37,7 +37,7 @@ from ._deps import _is_admin_user, _serialize, require_permission_dep, require_u
 
 
 router = APIRouter(tags=["site-survey"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_IMAGES_PER_SURVEY = 5
@@ -308,7 +308,7 @@ async def create_survey(
             # R25#2 · 先寫 tmp · raw size cap · 不全部 read 進 memory
             # FastAPI UploadFile 內部已 spool 到 tmp file · 直接 chunked copy
             fd_raw, raw_path = tempfile.mkstemp(
-                prefix="chengfu-survey-raw-",
+                prefix="company-ai-survey-raw-",
                 suffix=".heic" if is_heic else f".{mime.split('/')[-1]}",
             )
             raw_size = 0
@@ -338,7 +338,7 @@ async def create_survey(
                     from PIL import Image
                     import pillow_heif
                     pillow_heif.register_heif_opener()
-                    fd_jpg, jpg_path = tempfile.mkstemp(prefix="chengfu-survey-", suffix=".jpg")
+                    fd_jpg, jpg_path = tempfile.mkstemp(prefix="company-ai-survey-", suffix=".jpg")
                     os.close(fd_jpg)
                     # 從 file path 開 · Pillow 內部 stream(不全載 memory)
                     img_pil = Image.open(raw_path)
@@ -600,7 +600,7 @@ async def upload_audio_note(
         raise HTTPException(400, f"audio mime 不接受:{audio.content_type}")
 
     # 寫 tmp(streaming · 64KB chunk · 防大檔吃光記憶體)
-    fd, tmp_path = tempfile.mkstemp(prefix=f"chengfu-site-audio-{survey_id}-", suffix=".bin")
+    fd, tmp_path = tempfile.mkstemp(prefix=f"company_ai-site-audio-{survey_id}-", suffix=".bin")
     raw_size = 0
     try:
         while True:

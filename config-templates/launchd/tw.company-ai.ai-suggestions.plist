@@ -8,7 +8,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>tw.chengfu.ai-suggestions</string>
+    <string>tw.company-ai.ai-suggestions</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -21,9 +21,9 @@
     <integer>1800</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-ai-suggestions.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-suggestions.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/USERNAME/Library/Logs/chengfu-ai-suggestions.err.log</string>
+    <string>/Users/USERNAME/Library/Logs/company-ai-suggestions.err.log</string>
 
     <key>RunAtLoad</key>
     <false/>

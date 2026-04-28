@@ -132,7 +132,7 @@ export const knowledge = {
                  placeholder="/Volumes/Company-NAS/projects/"
                  required
                  style="font-family:var(--font-mono)">
-          <small class="hint">必須在允許讀取的資料夾白名單內(預設 /Volumes, /data, /tmp/chengfu-test-sources)</small>
+          <small class="hint">必須在允許讀取的資料夾白名單內(預設 /Volumes, /data, /tmp/company-ai-test-sources)</small>
         </label>
         <label>
           <span>排除規則(逗號分隔)</span>

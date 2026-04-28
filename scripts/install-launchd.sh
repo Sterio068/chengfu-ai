@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 承富 AI · 安裝 launchd 定時工作(Codex Round 10.5 黃 8)
+# 企業 AI · 安裝 launchd 定時工作(Codex Round 10.5 黃 8)
 # ============================================================
 # 用途:把 config-templates/launchd/ 的 plist 範本 · 替換 USERNAME 後
 #       放進 ~/Library/LaunchAgents/ · 並載入 launchctl
@@ -9,8 +9,8 @@
 # 卸載:./scripts/uninstall-launchd.sh
 #
 # 驗證:
-#   launchctl list | grep tw.chengfu
-#   cat ~/Library/LaunchAgents/tw.chengfu.*.plist
+#   launchctl list | grep tw.company-ai
+#   cat ~/Library/LaunchAgents/tw.company-ai.*.plist
 # ============================================================
 set -euo pipefail
 
@@ -28,7 +28,7 @@ for plist_file in "$PLIST_SRC"/*.plist; do
     name=$(basename "$plist_file")
     dst="${PLIST_DST}/${name}"
     # Codex R3.10 · 替換 /Users/USERNAME/ 與 __REPO_ROOT__
-    # 後者支援 repo 不在 $HOME/Workspace/ChengFu 時的自訂位置
+    # 後者支援 repo 不在 $HOME/Workspace/CompanyAIWorkspace 時的自訂位置
     sed -e "s|/Users/USERNAME/|${HOME}/|g" \
         -e "s|__REPO_ROOT__|${REPO_ROOT}|g" \
         "$plist_file" > "$dst"
@@ -42,12 +42,12 @@ done
 
 echo ""
 echo "已安裝的工作:"
-launchctl list | grep "^-\|^[0-9]" | grep -i tw.chengfu || echo "  (尚無 · 檢查上方錯誤)"
+launchctl list | grep "^-\|^[0-9]" | grep -i tw.company-ai || echo "  (尚無 · 檢查上方錯誤)"
 
 echo ""
 echo "Log 位置:"
-echo "  ~/Library/Logs/chengfu-backup.log"
-echo "  ~/Library/Logs/chengfu-knowledge-cron.log"
+echo "  ~/Library/Logs/company-ai-backup.log"
+echo "  ~/Library/Logs/company-ai-knowledge-cron.log"
 
 echo ""
 echo "✅ 安裝完成"

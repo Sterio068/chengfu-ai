@@ -14,12 +14,12 @@
 完成標準:10/10 收到驗證碼
 - 10 個同仁 email 各發 1 封測試信
 - 記「誰收到」「誰垃圾郵件」「誰根本沒收到」
-- 若 < 10 · 備案啟動:改用公司內網 `http://承富-ai.local` 做 Day 0
+- 若 < 10 · 備案啟動:改用公司內網 `http://本公司-ai.local` 做 Day 0
 
 ```bash
 # 測試信模板(Sterio 手動發)
-Subject: 承富 AI 系統 · 登入測試信(請忽略)
-Body: 如您收到此信 · 代表 Cloudflare 郵件已暢通 · 請於 Slack #chengfu-ai 回「收到」· 謝謝
+Subject: 企業 AI 系統 · 登入測試信(請忽略)
+Body: 如您收到此信 · 代表 Cloudflare 郵件已暢通 · 請於 Slack #company-ai 回「收到」· 謝謝
 ```
 
 **☐ 項目 2 · 紀錄現有 Mac mini 基線狀態**(≤ 1h)
@@ -54,7 +54,7 @@ Body: 如您收到此信 · 代表 Cloudflare 郵件已暢通 · 請於 Slack #c
 - 系統操作步驟 A3 貼牆
 
 **☐ 項目 6 · Day -1 Sterio 全天 on-site 確認**(即確認行程)
-- Sterio Day -1 全天在承富現場 · 不排遠端會議
+- Sterio Day -1 全天在本公司現場 · 不排遠端會議
 - Day 0 Sterio 7:30 就到 · 8:30 自測跑一遍
 
 ---
@@ -74,16 +74,16 @@ Body: 如您收到此信 · 代表 Cloudflare 郵件已暢通 · 請於 Slack #c
 - PM 拿 3 份過去建議書(去識別化)
 - 設計師拿 2 份過去結案報告
 - Sterio `scripts/upload-knowledge-base.py` 灌進去
-- 用 `/knowledge/search?q=承富` 驗至少 1 hit
+- 用 `/knowledge/search?q=本公司` 驗至少 1 hit
 
 ### 下午(13:30-18:00)
 
 **☐ 項目 9 · 備份與 restore dry-run**(≤ 3h)
 完成標準:從異機備份還原到暫存 DB · users/agents/projects count 一致
-- `rclone copy chengfu-offsite:chengfu-backup/daily/chengfu-*.gpg /tmp/`
-- `gpg --decrypt ...` → `mongorestore --drop --db chengfu_restore_test ...`
-- `mongosh chengfu_restore_test --eval "db.users.countDocuments()"`
-- 比對正式 chengfu DB 的數字 · 差 < 5% 視為 pass
+- `rclone copy company-ai-offsite:company-ai-backup/daily/company_ai-*.gpg /tmp/`
+- `gpg --decrypt ...` → `mongorestore --drop --db company_ai_restore_test ...`
+- `mongosh company_ai_restore_test --eval "db.users.countDocuments()"`
+- 比對正式 company_ai DB 的數字 · 差 < 5% 視為 pass
 
 **☐ 項目 10 · Sterio 不在場 runbook 列印**(≤ 2h)
 完成標準:`04-OPERATIONS.md §7.1` A4 列印 + 備援工程師簽名

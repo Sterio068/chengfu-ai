@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 承富 AI · LibreChat RAG / file_search 引用驗證(Gate 2)
+# 企業 AI · LibreChat RAG / file_search 引用驗證(Gate 2)
 # ==========================================================
 # 對應 EXTERNAL-AUDIT-2026-04-25.md F-24:
 #   「LibreChat RAG 是知識庫核心,但本輪未實測,賣點未驗。」
 #
 # 用法(由 IT 人手動跑):
-#   1. 準備 3-5 份去識別化的承富 PDF / DOCX 樣本,放到:
+#   1. 準備 3-5 份去識別化的本公司 PDF / DOCX 樣本,放到:
 #      tests/rag-fixtures/sample-{1..5}/{filename}.{pdf,docx,xlsx}
 #      (這個資料夾在 .gitignore · 不會 commit · 保 PDPA)
 #   2. 編輯本 script 下方 SAMPLES 陣列,寫:
@@ -54,7 +54,7 @@ if [ ! -d "$FIXTURE_DIR" ] || [ -z "$(ls -A "$FIXTURE_DIR" 2>/dev/null)" ]; then
   cat <<'EOF'
 ⚠ 找不到 RAG 樣本資料
 
-請依下列步驟準備 3-5 份去識別化承富 PDF/DOCX:
+請依下列步驟準備 3-5 份去識別化本公司 PDF/DOCX:
 
   mkdir -p tests/rag-fixtures/{sample-1,sample-2,sample-3}
 

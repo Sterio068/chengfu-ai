@@ -1,7 +1,7 @@
 """
 v1.3 B5 · LibreChat 跨 collection PDPA 操作
 
-LibreChat 跟 accounting 共用 chengfu db(同 mongo)· 但 collections 是 LibreChat 自己 schema
+LibreChat 跟 accounting 共用 company_ai db(同 mongo)· 但 collections 是 LibreChat 自己 schema
 PDPA delete-on-request 必須跨這些 collection 一起清:
 - users(刪本人)
 - conversations / messages / files / sharedlinks(對話)
@@ -26,7 +26,7 @@ from typing import Optional
 
 from bson import ObjectId
 
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # LibreChat 使用者擁有的 collections + 對應 user 欄位名
@@ -79,10 +79,10 @@ def archive_librechat_data(db, user_id: ObjectId, email: str,
     法務保留期內可還(訴訟 / 稽核)
     回 archive 檔絕對路徑 · 失敗 raise
 
-    格式:~/chengfu-backups/offboarding/{email}-{date}/librechat-{user_id}.json.gz.gpg
+    格式:~/company-ai-backups/offboarding/{email}-{date}/librechat-{user_id}.json.gz.gpg
     """
     archive_dir = archive_dir or os.path.expanduser(
-        f"~/chengfu-backups/offboarding/{email}-{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+        f"~/company-ai-backups/offboarding/{email}-{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
     )
     os.makedirs(archive_dir, exist_ok=True)
 
@@ -118,17 +118,17 @@ def archive_librechat_data(db, user_id: ObjectId, email: str,
     with gzip.open(raw_path, "wt", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
-    # GPG 加密(若 'chengfu' key 存在)· 防 archive 明文洩
+    # GPG 加密(若 'company_ai' key 存在)· 防 archive 明文洩
     gpg_path = raw_path + ".gpg"
     has_gpg = subprocess.run(
-        ["gpg", "--list-keys", "chengfu"],
+        ["gpg", "--list-keys", "company_ai"],
         capture_output=True,
     ).returncode == 0
     if has_gpg:
         try:
             subprocess.run(
                 ["gpg", "--batch", "--yes", "--encrypt",
-                 "--recipient", "chengfu",
+                 "--recipient", "company_ai",
                  "--output", gpg_path, raw_path],
                 check=True, capture_output=True,
             )
@@ -138,7 +138,7 @@ def archive_librechat_data(db, user_id: ObjectId, email: str,
             logger.error("[librechat-pdpa] GPG encrypt fail: %s", e)
             raise RuntimeError(f"archive GPG 加密失敗 · 不繼續刪除:{e}")
     else:
-        logger.warning("[librechat-pdpa] 'chengfu' GPG key 缺 · archive 未加密(.json.gz)")
+        logger.warning("[librechat-pdpa] 'company_ai' GPG key 缺 · archive 未加密(.json.gz)")
         return raw_path
 
 

@@ -15,6 +15,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 
+from field_names import USER_ACTIVE_FIELDS, projection_for, user_is_inactive
 from routers._deps import _is_admin_user, _serialize, require_admin_dep, require_permission_dep, require_user_dep, user_permissions
 from services.notebooklm_client import (
     NotebookLMClientError,
@@ -189,10 +190,10 @@ def _agent_acting_user(db, request: Request, admin_identity: str) -> tuple[str, 
         acting = admin_identity.strip().lower()
     if not acting or acting.startswith("internal:"):
         raise HTTPException(400, "X-Acting-User 必須是有效同仁 email")
-    user_doc = db.users.find_one({"email": acting}, {"chengfu_active": 1})
+    user_doc = db.users.find_one({"email": acting}, projection_for(legacy_fields=USER_ACTIVE_FIELDS))
     if not user_doc:
         raise HTTPException(404, "acting user 不存在")
-    if user_doc and user_doc.get("chengfu_active") is False:
+    if user_is_inactive(user_doc):
         raise HTTPException(403, "acting user 帳號已停用")
     acting_is_admin = _is_admin_user(acting)
     perms = user_permissions(acting)

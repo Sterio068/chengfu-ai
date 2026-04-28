@@ -20,7 +20,7 @@
  * 未來:user / brand / suppressed 也可進來 · v1.12 一起搬
  */
 
-const STORAGE_PREFIX = "chengfu_store_v1__";
+const STORAGE_PREFIX = "company_ai_store_v1__";
 
 // 註冊 schema · 限制 key 集合 + default + localStorage 綁定 + cross-module event 名
 const SCHEMA = {
@@ -28,7 +28,7 @@ const SCHEMA = {
     default: "openai",
     validate: v => typeof v === "string" && v.length > 0,
     legacyEvent: "engine-changed",
-    legacyKey: "chengfu-ai-provider",  // 跟 app.js AI_PROVIDER_KEY 對齊
+    legacyKey: "company-ai-provider",  // 跟 app.js AI_PROVIDER_KEY 對齊
   },
   activeWorkspace: {
     default: null,
@@ -40,7 +40,7 @@ const SCHEMA = {
     default: null,
     validate: v => v === null || typeof v === "string",
     legacyEvent: null,
-    legacyKey: "chengfu-active-project",
+    legacyKey: "company-ai-active-project",
   },
 };
 
@@ -159,5 +159,5 @@ export const store = {
 
 // 暴露給非 ESM module(librechat-relabel / dashboard-fpp 等)
 if (typeof window !== "undefined") {
-  window.chengfuStore = store;
+  window.companyAiStore = store;
 }

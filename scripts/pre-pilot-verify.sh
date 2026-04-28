@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 承富 AI · Phase 1 Pilot 前交付包自檢
+# 企業 AI · Phase 1 Pilot 前交付包自檢
 # ============================================================
 # 用法:
 #   ./scripts/pre-pilot-verify.sh
@@ -21,7 +21,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STAMP="$(date +%Y-%m-%d-%H%M%S)"
 REPORT_DIR="${ROOT_DIR}/reports/pre-pilot"
 MANIFEST="${REPORT_DIR}/pre-pilot-readiness-${STAMP}.md"
-DMG="${ROOT_DIR}/installer/dist/ChengFu-AI-Installer.dmg"
+DMG="${ROOT_DIR}/installer/dist/Company-AI-Installer.dmg"
 # 留空代表以最新 release manifest 追溯 DMG SHA。
 # 不硬編當前 SHA:此腳本會被包進 DMG source snapshot,硬編會造成「改 SHA → DMG 又變」循環。
 EXPECTED_DMG_SHA=""
@@ -58,7 +58,7 @@ run_check() {
 
 write_header() {
   cat > "$MANIFEST" <<EOF
-# 承富 AI · Phase 1 Pilot 前交付包自檢 Manifest
+# 企業 AI · Phase 1 Pilot 前交付包自檢 Manifest
 
 時間:$(date '+%Y-%m-%d %H:%M:%S %Z')
 Git HEAD:$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -163,7 +163,7 @@ check_gatekeeper_readme_in_dmg() {
 
   local mount_dir
   local result=0
-  mount_dir="$(mktemp -d /tmp/chengfu-prepilot-dmg.XXXXXX)"
+  mount_dir="$(mktemp -d /tmp/company-ai-prepilot-dmg.XXXXXX)"
 
   if ! hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" "$DMG"; then
     rmdir "$mount_dir" >/dev/null 2>&1 || true
@@ -191,7 +191,7 @@ check_installer_api_key_links() {
   local fal_url="https://fal.ai/dashboard/keys"
 
   for path in \
-    "$ROOT_DIR/installer/ChengFu-AI-Installer.applescript" \
+    "$ROOT_DIR/installer/Company-AI-Installer.applescript" \
     "$ROOT_DIR/installer/install.sh" \
     "$ROOT_DIR/installer/build.sh" \
     "$ROOT_DIR/installer/README.md" \

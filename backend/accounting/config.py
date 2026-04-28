@@ -41,7 +41,7 @@ def _parse_email_set(env: str, default: str = "") -> set[str]:
 
 @dataclass(frozen=True)
 class ChengfuSettings:
-    """承富 accounting 全域設定 · immutable · init-once"""
+    """本公司 accounting 全域設定 · immutable · init-once"""
 
     # ---- 環境 ----
     env: Literal["development", "production"] = "development"

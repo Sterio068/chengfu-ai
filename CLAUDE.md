@@ -1,4 +1,4 @@
-# CLAUDE.md — 承富 AI 系統建置任務
+# CLAUDE.md — 企業 AI 系統建置任務
 
 > 這是 Claude Code 啟動時讀取的主控檔。
 > 先讀 `docs/DECISIONS.md` 了解**最新決議**,再讀 `SYSTEM-DESIGN.md` 了解設計語言。
@@ -13,7 +13,7 @@
 2. **`docs/DECISIONS.md`**(最新已決議 + 待決議項,與本檔衝突時以此為準)
 3. **`SYSTEM-DESIGN.md`**(設計語言、UX 流程、macOS 設計規範)
 4. **`ARCHITECTURE.md`**(技術架構、資料流、元件)
-5. **`tasks/week-0-prep.md`**(動工前承富確認清單)
+5. **`tasks/week-0-prep.md`**(動工前本公司確認清單)
 6. **`tasks/week-1-hardware-env.md`** ~ week-4(開始動手)
 
 ---
@@ -42,20 +42,20 @@ JSON 檔欄位對應:`promptPrefix` → Agent `instructions`;`model` / `temperat
 - **D-005 · 外部工具**:Fal.ai 生圖(Recraft v3 繁中最好)· g0v PCC API 查標案
 - **D-006 · Claude 全功能**:Artifacts / Vision / Extended Thinking / Web Search / Code Interpreter 全開
 - **D-007 · LibreChat 版本**:pin `v0.8.4`(2026-03-20 釋出穩定版)
-- **D-008 · Skills 體系**:承富 12 + Anthropic 官方 17 + OpenClaw 參考 + SKILL-AGENT-MATRIX 中央路由
+- **D-008 · Skills 體系**:本公司 12 + Anthropic 官方 17 + OpenClaw 參考 + SKILL-AGENT-MATRIX 中央路由
 - **D-009 · Level 4 Learning 雛形**:Prompt Caching 啟用、monthly-report API、propose-skill.py AI 建議新 skill
 - **D-010 · Level 5 Autonomous 雛形**:主管家 Orchestrator + 3 個預設 workflow(投標全閉環 / 活動完整企劃 / 新聞發布閉環)
 - **D-011 · 自動化運維**:tender-monitor cron(每日查新標案)、Uptime Kuma、dr-drill.sh、k6 壓測、GitHub Actions CI
-- **D-012 · Chrome Extension**:同仁從任何網頁一鍵送到承富 AI(右鍵選單 + ⌘⇧C 快捷鍵)
+- **D-012 · Chrome Extension**:同仁從任何網頁一鍵送到企業 AI(右鍵選單 + ⌘⇧C 快捷鍵)
 
 ---
 
 ## 1. 專案目標
 
-為**承富創意整合行銷有限公司**(10 人公關行銷公司,台灣)建置一套**本地部署的 AI 協作系統**,以 LibreChat 為協作中樞、Claude API 為主力模型,四週內讓全員可用(若 D-001 觸發順延條款,可延至第 5 週)。
+為**本公司**(10 人公關行銷公司,台灣)建置一套**本地部署的 AI 協作系統**,以 LibreChat 為協作中樞、Claude API 為主力模型,四週內讓全員可用(若 D-001 觸發順延條款,可延至第 5 週)。
 
 **核心成功條件**:
-- 部署於承富辦公室的 Mac mini M4,系統完全自有
+- 部署於本公司辦公室的 Mac mini M4,系統完全自有
 - 同時支援 10 位同仁並行使用
 - 對話紀錄、知識庫、用量統計 100% 本地儲存,不上雲
 - 從公司內網或 Cloudflare Tunnel 遠端皆可使用
@@ -95,10 +95,10 @@ JSON 檔欄位對應:`promptPrefix` → Agent `instructions`;`model` / `temperat
 
 ### 功能層
 - [ ] 10 個同仁帳號已建立,密碼以安全方式交付各同仁
-- [ ] LibreChat 可透過公司內網 `http://承富-ai.local` 存取
-- [ ] 可透過 Cloudflare Tunnel `https://ai.<承富domain>.com` 存取
-- [ ] 承富專屬的 **29 個 Agent**(source-of-truth 在 `config-templates/presets/`)已透過 Agent Builder / API 建立完畢
-- [ ] 承富公司知識庫已上傳並由 LibreChat 原生 `file_search` 建立索引(含過往標書、結案報告、公司手冊)
+- [ ] LibreChat 可透過公司內網 `http://本公司-ai.local` 存取
+- [ ] 可透過 Cloudflare Tunnel `https://ai.<本公司domain>.com` 存取
+- [ ] 本公司專屬的 **29 個 Agent**(source-of-truth 在 `config-templates/presets/`)已透過 Agent Builder / API 建立完畢
+- [ ] 公司知識庫已上傳並由 LibreChat 原生 `file_search` 建立索引(含過往標書、結案報告、公司手冊)
 - [ ] 用量控管後台可由管理員設 per-user 每月 token 上限
 - [ ] 資料分級 SOP 文件印出貼牆(Level 01/02/03)
 - [ ] 每個 Agent 有 3 個測試案例紀錄(Happy / Edge / Adversarial),詳見 `tasks/week-3-customization.md`
@@ -115,8 +115,8 @@ JSON 檔欄位對應:`promptPrefix` → Agent `instructions`;`model` / `temperat
 
 ### 訓練與交付
 - [ ] 2 場教育訓練完成,每位同仁實際產出至少 1 份真實工作成果
-- [ ] 完整 SOP 手冊、交付說明書,以 PDF 給予承富
-- [ ] 來自承富的**驗收簽收單**
+- [ ] 完整 SOP 手冊、交付說明書,以 PDF 給予本公司
+- [ ] 來自本公司的**驗收簽收單**
 
 ---
 
@@ -124,22 +124,22 @@ JSON 檔欄位對應:`promptPrefix` → Agent `instructions`;`model` / `temperat
 
 > **不再分週**。以下為 `DEPLOY.md` 的 6 個 Phase,Mac mini 到貨後 1-2 個工作日內執行完 Phase 1-4,Phase 5-6 為訓練與驗收。
 
-- **Phase 0 · 承富前置**(Mac mini 到貨前可做):採購 24GB、API 升 Tier 2、IT 配合、Baseline 量測、Champion 指派、10 同仁資料、知識庫檔案、合規確認
+- **Phase 0 · 本公司前置**(Mac mini 到貨前可做):採購 24GB、API 升 Tier 2、IT 配合、Baseline 量測、Champion 指派、10 同仁資料、知識庫檔案、合規確認
 - **Phase 1 · 硬體作業系統**:Mac mini 開箱、UPS、FileVault、Docker Desktop、網路、主機名
 - **Phase 2 · 部署平台**:Keychain 機密、`.env` 填值、`./scripts/start.sh`(nginx + LibreChat + Mongo + Meili)、smoke test
 - **Phase 3 · Agent 與資料**:`create-agents.py`(29 個 Agent)、`upload-knowledge-base.py`、`create-users.py`
 - **Phase 4 · 對外與安全**:Cloudflare Tunnel + Access + 2FA、備份 cron
 - **Phase 5 · 教育訓練**:2 場(全員 Onboarding + 進階分層)見 `docs/03-TRAINING.md`
-- **Phase 6 · 交付簽收**:驗收 DoD、交付 PDF、承富老闆簽收
+- **Phase 6 · 交付簽收**:驗收 DoD、交付 PDF、本公司老闆簽收
 
-**D-001 順延條款**:若 Phase 3 連續 2 天落後 > 20%,觸發與承富老闆順延討論(29 Agent 可分 v1.0 核心 10 + v1.1 延伸 19)。
+**D-001 順延條款**:若 Phase 3 連續 2 天落後 > 20%,觸發與本公司老闆順延討論(29 Agent 可分 v1.0 核心 10 + v1.1 延伸 19)。
 
 ---
 
 ## 5. 關鍵原則
 
 ### 資料主權
-所有使用者對話、上傳檔案、向量索引**一律儲存在承富 Mac mini 本地**。
+所有使用者對話、上傳檔案、向量索引**一律儲存在本公司 Mac mini 本地**。
 若 API 需要上傳檔案(例如給 Claude 分析 PDF),要先確認檔案屬於 Level 01(公開)或 Level 02(一般)。
 Level 03(機敏)資料**絕不**送到雲端 API,改用階段二的 Ollama 本地模型處理。
 
@@ -165,10 +165,10 @@ LibreChat 後台必須設定:
 
 ---
 
-## 6. 承富特定配置
+## 6. 本公司特定配置
 
-### 承富公司資訊
-- 公司名:承富創意整合行銷有限公司
+### 公司資訊
+- 公司名:本公司
 - 團隊規模:10 位同仁
 - 產業:公關行銷、活動規劃、政府標案承接
 - 據點:台灣(具體地址待確認)
@@ -241,7 +241,7 @@ LibreChat 後台必須設定:
 
 ### 品牌語氣(全公司共用 system prompt)
 - 用**繁體中文**回答
-- 公文體例參照承富過往服務建議書
+- 公文體例參照本公司過往服務建議書
 - 避免大陸用語(「視頻」→「影片」、「數據」→「資料」、「云」→「雲」)
 - 金額固定用 NT$ 格式,如 NT$ 12,345
 - 日期用西元年月日,如 2026 年 4 月 18 日
@@ -269,9 +269,9 @@ LibreChat 後台必須設定:
 ## 8. 文件結構(2026-04-19 更新為 10 Agent + 會計 + Admin + Skills 體系)
 
 ```
-ChengFu/
+CompanyAIWorkspace/
 ├── CLAUDE.md                           ← 你現在讀的這份(專案主控)
-├── README.md                           ← 給承富老闆看的概覽
+├── README.md                           ← 給本公司老闆看的概覽
 ├── DEPLOY.md                           ← 【主運行手冊】Mac mini 到貨後的 1-2 天部署
 ├── SYSTEM-DESIGN.md                    ← 設計語言 · IA · UX · macOS 規範
 ├── ARCHITECTURE.md                     ← 技術架構詳解(已精簡為 3+1 容器)
@@ -294,17 +294,17 @@ ChengFu/
 │   ├── backup.sh                      ← 每日:MongoDB 備份(cron)
 │   ├── create-agents.py               ← 批次建立 29 個 Agent via LibreChat API
 │   ├── create-users.py                ← 批次建立 10 同仁帳號
-│   ├── upload-knowledge-base.py       ← 承富知識庫批次上傳
+│   ├── upload-knowledge-base.py       ← 本公司知識庫批次上傳
 │   └── smoke-test.sh                  ← 部署後驗收
 │
-├── frontend/                           ← 承富客製前端
+├── frontend/                           ← 本公司客製前端
 │   ├── launcher/                      ← 首頁(Dashboard / Projects / Skills / Accounting / Admin)
 │   │   ├── index.html                 ← 5 個 view · ⌘K palette · Onboarding tour
 │   │   ├── styles.css                 ← macOS 設計 tokens
 │   │   ├── app.js                     ← Projects API + Feedback API + Admin 儀表 + L3 classifier
 │   │   └── onboarding.js              ← 首次 4 步引導
 │   ├── custom/                        ← LibreChat 注入
-│   │   ├── librechat-custom.css       ← 承富藍 / 放大字體 / 隱藏進階
+│   │   ├── librechat-custom.css       ← 品牌主色 / 放大字體 / 隱藏進階
 │   │   └── librechat-relabel.js       ← 術語中文化 + 👍👎(POST MongoDB)+ 回首頁
 │   └── nginx/                         ← 反向代理
 │
@@ -317,7 +317,7 @@ ChengFu/
 │
 ├── knowledge-base/                     ← RAG 資料源
 │   ├── company/                       ← Company Memory(品牌/禁用詞/稱謂/格式 · 4 份)
-│   ├── skills/                        ← 承富 12 Skills(投標/寫作/活動/營運)
+│   ├── skills/                        ← 本公司 12 Skills(投標/寫作/活動/營運)
 │   ├── claude-skills/                 ← 【新】Anthropic 官方 17 Skills(pdf/docx/pptx/...)
 │   ├── openclaw-reference/            ← 【新】OpenClaw 生態參考(marketing/comms/...)
 │   └── SKILL-AGENT-MATRIX.md          ← 【新】Skill-Agent 中央路由表(主管家必讀)
@@ -330,7 +330,7 @@ ChengFu/
     ├── actions/                       ← 【新】OpenAPI Action Schemas
     │   ├── fal-ai-image-gen.json      ← Recraft v3 / Ideogram / Flux 三模型
     │   ├── pcc-tender.json            ← g0v 政府電子採購網 API
-    │   └── accounting-internal.json   ← 承富會計 API 對 Agent 開放
+    │   └── accounting-internal.json   ← 本公司會計 API 對 Agent 開放
     └── presets/
         ├── 00-09 · 10 Agent JSON      ← 當前 v1.0 建立的
         └── legacy/                    ← 舊 29 Agent(保留參考,不建立)
@@ -346,14 +346,14 @@ ChengFu/
 4. 讀 `SYSTEM-DESIGN.md` 了解設計語言與 IA
 5. 讀 `ARCHITECTURE.md` 理解技術藍圖
 6. 打開 `mockup-launcher.html`(或 `frontend/launcher/index.html`)看目標 UX
-7. 承富 Phase 0 打勾完成 → 開始 Phase 1
+7. 本公司 Phase 0 打勾完成 → 開始 Phase 1
 8. 每完成一個 Phase 項目,在 `DEPLOY.md` 對應 checkbox 打勾
 9. 遇到不確定,寫進 `docs/DECISIONS.md`「待決議事項」,向 Sterio 確認
 
 **進度追蹤**:Phase 結束或重要里程碑時,產出一份快訊(Markdown),放在 `reports/milestone-<日期>.md`,包含:
 - 已完成事項
 - 未完成事項與原因
-- 需要承富配合的事項
+- 需要本公司配合的事項
 - **若 Phase 3**:Agent 建立累計進度(目標 29 個)+ 是否觸發 D-001 順延條款
 
 ---
@@ -361,22 +361,22 @@ ChengFu/
 ## 10. Workspace 與前端架構(2026-04-18 升級為方案 A+B 混合)
 
 > 原規劃 v1.0 只做方案 A(emoji prefix 分組),v1.1 才做方案 B(客製 UI)。
-> 因承富明確要求「對 AI 小白友善、老闆要看到價值」,**v1.0 直接做方案 A + B**。
+> 因本公司明確要求「對 AI 小白友善、老闆要看到價值」,**v1.0 直接做方案 A + B**。
 
 ### 10.1 v1.0 實作架構(已交付檔案)
 
 ```
 nginx(port 80 · 對外唯一入口)
-    ├─ /                 → 承富 Launcher(frontend/launcher/)
+    ├─ /                 → 本公司 Launcher(frontend/launcher/)
     ├─ /chat, /c/*       → LibreChat(注入 CSS + JS)
     ├─ /api/*            → LibreChat API
-    └─ /chengfu-custom/* → 客製 CSS/JS 靜態檔
+    └─ /company-ai-custom/* → 客製 CSS/JS 靜態檔
 ```
 
 **已交付元件**:
 
-- **`frontend/launcher/`**:承富 macOS 風客製首頁
-  - Sidebar(承富藍品牌、5 Workspace、全域工具、使用者)
+- **`frontend/launcher/`**:本公司 macOS 風客製首頁
+  - Sidebar(品牌主色品牌、5 Workspace、全域工具、使用者)
   - Dashboard(問候、激勵卡片「本週省 X 小時」、常用、5 Workspace 卡、最近對話)
   - Inspector(本月用量、提示、系統狀態)
   - ⌘K 全域 palette(搜 Workspace / Agent / Slash)
@@ -385,8 +385,8 @@ nginx(port 80 · 對外唯一入口)
   - 首次登入 4 步 Onboarding Tour
 
 - **`frontend/custom/`**:LibreChat 介面客製(nginx sub_filter 注入)
-  - `librechat-custom.css`:承富藍、放大字體(15→16px)、隱藏 Temperature/Top P 等進階設定、管理員才看得到 Raw 參數
-  - `librechat-relabel.js`:術語中文化(Endpoint → AI 引擎、Preset → 助手模板、Agent → 助手 等),加「← 承富首頁」按鈕
+  - `librechat-custom.css`:品牌主色、放大字體(15→16px)、隱藏 Temperature/Top P 等進階設定、管理員才看得到 Raw 參數
+  - `librechat-relabel.js`:術語中文化(Endpoint → AI 引擎、Preset → 助手模板、Agent → 助手 等),加「← 本公司首頁」按鈕
 
 - **`frontend/nginx/`**:反向代理(sub_filter 注入 + SSE 長連線)
 

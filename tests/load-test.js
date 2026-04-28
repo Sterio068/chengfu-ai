@@ -1,5 +1,5 @@
 // ============================================================
-// 承富 AI · k6 壓測腳本
+// 企業 AI · k6 壓測腳本
 // ============================================================
 // 模擬 10 位同仁同時使用 · 驗證 Mac mini 24GB 撐得住尖峰
 //
@@ -25,8 +25,8 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost';
 
 export const options = {
   scenarios: {
-    // 承富 10 人日常使用
-    chengfu_daily: {
+    // 本公司 10 人日常使用
+    company_ai_daily: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
@@ -51,7 +51,7 @@ export const options = {
 // 測試場景
 // ============================================================
 export default function () {
-  // 場景 1:承富 Launcher 首頁(讀取)
+  // 場景 1:本公司 Launcher 首頁(讀取)
   group('Dashboard', () => {
     const res = http.get(`${BASE_URL}/`);
     check(res, { 'launcher 200': (r) => r.status === 200 });
@@ -112,7 +112,7 @@ export function handleSummary(data) {
 
   console.log(`
 ╔══════════════════════════════════════════╗
-║  承富壓測結果                                ║
+║  本公司壓測結果                                ║
 ╚══════════════════════════════════════════╝
   總請求數:${data.metrics.http_reqs.values.count}
   錯誤率:${(data.metrics.http_req_failed.values.rate * 100).toFixed(2)}%

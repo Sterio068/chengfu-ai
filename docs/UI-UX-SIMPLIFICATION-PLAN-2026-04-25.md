@@ -22,7 +22,7 @@
 本專案後續使用技能組合:
 - `frontend-design`:定義視覺方向與極簡工作台。
 - `ui-design-system`:收斂 token、元件與間距,避免每頁長不同樣子。
-- `ux-researcher-designer`:用承富 10 人角色重畫 journey,不是按工程模組排 IA。
+- `ux-researcher-designer`:用本公司 10 人角色重畫 journey,不是按工程模組排 IA。
 - `a11y-audit`:附件、modal、sidebar、快捷鍵都要鍵盤可用。
 - `form-cro`:所有建立工作包 / 上傳 / 篩選表單都要減欄位與清楚錯誤。
 
@@ -94,7 +94,7 @@
 
 ### 3. 對話區
 
-對話區要像 ChatGPT 一樣直覺,但比 ChatGPT 更懂承富:
+對話區要像 ChatGPT 一樣直覺,但比 ChatGPT 更懂本公司:
 - 永遠可直接問
 - 支援附件
 - 回答後有兩個主動作:存回工作包 / 變成下一步

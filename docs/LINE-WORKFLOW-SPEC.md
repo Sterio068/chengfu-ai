@@ -6,11 +6,11 @@
 
 ## 1. 現況與痛點
 
-- 承富 80% 訊息來自 LINE 群組 + 跟客戶 1-1 LINE
+- 本公司 80% 訊息來自 LINE 群組 + 跟客戶 1-1 LINE
 - 同仁處理 LINE 訊息的典型動作:
   1. 看到客戶訊息
   2. 想該怎麼回
-  3. 切到瀏覽器打開承富 AI
+  3. 切到瀏覽器打開企業 AI
   4. 複製 LINE 訊息 · 貼到對話框
   5. 打自己的問題 + 送出
   6. 複製 AI 回答 · 切回 LINE
@@ -26,8 +26,8 @@
 **情境:** 同仁用 <https://line.me> LINE Web
 
 **Extension 行為:**
-- 在 LINE 訊息旁加「🤖 丟承富」按鈕
-- 點一下 · 自動開承富 AI 新分頁 · 訊息已 pre-fill
+- 在 LINE 訊息旁加「🤖 丟本公司」按鈕
+- 點一下 · 自動開企業 AI 新分頁 · 訊息已 pre-fill
 - 同仁只需補「幫我回」等指令 + Enter
 
 **技術:**
@@ -52,8 +52,8 @@
 
 **可行性:**
 - iOS / Android LINE app 的 Share Sheet 允許分享到自訂 app
-- 需要建承富 AI 的 iOS/Android wrapper (PWA + Add to Home Screen 可以取巧)
-- 承富 AI Launcher 做 PWA manifest(v4.0 已建立但 dev 階段關掉了)
+- 需要建企業 AI 的 iOS/Android wrapper (PWA + Add to Home Screen 可以取巧)
+- 企業 AI Launcher 做 PWA manifest(v4.0 已建立但 dev 階段關掉了)
 
 **工時:** 16-24h · 不建議 v1.0 做
 
@@ -88,7 +88,7 @@
  * 偵測 LINE 貼上格式 · 自動清理時間戳 / 系統訊息
  *
  * LINE 常見格式:
- *   [LINE] 承富 AI 討論
+ *   [LINE] 企業 AI 討論
  *   2026/04/21 (三)
  *   ----------------
  *   14:32 Alice  客戶說下週要更新
@@ -155,7 +155,7 @@ bindPasteListener("chat-input");
 
 貼這段 LINE 範例驗證:
 ```
-[LINE] 承富 AI 討論
+[LINE] 企業 AI 討論
 2026/04/21 (三)
 ---------------
 14:32 Alice 客戶說下週要更新建議書
@@ -173,7 +173,7 @@ Bob:OK,我處理
 
 ## 5. 不做的事
 
-- **不做 LINE bot** — 承富 AI 是內部工具 · LINE bot 會暴露對話到 LINE Server
+- **不做 LINE bot** — 企業 AI 是內部工具 · LINE bot 會暴露對話到 LINE Server
 - **不轉發客戶 LINE 訊息到對外** — 純內部處理
 - **不存 LINE 原文到 Mongo** — 只存同仁處理後的 prompt
 

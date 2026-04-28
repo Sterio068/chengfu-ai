@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 承富 AI · 卸載 launchd 定時工作
+# 企業 AI · 卸載 launchd 定時工作
 # ============================================================
 set -euo pipefail
 
@@ -8,7 +8,7 @@ PLIST_DST="${HOME}/Library/LaunchAgents"
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 卸載 launchd 定時工作..."
 
-for plist_file in "$PLIST_DST"/tw.chengfu.*.plist; do
+for plist_file in "$PLIST_DST"/tw.company-ai.*.plist; do
     if [[ ! -f "$plist_file" ]]; then continue; fi
     name=$(basename "$plist_file")
     echo "  📄 卸載 ${name}"
@@ -19,4 +19,4 @@ done
 
 echo ""
 echo "驗證:"
-launchctl list | grep tw.chengfu && echo "  ⚠ 還有殘留 · 手動 launchctl remove" || echo "  ✅ 無殘留"
+launchctl list | grep tw.company-ai && echo "  ⚠ 還有殘留 · 手動 launchctl remove" || echo "  ✅ 無殘留"

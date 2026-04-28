@@ -1,4 +1,4 @@
-# 承富 AI 系統 · Docker Compose 設定
+# 企業 AI 工作台 · Docker Compose 設定
 #
 # 用法:
 #   docker compose pull
@@ -22,15 +22,15 @@
 #   .env 僅存非機密設定(見 .env.example 與 docs/05-SECURITY.md)。
 
 services:
-  # ==================== nginx 反向代理 + 承富 Launcher ====================
+  # ==================== nginx 反向代理 + 企業 AI Launcher ====================
   # 職責:
-  # - 根路徑 /           → 承富 Launcher(客製首頁,macOS 風)
+  # - 根路徑 /           → 企業 AI Launcher(客製首頁,macOS 風)
   # - /chat, /api/*, 其他 → LibreChat
   # - 注入客製 CSS/JS 到 LibreChat 回應(sub_filter)
   nginx:
     # Codex R4.5 · pin @sha256 避免上游 tag 被污染
     image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
-    container_name: chengfu-nginx
+    container_name: company-ai-nginx
     restart: unless-stopped
     depends_on:
       - librechat
@@ -38,12 +38,12 @@ services:
       - "80:80"       # 對外唯一入口
     volumes:
       - ../frontend/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ../frontend/nginx/chengfu-proxy.conf:/etc/nginx/chengfu-proxy.conf:ro
+      - ../frontend/nginx/proxy-common.conf:/etc/nginx/proxy-common.conf:ro
       - ../frontend/launcher:/var/www/launcher:ro
       - ../frontend/custom:/var/www/custom:ro
       - ./logs/nginx:/var/log/nginx
     networks:
-      - chengfu-network
+      - company-ai-network
     mem_limit: 256m
     # R14#16 · nginx log rotation(mounted /var/log/nginx · docker log driver 只管 stdout/stderr)
     # 真正的 access.log/error.log 在 volume 裡 · logrotate 另由 host 排(見 docs/04-OPERATIONS.md)
@@ -62,7 +62,7 @@ services:
   librechat:
     # Codex R4.5 · pin @sha256 · 2026-04-21 驗證 digest
     image: ghcr.io/danny-avila/librechat:v0.8.5@sha256:a46254938507971e0d4f7ed3f9d116bd9b118f4810b5b75eb716baf575645068
-    container_name: chengfu-librechat
+    container_name: company-ai-librechat
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -77,7 +77,7 @@ services:
     env_file: .env
     environment:
       - HOST=0.0.0.0
-      - MONGO_URI=mongodb://mongodb:27017/chengfu
+      - MONGO_URI=mongodb://mongodb:27017/company_ai
       - MEILI_HOST=http://meilisearch:7700
       - RAG_API_URL=http://accounting:8000/rag
       # Codex R3.1 · start.sh 從 Keychain 注入的 env · 明示傳入 · 否則 env_file 裡 placeholder 會覆蓋
@@ -96,7 +96,7 @@ services:
       - ./logs:/app/api/logs
       - ./uploads:/app/uploads
     networks:
-      - chengfu-network
+      - company-ai-network
     # 限制記憶體避免吃爆 16/24GB Mac mini
     mem_limit: 6g
     mem_reservation: 2g
@@ -105,13 +105,13 @@ services:
   # 儲存對話紀錄、使用者、Agent 定義、檔案中繼資料
   mongodb:
     image: mongo:7.0@sha256:43fddee7e532a920f3dfdee9e8f4834398c155c26bcb92d790cc1cd3c630fc40
-    container_name: chengfu-mongo
+    container_name: company-ai-mongo
     restart: unless-stopped
     command: mongod --quiet --logpath /dev/null
     volumes:
       - ./data/mongo:/data/db
     networks:
-      - chengfu-network
+      - company-ai-network
     mem_limit: 2g
     # Codex R3.6 · 加 healthcheck · depends_on.condition 用 service_healthy 才真等
     healthcheck:
@@ -125,7 +125,7 @@ services:
   # 對話歷史搜尋(不是 RAG,是 UI 層的歷史對話搜尋)
   meilisearch:
     image: getmeili/meilisearch:v1.12.0@sha256:27f831c41cb735a9c2314b61a33a14552367af6b3e4bcf840f21fd0e64e37a8a
-    container_name: chengfu-meili
+    container_name: company-ai-meili
     restart: unless-stopped
     environment:
       - MEILI_NO_ANALYTICS=true
@@ -134,7 +134,7 @@ services:
     volumes:
       - ./data/meili:/meili_data
     networks:
-      - chengfu-network
+      - company-ai-network
     mem_limit: 1g
     # Codex R3.6 · Meili 有 /health · 用 curl(busybox wget --spider 不穩)
     healthcheck:
@@ -144,11 +144,11 @@ services:
       retries: 5
       start_period: 10s
 
-  # ==================== 會計 API(承富內建)====================
+  # ==================== 會計 API(公司內建)====================
   # 台灣格式會計模組 + 專案 / 回饋 / Admin / L3 classifier / Orchestrator / 採購網監測
   accounting:
     build: ../backend/accounting
-    container_name: chengfu-accounting
+    container_name: company-ai-accounting
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -156,7 +156,7 @@ services:
       meilisearch:
         condition: service_healthy
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/chengfu
+      - MONGO_URI=mongodb://mongodb:27017/company_ai
       - LIBRECHAT_INTERNAL_URL=http://librechat:3080
       - TZ=Asia/Taipei
       # V1.1 §E 多來源知識庫 · 需 Meili 與允許的 source root
@@ -225,7 +225,7 @@ services:
     expose:
       - "8000"
     networks:
-      - chengfu-network
+      - company-ai-network
     # R14#12 · 強制 resource limit · 1 個爛 query 不會 OOM kill nginx/mongo/librechat
     mem_limit: 1g
     mem_reservation: 256m
@@ -238,23 +238,23 @@ services:
         max-file: "5"
 
   # ==================== Uptime 監控 ====================
-  # 承富系統健康儀表 · 失敗推 Slack/Email
+  # 企業 AI健康儀表 · 失敗推 Slack/Email
   # 首次進 http://localhost:3001 建管理帳號 + 加監控目標(見 docs/04-OPERATIONS.md)
   uptime-kuma:
     # Audit fix · dep #2 · digest pin(2026-04-22 驗證)
     image: louislam/uptime-kuma:1@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9
-    container_name: chengfu-uptime
+    container_name: company-ai-uptime
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3001"
     volumes:
       - ./data/uptime:/app/data
     networks:
-      - chengfu-network
+      - company-ai-network
     mem_limit: 256m
 
 networks:
-  chengfu-network:
+  company-ai-network:
     driver: bridge
 
 # 預期資源佔用(24GB Mac mini,10 人尖峰):

@@ -2,7 +2,7 @@
 
 > **MCP**(Model Context Protocol):Anthropic 推的開放協定,讓 LLM 能安全地存取外部系統(Google Drive、Gmail、Calendar、資料庫等)。
 >
-> 承富專案透過 LibreChat 的 **Actions / Agent Tools** 機制介接 MCP server,
+> 本公司專案透過 LibreChat 的 **Actions / Agent Tools** 機制介接 MCP server,
 > 讓 Agent 直接讀寫使用者 Google 帳號內容,不用手動 copy-paste。
 
 ---
@@ -14,14 +14,14 @@
 | **v1.0**(本次交付) | **Google Drive** | 從 Drive 讀檔(建議書模板、過往案例) | 每人每週 +2-3 小時 |
 | **v1.1** | Gmail | 寄送 / 讀取草稿 | 每人每週 +1-2 小時 |
 | **v1.1** | Google Calendar | 查詢會議、建立事件 | 每人每週 +0.5-1 小時 |
-| **v1.2** | Notion / Slack(視承富實際用的工具) | 同步專案管理工具 | 視情況 |
+| **v1.2** | Notion / Slack(視本公司實際用的工具) | 同步專案管理工具 | 視情況 |
 
 ---
 
 ## 2. Google Drive MCP(v1.0)
 
 ### 2.1 用途
-承富 PM 常遇到:
+本公司 PM 常遇到:
 > 「我要寫新建議書,想參考去年環保局那個案的結構 → 打開 Google Drive → 找檔案 → 下載 → 貼進 AI → 發問」
 
 有 Google Drive MCP 後:
@@ -35,12 +35,12 @@ LibreChat v0.7+ 內建「Actions」機制,可掛任何 OpenAPI spec 的 API。
 Google Drive 有官方 REST API,可直接用。
 
 步驟:
-1. 承富老闆建立 Google Cloud Platform 專案
+1. 本公司老闆建立 Google Cloud Platform 專案
 2. 啟用 Google Drive API
 3. 建 OAuth Client(Web 應用程式)
    - Redirect URI: `https://ai.<公司域名>.com/api/actions/callback`
 4. 下載 `client_secret.json`
-5. 存入 Keychain:`chengfu-ai-google-oauth-client`
+5. 存入 Keychain:`company-ai-google-oauth-client`
 6. LibreChat admin panel → Actions → Add Action:
    - 載入 Google Drive OpenAPI spec
    - 綁定 OAuth
@@ -61,7 +61,7 @@ v1.0 不用,等 v1.1 評估(LibreChat MCP 整合可能更完整後再切)。
 
 ### 2.4 權限模型
 - 每位同仁首次用 Drive MCP 時,個別授權自己的 Google 帳號
-- 不是承富統一一個帳號(避免權限過大)
+- 不是本公司統一一個帳號(避免權限過大)
 - OAuth token 儲存在 LibreChat MongoDB 的 user 欄位,加密存
 - 同仁離職時,該 token 會隨帳號刪除(見 `docs/05-SECURITY.md` 第 5 節)
 
@@ -96,7 +96,7 @@ v1.0 不用,等 v1.1 評估(LibreChat MCP 整合可能更完整後再切)。
 - **不開** `gmail.send`(需使用者按 Send 鍵,避免誤發)
 
 ### 3.3 v1.1 部署(本次不做)
-等 v1.0 穩定、承富實際評估需求後再決定。
+等 v1.0 穩定、本公司實際評估需求後再決定。
 
 ---
 
@@ -139,11 +139,11 @@ Gmail API:
 ## 6. 實作檢核表(Sterio 照做)
 
 ### 6.1 v1.0 Google Drive(1-2 小時)
-- [ ] 承富老闆建 GCP 專案(給 Sterio Editor 權限)
+- [ ] 本公司老闆建 GCP 專案(給 Sterio Editor 權限)
 - [ ] 啟用 Drive API
 - [ ] 建 OAuth Client(Web 應用程式)
 - [ ] Redirect URI 填 `https://ai.<公司域名>.com/api/actions/callback`
-- [ ] 下載 client_secret.json → `security add-generic-password -s 'chengfu-ai-google-oauth' -w "$(cat client_secret.json)"`
+- [ ] 下載 client_secret.json → `security add-generic-password -s 'company-ai-google-oauth' -w "$(cat client_secret.json)"`
 - [ ] LibreChat admin panel → Actions → 新增 Google Drive Action
 - [ ] 測試:用自己帳號授權,在 Agent 對話中 `@drive 找我的檔案`
 - [ ] 分配給「07 知識庫查詢」「02 建議書助手」兩個 Agent
@@ -158,9 +158,9 @@ Gmail API:
 ## 7. 中長期:MCP 生態展望
 
 Anthropic 的 MCP 生態近期增長快,未來可能加入:
-- **GitHub MCP**:承富若有程式碼交付(雖然不太像),可加
-- **Slack MCP**:若承富改用 Slack 溝通,整合可省下「查群組訊息」時間
-- **資料庫 MCP**:承富若有 CRM 系統,可讓 AI 查客戶歷史
+- **GitHub MCP**:本公司若有程式碼交付(雖然不太像),可加
+- **Slack MCP**:若本公司改用 Slack 溝通,整合可省下「查群組訊息」時間
+- **資料庫 MCP**:本公司若有 CRM 系統,可讓 AI 查客戶歷史
 - **會計系統 MCP**:報價、毛利試算可直接從會計系統抓數字
 
 v1.2+ 再評估,v1.0 不做。

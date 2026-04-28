@@ -1,6 +1,6 @@
 # 系統自動更新 SOP(vNext C)
 
-> 承富智慧助理 · 不用 SSH · 在 Web UI 直接更新
+> 企業 AI 工作台 · 不用 SSH · 在 Web UI 直接更新
 > 版本:v1.3 vNext(2026-04-25)
 
 ---
@@ -50,7 +50,7 @@
 | `scripts/update.sh` | 主更新邏輯 · 互動 / `--yes` / `--check-only` / `--json` |
 | `scripts/check-update.sh` | 每日 cron · 寫 `reports/update-status.json` |
 | `scripts/rollback.sh` | 回滾到指定 sha 或上一版 |
-| `config-templates/launchd/tw.chengfu.update-check.plist` | 03:00 launchd cron |
+| `config-templates/launchd/tw.company_ai.update-check.plist` | 03:00 launchd cron |
 | `backend/accounting/routers/admin/update.py` | 6 個 admin endpoints |
 | `frontend/launcher/modules/update-notifier.js` | sidebar 紅點 + admin modal + poll |
 
@@ -104,16 +104,16 @@
 ### 4.1 一次性 · 安裝 launchd cron
 
 ```bash
-cd ~/chengfu-ai  # 或 repo 實際位置
+cd ~/company-ai  # 或 repo 實際位置
 ./scripts/install-launchd.sh
 ```
 
-腳本會自動載入 `tw.chengfu.update-check.plist`(以及其他既有的 plist)。
+腳本會自動載入 `tw.company_ai.update-check.plist`(以及其他既有的 plist)。
 驗證:
 
 ```bash
 launchctl list | grep update-check
-# → 看到 tw.chengfu.update-check
+# → 看到 tw.company_ai.update-check
 ```
 
 ### 4.2 第一次手動跑(不等到 03:00)
@@ -127,8 +127,8 @@ cat reports/update-status.json
 ### 4.3 卸載(若不要)
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/tw.chengfu.update-check.plist
-rm ~/Library/LaunchAgents/tw.chengfu.update-check.plist
+launchctl unload ~/Library/LaunchAgents/tw.company_ai.update-check.plist
+rm ~/Library/LaunchAgents/tw.company_ai.update-check.plist
 ```
 
 ---
@@ -167,7 +167,7 @@ sleep 30  # ← 改 60
 罕見 · 系統處於不穩定狀態。SSH 上 Mac mini:
 
 ```bash
-cd ~/chengfu-ai
+cd ~/company-ai
 docker compose -f config-templates/docker-compose.yml ps
 docker compose -f config-templates/docker-compose.yml logs --tail 50
 
@@ -188,7 +188,7 @@ git stash pop  # 還原
 
 ### 6.4 多人同時按更新
 
-`update.sh` 自帶 `/tmp/chengfu-update.lock` · 第二個會 exit 3 並回 `{"status":"locked"}`。
+`update.sh` 自帶 `/tmp/company-ai-update.lock` · 第二個會 exit 3 並回 `{"status":"locked"}`。
 前端會接到 409 並顯示「另一個更新正在執行」。
 
 ### 6.5 CI 環境誤觸
@@ -241,7 +241,7 @@ Admin 在 modal 看到的 log tail 來自 task 寫入的檔案 · 不會斷。
 | 任何人都能更新? | ❌ 必 admin · `/admin/update/*` 走 `require_admin_dep` |
 | 攻擊者改 GitHub 推假 commit? | 透過 git 簽章驗(若 enable);否則 admin 看 commit msg 後再按 |
 | Rollback 誤刪? | `confirm_target` 必須 type 一次 · 防 mis-click |
-| 同時觸發多次? | `/tmp/chengfu-update.lock` · 第二個拒絕 |
+| 同時觸發多次? | `/tmp/company-ai-update.lock` · 第二個拒絕 |
 | Path traversal? | task_id 限 hex · 路徑用 pathlib · 不接受 user input 拼接 |
 | Subprocess 注入? | `subprocess.run(list)` · 不用 `shell=True` · `--reason` 雖過 cmdline 但不 eval |
 

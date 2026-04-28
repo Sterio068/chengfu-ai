@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-承富 AI 系統 · 公司知識庫批次上傳
+企業 AI 系統 · 公司知識庫批次上傳
 
 將 knowledge-base/ 下的檔案上傳到 LibreChat,
 並附加到「07 公司知識庫查詢」Agent,啟用 file_search 原生 RAG。

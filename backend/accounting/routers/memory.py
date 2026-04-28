@@ -27,11 +27,17 @@ from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from field_names import (
+    CONVERSATION_SUMMARIZED_AT_FIELD,
+    CONVERSATION_SUMMARIZED_MESSAGES_FIELD,
+    CONVERSATION_SUMMARY_FIELD,
+    CONVERSATION_SUMMARY_UP_TO_FIELD,
+)
 from ._deps import _is_admin_user, require_user_dep
 
 
 router = APIRouter(tags=["memory"])
-logger = logging.getLogger("chengfu")
+logger = logging.getLogger("company_ai")
 
 
 # Feature #1 · Whisper API 上限 25MB
@@ -128,10 +134,10 @@ def summarize_conversation(req: SummarizeRequest):
         db.conversations.update_one(
             {"conversationId": req.conversation_id},
             {"$set": {
-                "chengfu_summary": summary_text,
-                "chengfu_summary_up_to": str(to_summarize[-1].get("_id", "")),
-                "chengfu_summarized_at": datetime.now(timezone.utc),
-                "chengfu_summarized_messages": len(to_summarize),
+                CONVERSATION_SUMMARY_FIELD: summary_text,
+                CONVERSATION_SUMMARY_UP_TO_FIELD: str(to_summarize[-1].get("_id", "")),
+                CONVERSATION_SUMMARIZED_AT_FIELD: datetime.now(timezone.utc),
+                CONVERSATION_SUMMARIZED_MESSAGES_FIELD: len(to_summarize),
             }}
         )
 
@@ -392,7 +398,7 @@ async def transcribe_audio(
     sha256 = hashlib.sha256(content).hexdigest()[:16]
     # 存 tmp · BackgroundTasks 讀後刪
     import tempfile
-    fd, tmp_path = tempfile.mkstemp(prefix=f"chengfu-meeting-{sha256}-", suffix=".bin")
+    fd, tmp_path = tempfile.mkstemp(prefix=f"company_ai-meeting-{sha256}-", suffix=".bin")
     try:
         os.write(fd, content)
     finally:

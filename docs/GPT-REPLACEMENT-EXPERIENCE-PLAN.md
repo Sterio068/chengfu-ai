@@ -1,11 +1,11 @@
 # GPT Replacement Experience Plan
 
-> 目標:讓承富同仁覺得「承富 AI 比 GPT 網頁版更適合完成我的工作」。
+> 目標:讓本公司同仁覺得「企業 AI 比 GPT 網頁版更適合完成我的工作」。
 > 範圍:使用者選定 1-7 + 9-16,暫不把資料分級作為主線,但既有安全邊界不得退步。
 
 ## 北極星
 
-承富 AI 不是聊天框,而是承富的 AI 工作 OS。使用者不需要從空白 prompt 開始,也不需要每次重講公司背景、專案現況、承富語氣與交付格式。
+企業 AI 不是聊天框,而是本公司的 AI 工作 OS。使用者不需要從空白 prompt 開始,也不需要每次重講公司背景、專案現況、本公司語氣與交付格式。
 
 ## 成功指標
 
@@ -48,7 +48,7 @@
 - Chat 顯示目前任務、Workspace、關聯專案、已帶入背景。
 - Project handoff 匯整人工欄位與系統欄位。
 - Workflow draft / meeting / site survey / chat 草稿都能回寫 project。
-- Knowledge / Skills / Agent prompt 持續對齊承富語氣與格式。
+- Knowledge / Skills / Agent prompt 持續對齊本公司語氣與格式。
 
 ### Track C · 比 GPT 更適合團隊協作
 
@@ -67,7 +67,7 @@
 
 ### Track E · 比 GPT 更容易進資料
 
-- Chrome Extension 右鍵送內容到承富 AI 草稿。
+- Chrome Extension 右鍵送內容到企業 AI 草稿。
 - Mobile 場勘 PWA 支援照片、定位、錄音、推交棒卡。
 - 未來延伸 Google Drive / Gmail / Calendar。
 

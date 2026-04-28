@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * 承富 AI E2E 測試 · Playwright
+ * 企業 AI E2E 測試 · Playwright
  *
  * 安裝:
  *   npx playwright install chromium

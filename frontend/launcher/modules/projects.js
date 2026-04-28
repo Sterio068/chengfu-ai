@@ -5,16 +5,16 @@
 import { authFetch } from "./auth.js";
 
 const API = "/api-accounting/projects";
-const FALLBACK_KEY = "chengfu-projects-v1";
+const FALLBACK_KEY = "company-ai-projects-v1";
 
 // 多分頁同步 channel(舊瀏覽器無 BroadcastChannel 走 storage event fallback)
-const _bc = ("BroadcastChannel" in self) ? new BroadcastChannel("chengfu-projects") : null;
+const _bc = ("BroadcastChannel" in self) ? new BroadcastChannel("company-ai-projects") : null;
 function _broadcast(type) {
   if (_bc) {
     _bc.postMessage({ type, ts: Date.now() });
   } else {
     // storage event fallback(舊 Safari)
-    try { localStorage.setItem("chengfu-projects-bus", JSON.stringify({ type, ts: Date.now() })); } catch {}
+    try { localStorage.setItem("company-ai-projects-bus", JSON.stringify({ type, ts: Date.now() })); } catch {}
   }
 }
 
@@ -119,6 +119,6 @@ if (_bc) {
   _bc.onmessage = (e) => { if (e.data?.type) _onRemoteChange(); };
 } else {
   window.addEventListener("storage", (e) => {
-    if (e.key === "chengfu-projects-bus") _onRemoteChange();
+    if (e.key === "company-ai-projects-bus") _onRemoteChange();
   });
 }

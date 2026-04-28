@@ -1,4 +1,4 @@
-# 承富 AI · Phase 1 試用前現場驗收包
+# 企業 AI · Phase 1 試用前現場驗收包
 
 日期:2026-04-25  
 版本:v1.69/vNext UI/UX + RAG/file_search 補強後交付候選版
@@ -14,7 +14,7 @@
 
 | 時刻 | 目的 | 通過後可做什麼 |
 |---|---|---|
-| 交付前 | 確認 DMG、文件、測試報告與本地驗收證據一致 | 交給承富 IT 或 Sterio 現場安裝 |
+| 交付前 | 確認 DMG、文件、測試報告與本地驗收證據一致 | 交給本公司 IT 或 Sterio 現場安裝 |
 | 乾淨 Mac/VM | 確認不是只在開發機能跑 | 進入 4 人 Phase 1 pilot |
 | Phase 1 pilot | 驗證真實同仁能完成 first-win | 擴到 8 人或全員 |
 
@@ -33,7 +33,7 @@ Go/No-Go 規則:
 
 | 項目 | 位置 / 值 |
 |---|---|
-| DMG | `installer/dist/ChengFu-AI-Installer.dmg` |
+| DMG | `installer/dist/Company-AI-Installer.dmg` |
 | SHA-256 | 以最新 `reports/release/release-manifest-*.md` 與 `./scripts/pre-pilot-verify.sh` 輸出為準 |
 | Release manifest | 最新 `reports/release/release-manifest-*.md` |
 | Final delivery audit | `reports/final-delivery-audit-2026-04-25.md` |
@@ -65,15 +65,15 @@ Go/No-Go 規則:
 ### 2.1 必跑命令
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu
-shasum -a 256 installer/dist/ChengFu-AI-Installer.dmg
+cd /Users/sterio/Workspace/CompanyAIWorkspace
+shasum -a 256 installer/dist/Company-AI-Installer.dmg
 ./scripts/pre-pilot-verify.sh
 ```
 
 若需要重新跑完整 release gate:
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu
+cd /Users/sterio/Workspace/CompanyAIWorkspace
 ./scripts/release-verify.sh http://localhost
 ```
 
@@ -81,7 +81,7 @@ cd /Users/sterio/Workspace/ChengFu
 
 | 檢查 | 通過標準 | 結果 |
 |---|---|---|
-| DMG 存在 | `installer/dist/ChengFu-AI-Installer.dmg` 存在 | ☐ Pass / ☐ Fail |
+| DMG 存在 | `installer/dist/Company-AI-Installer.dmg` 存在 | ☐ Pass / ☐ Fail |
 | SHA 符合 | 與 §1 SHA-256 一致,或 release manifest 已更新為新 SHA | ☐ Pass / ☐ Fail |
 | Release manifest | 結論為「正式交付版驗收通過」 | ☐ Pass / ☐ Fail |
 | Final audit | 記錄 13/13 gate 與最新 SHA | ☐ Pass / ☐ Fail |
@@ -101,13 +101,13 @@ cd /Users/sterio/Workspace/ChengFu
 
 ## 3. Gate 1:乾淨 Mac/VM 安裝驗收
 
-目的:證明安裝不是依賴開發機狀態。這一步必須在乾淨 macOS、乾淨 VM 或承富目標 Mac mini 上跑,不能在開發機上偽裝完成。
+目的:證明安裝不是依賴開發機狀態。這一步必須在乾淨 macOS、乾淨 VM 或本公司目標 Mac mini 上跑,不能在開發機上偽裝完成。
 
 ### 3.1 測試環境記錄
 
 | 欄位 | 記錄 |
 |---|---|
-| 機器 | ☐ 乾淨 VM / ☐ 乾淨 Mac / ☐ 承富 Mac mini |
+| 機器 | ☐ 乾淨 VM / ☐ 乾淨 Mac / ☐ 本公司 Mac mini |
 | macOS 版本 | |
 | Docker Desktop 版本 | |
 | 安裝者 | |
@@ -130,7 +130,7 @@ cd /Users/sterio/Workspace/ChengFu
 ### 3.3 驗收命令
 
 ```bash
-cd ~/ChengFu
+cd ~/CompanyAIWorkspace
 ./scripts/smoke-test.sh http://localhost
 ./scripts/smoke-librechat.sh http://localhost
 ```
@@ -144,7 +144,7 @@ cd ~/ChengFu
 | DMG 可開啟 | 無需關閉 Gatekeeper,右鍵/Control-click 可進入 | ☐ Pass / ☐ Fail |
 | 安裝精靈可跑完 | 無 AppleScript crash 或路徑錯誤 | ☐ Pass / ☐ Fail |
 | 沿用資料不覆蓋 | `.env`、data、uploads、images 被保留 | ☐ Pass / ☐ Fail / ☐ N/A |
-| 首頁可開啟 | `http://localhost/` 顯示承富 AI 首頁 | ☐ Pass / ☐ Fail |
+| 首頁可開啟 | `http://localhost/` 顯示企業 AI 首頁 | ☐ Pass / ☐ Fail |
 | 登入成功 | 測試帳號可登入 | ☐ Pass / ☐ Fail |
 | Main smoke | 15/15 或 manifest 當下標準全通過 | ☐ Pass / ☐ Fail |
 | LibreChat smoke | 13/13 或 manifest 當下標準全通過 | ☐ Pass / ☐ Fail |
@@ -182,7 +182,7 @@ mkdir -p knowledge-base/samples
 ### 4.2 Dry-run
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu
+cd /Users/sterio/Workspace/CompanyAIWorkspace
 python3 scripts/upload-knowledge-base.py --dry-run --files 'knowledge-base/samples/*'
 ```
 
@@ -191,7 +191,7 @@ python3 scripts/upload-knowledge-base.py --dry-run --files 'knowledge-base/sampl
 RAG adapter 僅供 LibreChat 容器內部呼叫,不可從 nginx 外部暴露:
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu
+cd /Users/sterio/Workspace/CompanyAIWorkspace
 docker compose -f config-templates/docker-compose.yml logs librechat | grep -Ei 'RAG API is running|RAG API'
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost/api-accounting/rag/health
 # 預期:外部 nginx 回 403 或 404;LibreChat log 顯示 http://accounting:8000/rag 可達
@@ -202,7 +202,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost/api-accounting/rag/hea
 以下只能使用現場合法帳號,不可把真實帳密寫入文件或 git:
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu
+cd /Users/sterio/Workspace/CompanyAIWorkspace
 LIBRECHAT_ADMIN_EMAIL='admin@example.com' \
 LIBRECHAT_ADMIN_PASSWORD='use-keychain-or-temporary-secret' \
 python3 scripts/upload-knowledge-base.py --files 'knowledge-base/samples/*'
@@ -211,7 +211,7 @@ python3 scripts/upload-knowledge-base.py --files 'knowledge-base/samples/*'
 若使用 JWT:
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu
+cd /Users/sterio/Workspace/CompanyAIWorkspace
 LIBRECHAT_JWT='paste-temporary-jwt-in-shell-only' \
 python3 scripts/upload-knowledge-base.py --files 'knowledge-base/samples/*'
 ```
@@ -219,7 +219,7 @@ python3 scripts/upload-knowledge-base.py --files 'knowledge-base/samples/*'
 ### 4.4 Log 證據
 
 ```bash
-cd /Users/sterio/Workspace/ChengFu/config-templates
+cd /Users/sterio/Workspace/CompanyAIWorkspace/config-templates
 docker compose logs librechat | grep -Ei 'file_search|embedding|rag|agent|upload' | tail -80
 ```
 
@@ -267,7 +267,7 @@ docker compose logs librechat | grep -Ei 'file_search|embedding|rag|agent|upload
 
 | 步驟 | 完成標準 |
 |---|---|
-| 登入首頁 | 看到承富 AI 首頁與 5 工作區 |
+| 登入首頁 | 看到企業 AI 首頁與 5 工作區 |
 | 開啟 Admin/狀態 | 看得到系統健康、使用狀態或管理入口 |
 | 檢查工作包 | 能看到近期工作包或建立測試工作包 |
 | 做 Go/No-Go | 給出「可進 8 人 / 繼續 4 人 / 停止」結論 |
@@ -413,7 +413,7 @@ mkdir -p reports/qa-artifacts/phase1-pilot-2026-04-25
 
 開場:
 
-> 今天不是測功能清單,是測承富同仁能不能把一件真實工作丟進來,拿到可交付的下一步。看不懂、找不到、卡住都算系統要改,不是人的問題。
+> 今天不是測功能清單,是測本公司同仁能不能把一件真實工作丟進來,拿到可交付的下一步。看不懂、找不到、卡住都算系統要改,不是人的問題。
 
 RAG 測試提醒:
 
