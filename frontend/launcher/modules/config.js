@@ -251,7 +251,6 @@ export const ATTACHMENT = Object.freeze({
 export const STORAGE_KEY = Object.freeze({
   CHAT_PANE_W: "company-ai-chat-pane-w",
   CHAT_FULLSCREEN: "company-ai-chat-fullscreen",
-  DOCK_SHOW: "company-ai-dock-show",
   ONBOARDING_DONE: "company-ai-onboarding-done",
   TOUR_DONE: "company-ai-tour-done",
   AI_PROVIDER: "company-ai-provider",

@@ -93,7 +93,7 @@ function _fire(key, val) {
     if (key === "engine") {
       detail = { id: val };
     } else if (key === "activeWorkspace") {
-      // v1.13 · dock.js / mobile.js 需要 { ws, view } · 維持原 ws-changed event 契約
+      // v1.13 · mobile.js 需要 { ws, view } · 維持原 ws-changed event 契約
       detail = { ws: val == null ? "" : String(val), view: "workspace" };
     } else {
       detail = { value: val };

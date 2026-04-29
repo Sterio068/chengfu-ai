@@ -229,7 +229,7 @@ function _renderTipsWidget() {
     "💡 按 ⌘1-5 快速切工作區",
     "💡 拖檔到 launcher 直接上傳",
     "💡 sidebar「使用教學」5 分鐘任務式",
-    "💡 dock icon 右鍵可從 Dock 移除",
+    "💡 點右上模型狀態可快速切換 AI 來源",
   ];
   const tip = tips[Math.floor(Math.random() * tips.length)];
   return `

@@ -52,8 +52,6 @@ import { theme } from "./modules/theme.js";  // v1.3 A2 · 從 app.js 抽出
 import { activateLauncherView, isRoutableView, routeFromHash } from "./modules/router.js";
 // v1.4 macOS · PWA detection(自動 init · 套 [data-pwa] · menubar 才出)
 import "./modules/macos/pwa-detect.js";
-// v1.4 macOS · Dock(底部 · vibrancy · hover magnification · default seed 7 agents)
-import { dock as macosDock } from "./modules/macos/dock.js";
 // v1.4 macOS · Menubar(頂部 · 6 menu + 5 status item)· Sprint B Phase 3
 import { menubar as macosMenubar } from "./modules/macos/menubar.js";
 // v1.4 macOS · Sprint C Phase 6 · 全套鍵盤快捷(全域 listen)
@@ -238,16 +236,9 @@ export const app = {
     this.refreshAIProviderHealth();
     if (this._healthInterval) clearInterval(this._healthInterval);
     this._healthInterval = setInterval(() => this.refreshAIProviderHealth(), 60_000);
-    // v1.4 macOS · Dock 啟動 · default seed 7 個 agent
-    // v1.46 calm mode · 預設關 dock(底部 7 彩色 icon 視覺重)
-    // 設 localStorage company-ai-dock-show=1 才出
-    if (localStorage.getItem("company-ai-dock-show") === "1") {
-      try {
-        macosDock.init();
-      } catch (e) {
-        console.warn("[macos] dock init failed", e);
-      }
-    }
+    // v1.72 · 底部 Dock 已退場:清掉舊偏好與殘留外框,避免空 shell 佔畫面。
+    localStorage.removeItem("company-ai-dock-show");
+    document.querySelectorAll(".dock-shell,.dock-context-menu").forEach(el => el.remove());
     // v1.4 macOS · Menubar(頂部)· Sprint B Phase 3
     try {
       macosMenubar.init();
@@ -660,7 +651,7 @@ export const app = {
   showView(view) {
     this.currentView = view;
     activateLauncherView(view);
-    // v1.4 macOS · body[data-active-view] · 給 dock CSS 在 chat view 隱藏(Issue 6)
+    // body[data-active-view] · 給 sidebar / view-specific CSS 判斷目前頁面。
     document.body.dataset.activeView = view;
     // v1.22 a11y · sidebar 收合狀態 announce 給 screen reader(WCAG 4.1.2)
     const sidebar = document.querySelector(".sidebar");

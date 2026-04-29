@@ -92,11 +92,6 @@
 
   /* macOS standard heights · USER 反饋 2026-04-26 · 永遠顯示 menubar(不只 PWA) */
   --menubar-h:        28px;     /* macOS Sequoia 標準 24-28 · Sonoma 後 28 */
-  /* v1.17 USER 反饋:dock 縮小 · 56→48 icon · 高度 72→56(節省 16px 底部空間) */
-  --dock-h:           56px;     /* 48 icon + 8 padding */
-  --dock-icon:        48px;
-  --dock-icon-hover:  68px;     /* scale 1.42 · 維持原比例 */
-  --dock-margin:      8px;      /* dock 距 viewport bottom · 同步縮小 */
 
   /* ============================================================
      1.4 Border radius
@@ -105,7 +100,7 @@
   --r-sm:   6px;       /* button / chip */
   --r-md:   10px;      /* card */
   --r-lg:   16px;      /* sheet / modal */
-  --r-xl:   14px;      /* dock icon · macOS Sequoia 22% of size · 較方 */
+  --r-xl:   14px;      /* large card / floating chip */
   --r-2xl:  28px;      /* window */
   --r-full: 9999px;    /* avatar / pill */
 
@@ -133,8 +128,6 @@
   --shadow-window: 0 10px 30px rgba(0, 0, 0, 0.18),
                    0 4px 12px rgba(0, 0, 0, 0.10),
                    0 0 0 0.5px rgba(0, 0, 0, 0.10);
-  --shadow-dock:   0 -8px 32px rgba(0, 0, 0, 0.12),
-                   0 0 0 0.5px rgba(0, 0, 0, 0.08);
   --shadow-card:   0 1px 3px rgba(0, 0, 0, 0.08),
                    0 0 0 0.5px rgba(0, 0, 0, 0.04);
   --shadow-popover: 0 6px 18px rgba(0, 0, 0, 0.16),
@@ -143,7 +136,6 @@
   /* z-index · 由低至高 */
   --z-base:     1;
   --z-sticky:   100;
-  --z-dock:     500;
   --z-menubar:  600;
   --z-overlay:  700;
   --z-modal:    800;
@@ -178,8 +170,6 @@
   /* shadow 在 dark 較不明顯 · 加強 */
   --shadow-window: 0 10px 30px rgba(0, 0, 0, 0.4),
                    0 4px 12px rgba(0, 0, 0, 0.25),
-                   0 0 0 0.5px rgba(255, 255, 255, 0.08);
-  --shadow-dock:   0 -8px 32px rgba(0, 0, 0, 0.4),
                    0 0 0 0.5px rgba(255, 255, 255, 0.08);
 }
 
@@ -224,9 +214,8 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* CJK 標籤類元素 · 字距更鬆(用於 sidebar / dock tooltip / button) */
+/* CJK 標籤類元素 · 字距更鬆(用於 sidebar / button) */
 .cjk-label,
-.dock-icon-tooltip,
 .sidebar-label,
 .brand-name,
 .brand-sub,

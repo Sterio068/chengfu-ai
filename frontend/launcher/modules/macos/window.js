@@ -10,7 +10,7 @@
  *
  * 後續(v1.5):
  *   - 對話多開(用 Window 包 LibreChat iframe)
- *   - ⌘M minimize 飛回 dock 動畫
+ *   - ⌘M 最小化到右下暫存列
  *   - Mission Control overview
  *   - 視窗 resize handles
  *
@@ -172,11 +172,11 @@ class MacWindow {
       // 記原狀
       const rect = this.el.getBoundingClientRect();
       this._origRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-      // 全螢幕(避讓 menubar 28 + 邊 12 + dock 80)
+      // 全螢幕(避讓頂部選單列 + 視窗邊界)
       this.el.style.left = "12px";
       this.el.style.top = "40px";
       this.el.style.width = `${window.innerWidth - 24}px`;
-      this.el.style.height = `${window.innerHeight - 130}px`;
+      this.el.style.height = `${window.innerHeight - 52}px`;
       this.maximized = true;
       this.el.classList.add("maximized");
     }
