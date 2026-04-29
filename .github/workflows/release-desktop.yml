@@ -27,6 +27,12 @@ jobs:
           cache-dependency-path: |
             frontend/launcher/package-lock.json
             desktop/package-lock.json
+      - name: Validate update proxy secrets
+        run: |
+          if [ -z "$VOTER_SERVICE_UPDATE_PROXY_URL" ] || [ -z "$VOTER_SERVICE_UPDATE_PROXY_TOKEN" ]; then
+            echo "::error::VOTER_SERVICE_UPDATE_PROXY_URL and VOTER_SERVICE_UPDATE_PROXY_TOKEN secrets are required."
+            exit 1
+          fi
       - name: Build launcher
         run: |
           npm ci --prefix frontend/launcher
@@ -58,6 +64,13 @@ jobs:
           cache-dependency-path: |
             frontend/launcher/package-lock.json
             desktop/package-lock.json
+      - name: Validate update proxy secrets
+        shell: pwsh
+        run: |
+          if (-not $env:VOTER_SERVICE_UPDATE_PROXY_URL -or -not $env:VOTER_SERVICE_UPDATE_PROXY_TOKEN) {
+            Write-Error "VOTER_SERVICE_UPDATE_PROXY_URL and VOTER_SERVICE_UPDATE_PROXY_TOKEN secrets are required."
+            exit 1
+          }
       - name: Build launcher
         shell: pwsh
         run: |
