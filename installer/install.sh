@@ -43,6 +43,14 @@ has_keychain_secret() {
         security find-generic-password -s "${LEGACY_SERVICE_PREFIX}-${key}" -w >/dev/null 2>&1
 }
 
+assert_keychain_secret() {
+    local key="$1"
+    if ! has_keychain_secret "$key"; then
+        err "Keychain 初始化未完成 · 缺少 ${SERVICE_PREFIX}-${key}"
+        return 1
+    fi
+}
+
 read_keychain_secret() {
     local key="$1"
     security find-generic-password -s "${SERVICE_PREFIX}-${key}" -w 2>/dev/null ||
@@ -364,8 +372,31 @@ else
     echo "  · Anthropic Key 取得網址: https://console.anthropic.com/settings/keys"
     echo "  · Fal.ai Key(設計生圖選配,之後可於中控設定): https://fal.ai/dashboard/keys"
     echo ""
-    SERVICE_PREFIX="$SERVICE_PREFIX" bash ./scripts/setup-keychain.sh </dev/tty
+    SERVICE_PREFIX="$SERVICE_PREFIX" SETUP_KEYCHAIN_ASSUME_YES=1 bash ./scripts/setup-keychain.sh </dev/tty
+    assert_keychain_secret "openai-key"
+    assert_keychain_secret "jwt-secret"
+    assert_keychain_secret "jwt-refresh-secret"
+    assert_keychain_secret "creds-key"
+    assert_keychain_secret "creds-iv"
+    assert_keychain_secret "meili-master-key"
+    assert_keychain_secret "internal-token"
+    assert_keychain_secret "action-bridge-token"
 fi
+
+if ! has_keychain_secret "openai-key" && ! has_keychain_secret "anthropic-key"; then
+    err "Keychain 初始化未完成 · 至少需要 OpenAI 或 Claude API Key"
+    echo "       OpenAI Key 取得網址:https://platform.openai.com/api-keys"
+    echo "       Claude Key 取得網址:https://console.anthropic.com/settings/keys"
+    echo "       請重跑安裝器,或先執行 ./scripts/setup-keychain.sh"
+    exit 1
+fi
+assert_keychain_secret "jwt-secret"
+assert_keychain_secret "jwt-refresh-secret"
+assert_keychain_secret "creds-key"
+assert_keychain_secret "creds-iv"
+assert_keychain_secret "meili-master-key"
+assert_keychain_secret "internal-token"
+assert_keychain_secret "action-bridge-token"
 
 ensure_admin_bootstrap_secrets
 

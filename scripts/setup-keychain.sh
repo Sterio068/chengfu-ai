@@ -14,6 +14,7 @@
 set -euo pipefail
 
 SERVICE_PREFIX="${SERVICE_PREFIX:-company-ai}"
+SETUP_KEYCHAIN_ASSUME_YES="${SETUP_KEYCHAIN_ASSUME_YES:-0}"
 
 echo "============================================"
 echo "  企業 AI 工作台 · Keychain 機密初始化"
@@ -46,9 +47,13 @@ echo ""
 echo "這些值之後可用以下指令查看:"
 echo "  security find-generic-password -s '${SERVICE_PREFIX}-<name>' -w"
 echo ""
-read -p "繼續? (y/N · 也接受全形 Ｙ/ｙ) " confirm
-# 接受半形 + 全形 + yes · 防中文輸入法漏接
-[[ "$confirm" =~ ^[yYＹｙ]$|^yes$|^YES$ ]] || exit 0
+if [[ "$SETUP_KEYCHAIN_ASSUME_YES" == "1" ]]; then
+    echo "繼續? (y/N · 也接受全形 Ｙ/ｙ) y"
+else
+    read -p "繼續? (y/N · 也接受全形 Ｙ/ｙ) " confirm
+    # 接受半形 + 全形 + yes · 防中文輸入法漏接
+    [[ "$confirm" =~ ^[yYＹｙ]$|^yes$|^YES$ ]] || exit 0
+fi
 echo ""
 
 # ------------------ 函式 ------------------
